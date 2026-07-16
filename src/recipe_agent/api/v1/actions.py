@@ -71,6 +71,35 @@ async def consume_suggested_action(
         ) from error
 
 
+@router.post(
+    "/{action_id}/execute",
+    response_model=ActionResult,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def consume_suggested_action_by_id(
+    action_id: UUID,
+    scope: ScopeDependency,
+    service: ActionServiceDependency,
+) -> ActionResult:
+    try:
+        return await service.consume_by_id(action_id, actor=scope)
+    except InvalidSuggestedActionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Suggested action token is invalid or expired",
+        ) from error
+    except SuggestedActionNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Suggested action not found",
+        ) from error
+    except SuggestedActionConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Suggested action was already consumed",
+        ) from error
+
+
 @router.get("/{action_id}", response_model=ActionResult)
 async def get_suggested_action_status(
     action_id: UUID,

@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 from contextlib import asynccontextmanager
 from uuid import uuid4
@@ -218,3 +219,43 @@ async def test_worker_disposes_its_long_lived_database_engine() -> None:
     await worker._dispose_session_factory(type("Factory", (), {"kw": {"bind": engine}})())
 
     assert engine.closed is True
+
+
+async def test_slow_agent_execution_renews_attempt_fenced_lease() -> None:
+    run_id = uuid4()
+    run = AgentRunView(
+        id=run_id,
+        conversation_id=uuid4(),
+        account_id=uuid4(),
+        household_id=uuid4(),
+        transport="web",
+        status=RunStatus.RUNNING,
+        created_at="2026-07-15T00:00:00Z",
+        attempt_count=3,
+    )
+
+    class SlowRepository(RecordingRepository):
+        def __init__(self) -> None:
+            super().__init__(run)
+            self.renewals: list[int] = []
+
+        async def renew_lease(self, run_id, *, attempt_count):
+            del run_id
+            self.renewals.append(attempt_count)
+            return True
+
+    class SlowExecutor:
+        async def execute(self, run_id):
+            del run_id
+            await asyncio.sleep(0.04)
+            return {"answer": "done"}
+
+    repository = SlowRepository()
+    assert await run_agent_job(
+        repository,
+        SlowExecutor(),
+        run_id,
+        heartbeat_interval_seconds=0.01,
+    )
+    assert len(repository.renewals) >= 2
+    assert set(repository.renewals) == {3}

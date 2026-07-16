@@ -54,7 +54,8 @@ services-up:
 services-down:
 	docker compose -f infra/compose.yaml down
 
-local-up: services-up
+local-up:
+	docker compose -f infra/compose.yaml up -d --build
 
 local-down: services-down
 

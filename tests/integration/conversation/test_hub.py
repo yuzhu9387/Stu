@@ -216,6 +216,18 @@ async def test_expired_run_lease_is_reclaimed_and_stale_attempt_cannot_complete(
 
     assert first is not None and first.attempt_count == 1
     assert second is not None and second.attempt_count == 2
+    assert not await repository.renew_lease(
+        run.id,
+        attempt_count=first.attempt_count,
+        now=start + timedelta(seconds=7),
+        lease_duration=timedelta(seconds=5),
+    )
+    assert await repository.renew_lease(
+        run.id,
+        attempt_count=second.attempt_count,
+        now=start + timedelta(seconds=7),
+        lease_duration=timedelta(seconds=5),
+    )
     assert (
         await repository.retry_or_fail(
             run.id,

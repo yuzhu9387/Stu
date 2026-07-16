@@ -1,9 +1,11 @@
 """Signed, one-time consent for suggested domain mutations."""
 
+import asyncio
 import hashlib
 import json
 import secrets
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
+from contextlib import suppress
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal, Protocol, cast
 from uuid import UUID, uuid4
@@ -14,6 +16,7 @@ from recipe_agent.domain.common.types import JsonValue
 from recipe_agent.domain.conversation.repository import (
     DEFAULT_ACTION_MAX_ATTEMPTS,
     SuggestedActionAlreadyClaimedError,
+    SuggestedActionDeliveryClaims,
     SuggestedActionInvalidRecordError,
     SuggestedActionRepository,
     SuggestedActionRunNotFoundError,
@@ -280,6 +283,7 @@ class SuggestedActionService:
         lifetime: timedelta = timedelta(minutes=15),
         lease_duration: timedelta = timedelta(minutes=2),
         max_attempts: int = DEFAULT_ACTION_MAX_ATTEMPTS,
+        heartbeat_interval_seconds: float = 30,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         if lifetime <= timedelta(0):
@@ -288,6 +292,8 @@ class SuggestedActionService:
             raise ValueError("Suggested action lease duration must be positive")
         if max_attempts < 1:
             raise ValueError("Suggested action max attempts must be positive")
+        if heartbeat_interval_seconds <= 0:
+            raise ValueError("Heartbeat interval must be positive")
         unknown_handlers = set(handlers).difference(_ARGUMENT_MODELS)
         if unknown_handlers:
             raise ValueError("Unknown suggested action handler")
@@ -297,6 +303,7 @@ class SuggestedActionService:
         self._lifetime = lifetime
         self._lease_duration = lease_duration
         self._max_attempts = max_attempts
+        self._heartbeat_interval_seconds = heartbeat_interval_seconds
         self._now = now or (lambda: datetime.now(UTC))
 
     async def issue(
@@ -369,6 +376,24 @@ class SuggestedActionService:
             status="queued",
         )
 
+    async def consume_by_id(
+        self,
+        action_id: UUID,
+        *,
+        actor: HouseholdScope,
+    ) -> ActionResult:
+        """Reconstruct server-held consent for an authenticated Web button click."""
+
+        record = await self._repository.get_delivery_claim_for_actor(
+            action_id,
+            account_id=actor.account_id,
+            household_id=actor.household_id,
+        )
+        if record is None:
+            raise SuggestedActionNotFoundError("Suggested action not found")
+        token = self._token_from_delivery_claim(record)
+        return await self.consume(token, actor=actor)
+
     async def reissue_for_delivery(
         self,
         action_ids: tuple[UUID, ...],
@@ -436,10 +461,14 @@ class SuggestedActionService:
             )
             raise ActionExecutionError("Suggested action handler is unavailable")
         try:
-            raw_result = await handler.execute(
-                actor=actor,
-                arguments=arguments,
+            raw_result = await self._execute_with_heartbeat(
+                handler.execute(
+                    actor=actor,
+                    arguments=arguments,
+                    action_id=claimed.id,
+                ),
                 action_id=claimed.id,
+                attempt_count=claimed.attempt_count,
             )
             result = _handler_result(raw_result)
         except Exception:
@@ -517,6 +546,58 @@ class SuggestedActionService:
             raise InvalidSuggestedActionError(
                 "Suggested action token is invalid or expired"
             ) from None
+
+    def _token_from_delivery_claim(self, record: SuggestedActionDeliveryClaims) -> str:
+        claims = SuggestedActionClaims(
+            action_id=record.id,
+            account_id=record.account_id,
+            household_id=record.household_id,
+            source_run_id=record.source_run_id,
+            action_type=cast(SuggestedActionType, record.action_type),
+            expires_at=record.expires_at,
+        )
+        token = self._signer.dumps(claims.model_dump(mode="json"))
+        if not secrets.compare_digest(_hash_token(token), record.token_hash):
+            raise InvalidSuggestedActionError("Suggested action token is invalid")
+        return token
+
+    async def _execute_with_heartbeat[Result](
+        self,
+        work: Awaitable[Result],
+        *,
+        action_id: UUID,
+        attempt_count: int,
+    ) -> Result:
+        work_task: asyncio.Future[Result] = asyncio.ensure_future(work)
+
+        async def heartbeat() -> None:
+            while True:
+                await asyncio.sleep(self._heartbeat_interval_seconds)
+                renewed = await self._repository.renew_lease(
+                    action_id,
+                    attempt_count=attempt_count,
+                    now=_aware(self._now()),
+                    lease_duration=self._lease_duration,
+                )
+                if not renewed:
+                    raise RuntimeError("Suggested action lease was lost")
+
+        heartbeat_task = asyncio.create_task(heartbeat())
+        waiters = {
+            cast(asyncio.Future[object], work_task),
+            cast(asyncio.Future[object], heartbeat_task),
+        }
+        done, _ = await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+        if work_task in done:
+            heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat_task
+            return await work_task
+        work_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await work_task
+        await heartbeat_task
+        raise RuntimeError("Suggested action heartbeat stopped unexpectedly")
 
 
 def _decode_draft_arguments(draft: SuggestedActionDraft) -> ActionArguments:

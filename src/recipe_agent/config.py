@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import AliasChoices, Field, SecretStr, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,12 +45,40 @@ class Settings(BaseSettings):
     lark_verification_token: SecretStr | None = None
     lark_encrypt_key: SecretStr | None = None
 
+    @field_validator(
+        "session_signing_key",
+        "metrics_token",
+        "action_signing_key",
+        mode="before",
+    )
+    @classmethod
+    def validate_runtime_secret(cls, value: object) -> str:
+        if not isinstance(value, str) or len(value.strip()) < 16:
+            raise ValueError("Runtime secrets must contain at least 16 nonblank characters")
+        return value.strip()
+
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def normalize_optional_openai_key(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @model_validator(mode="after")
     def reject_development_secret_in_production(self) -> Self:
-        if self.lark_enabled and not all(
-            (self.lark_app_id, self.lark_app_secret, self.lark_verification_token)
-        ):
-            raise ValueError("Lark configuration is incomplete")
+        if self.lark_enabled:
+            lark_secret = (
+                self.lark_app_secret.get_secret_value().strip()
+                if self.lark_app_secret is not None
+                else ""
+            )
+            verification = (
+                self.lark_verification_token.get_secret_value().strip()
+                if self.lark_verification_token is not None
+                else ""
+            )
+            if not all((self.lark_app_id and self.lark_app_id.strip(), lark_secret, verification)):
+                raise ValueError("Lark configuration is incomplete")
         if self.environment == "production":
             if self.session_signing_key == "development-only-session-key":
                 raise ValueError("A production session signing key is required")

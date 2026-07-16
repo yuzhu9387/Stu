@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -24,6 +25,8 @@ from recipe_agent.api.v1.shares import router as shares_router
 from recipe_agent.bootstrap import build_runtime
 from recipe_agent.config import Settings, get_settings
 from recipe_agent.infrastructure.observability.metrics import MetricsRegistry
+
+READINESS_TIMEOUT_SECONDS = 2.0
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -55,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         "feedback_service",
         "import_service",
         "lark_handler",
+        "readiness",
     ):
         setattr(app.state, name, getattr(runtime, name))
     app.add_middleware(
@@ -93,6 +97,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health/ready", tags=["operations"])
     async def ready() -> dict[str, str]:
+        try:
+            await asyncio.wait_for(
+                app.state.readiness.check(),
+                timeout=READINESS_TIMEOUT_SECONDS,
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Application dependencies are unavailable",
+            ) from None
         return {"status": "ready"}
 
     @app.get("/metrics", tags=["operations"], response_class=PlainTextResponse)

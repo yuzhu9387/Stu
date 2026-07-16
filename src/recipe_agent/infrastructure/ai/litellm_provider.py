@@ -1,7 +1,7 @@
 """Provider-neutral structured extraction through a LiteLLM-compatible completion."""
 
 from collections.abc import Awaitable, Callable, Mapping
-from typing import TypeVar, cast
+from typing import Literal, TypeVar, cast
 
 from pydantic import BaseModel, ValidationError
 
@@ -44,9 +44,21 @@ class LiteLLMCompletion:
         self,
         acompletion: ACompletion | None = None,
         *,
+        fallback_model: str | None = None,
+        reasoning_effort: Literal["low", "medium", "high"] = "high",
+        timeout_seconds: float = 30,
+        max_retries: int = 2,
         api_key: str | None = None,
     ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        if not 0 <= max_retries <= 5:
+            raise ValueError("max_retries must be between 0 and 5")
         self._acompletion = acompletion
+        self._fallback_model = fallback_model
+        self._reasoning_effort = reasoning_effort
+        self._timeout_seconds = timeout_seconds
+        self._max_retries = max_retries
         self._api_key = api_key
 
     async def __call__(
@@ -70,27 +82,44 @@ class LiteLLMCompletion:
 
             completion = cast(ACompletion, default_acompletion)
             self._acompletion = completion
-        options: dict[str, object] = {
-            "model": model,
-            "messages": [{"role": "user", "content": instructions}],
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": "structured_result", "schema": dict(schema)},
-            },
-        }
-        if self._api_key is not None:
-            options["api_key"] = self._api_key
-        response = await completion(**options)
-        if isinstance(response, BaseModel):
-            raw_response: object = response.model_dump()
-        elif hasattr(response, "model_dump"):
-            raw_response = response.model_dump()
-        else:
-            raw_response = response
-        parsed = _CompletionResponse.model_validate(raw_response)
-        if not parsed.choices:
-            raise ProviderResponseError("LiteLLM returned no choices")
-        return parsed.choices[0].message.content
+        selected_models = [model]
+        if self._fallback_model and self._fallback_model != model:
+            selected_models.append(self._fallback_model)
+        response: object | None = None
+        for selected_model in selected_models:
+            options: dict[str, object] = {
+                "model": selected_model,
+                "messages": [{"role": "user", "content": instructions}],
+                "reasoning_effort": self._reasoning_effort,
+                "timeout": self._timeout_seconds,
+                "max_retries": self._max_retries,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {"name": "structured_result", "schema": dict(schema)},
+                },
+            }
+            if self._api_key is not None:
+                options["api_key"] = self._api_key
+            try:
+                response = await completion(**options)
+                break
+            except Exception:
+                response = None
+        if response is None:
+            raise ProviderResponseError("LiteLLM structured provider call failed") from None
+        try:
+            if isinstance(response, BaseModel):
+                raw_response: object = response.model_dump()
+            elif hasattr(response, "model_dump"):
+                raw_response = response.model_dump()
+            else:
+                raw_response = response
+            parsed = _CompletionResponse.model_validate(raw_response)
+            if not parsed.choices:
+                raise ValueError("no choices")
+            return parsed.choices[0].message.content
+        except Exception:
+            raise ProviderResponseError("LiteLLM structured response is invalid") from None
 
 
 class LiteLLMEmbedding:

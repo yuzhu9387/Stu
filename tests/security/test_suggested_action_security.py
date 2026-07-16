@@ -56,6 +56,20 @@ class RecordingHandler:
         return {"saved": True}
 
 
+class BlockingHandler:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def execute(
+        self, *, actor: HouseholdScope, arguments: ActionArguments, action_id: UUID
+    ) -> Mapping[str, object]:
+        del actor, arguments, action_id
+        self.started.set()
+        await self.release.wait()
+        return {"saved": True}
+
+
 def _draft(arguments: tuple[ActionArgument, ...] | None = None) -> SuggestedActionDraft:
     return SuggestedActionDraft(
         type="save_recipe",
@@ -249,6 +263,18 @@ async def test_expired_worker_lease_is_durably_requeued_and_reclaimed(session_fa
     assert recovered == 1
     assert second is not None
     assert second.attempt_count == 2
+    assert not await repository.renew_lease(
+        issued.id,
+        attempt_count=first.attempt_count,
+        now=now + timedelta(seconds=32),
+        lease_duration=timedelta(seconds=30),
+    )
+    assert await repository.renew_lease(
+        issued.id,
+        attempt_count=second.attempt_count,
+        now=now + timedelta(seconds=32),
+        lease_duration=timedelta(seconds=30),
+    )
     assert not await repository.complete(
         issued.id,
         scope.account_id,
@@ -261,6 +287,31 @@ async def test_expired_worker_lease_is_durably_requeued_and_reclaimed(session_fa
         '{"saved":true}',
         attempt_count=second.attempt_count,
     )
+
+
+@pytest.mark.asyncio
+async def test_slow_action_heartbeats_prevent_live_attempt_recovery(session_factory) -> None:
+    scope, run_id = await _identity_and_run(session_factory, "heartbeat@example.com")
+    handler = BlockingHandler()
+    repository = SuggestedActionRepository(session_factory)
+    service = SuggestedActionService(
+        repository=repository,
+        signer=ActionContextSigner("security-test-signing-key"),
+        handlers={"save_recipe": handler},
+        lease_duration=timedelta(milliseconds=80),
+        heartbeat_interval_seconds=0.01,
+    )
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+
+    execution = asyncio.create_task(service.execute_queued(issued.id))
+    await asyncio.wait_for(handler.started.wait(), timeout=1)
+    await asyncio.sleep(0.12)
+
+    assert await repository.recover_expired(now=datetime.now(UTC)) == 0
+    handler.release.set()
+    result = await asyncio.wait_for(execution, timeout=1)
+    assert result.status == "succeeded"
 
 
 @pytest.mark.asyncio

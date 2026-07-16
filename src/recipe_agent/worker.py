@@ -168,7 +168,15 @@ async def _execute_agent_run(run_id: UUID) -> bool:
         await runtime.aclose()
 
 
-@celery_app.task(name=ACTION_TASK_NAME)  # type: ignore[untyped-decorator]
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name=ACTION_TASK_NAME,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": DEFAULT_ACTION_MAX_ATTEMPTS - 1},
+    max_retries=DEFAULT_ACTION_MAX_ATTEMPTS - 1,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
 def execute_suggested_action(action_id: str) -> bool:
     """Celery boundary carrying only the durable action UUID."""
 

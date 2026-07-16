@@ -48,3 +48,25 @@ def test_configuration_errors_do_not_render_supplied_secrets() -> None:
         )
 
     assert secret not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("session_signing_key", "metrics_token", "action_signing_key"),
+)
+def test_signing_and_metrics_secrets_reject_blank_or_short_values(field: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, environment="test", **{field: "  short  "})
+
+
+def test_production_openai_key_must_be_nonblank_without_echoing_input() -> None:
+    with pytest.raises(ValidationError) as raised:
+        Settings(
+            _env_file=None,
+            environment="production",
+            session_signing_key="production-session-signing-key",
+            metrics_token="production-metrics-access-key",
+            action_signing_key="production-action-signing-key",
+            openai_api_key="   ",
+        )
+    assert "input_value" not in str(raised.value)

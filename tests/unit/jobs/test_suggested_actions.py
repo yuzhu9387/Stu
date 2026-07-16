@@ -53,6 +53,9 @@ def test_worker_registers_uuid_only_suggested_action_task() -> None:
     task = celery_app.tasks[ACTION_TASK_NAME]
 
     assert tuple(inspect.signature(task.run).parameters) == ("action_id",)
+    assert task.max_retries == 2
+    assert task.acks_late is True
+    assert task.reject_on_worker_lost is True
 
 
 @pytest.mark.asyncio

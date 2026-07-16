@@ -27,7 +27,11 @@ from recipe_agent.domain.conversation.actions import (
 )
 from recipe_agent.domain.conversation.repository import AgentRunRepository
 from recipe_agent.domain.conversation.responses import ActionArgument, SuggestedActionDraft
-from recipe_agent.domain.identity.models import ActionMutationReceipt, SuggestedActionRecord
+from recipe_agent.domain.identity.models import (
+    ActionMutationReceipt,
+    AgentRun,
+    SuggestedActionRecord,
+)
 from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.planning.contracts import PlanSlot
 from recipe_agent.domain.planning.models import MealPlanRecord
@@ -728,3 +732,76 @@ def test_action_endpoint_accepts_only_a_body_token_and_never_places_it_in_path(t
     body_schema = app.openapi()["components"]["schemas"]["ExecuteSuggestedAction"]
     assert body_schema["required"] == ["token"]
     assert body_schema["additionalProperties"] is False
+
+
+def test_web_executes_completed_run_action_by_scoped_id_without_receiving_token(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'web-action-id.db'}"
+    asyncio.run(_create_schema(database_url))
+    app = create_app(_settings(database_url))
+    owner = TestClient(app)
+    intruder = TestClient(app)
+    identity = _login(owner, "owner-action@example.com")
+    _login(intruder, "intruder-action@example.com")
+    submitted = owner.post(
+        "/api/v1/agent/runs",
+        json={
+            "message": "Offer soup",
+            "locale": "en-US",
+            "idempotency_key": "web-action-id-run",
+        },
+    ).json()
+    scope = HouseholdScope(UUID(identity["account_id"]), UUID(identity["household_id"]))
+    handler = RecordingHandler()
+    service = SuggestedActionService(
+        repository=SuggestedActionRepository(app.state.session_factory),
+        signer=ActionContextSigner("web-action-id-signing-key"),
+        handlers={"save_recipe": handler},
+    )
+    app.state.suggested_action_service = service
+    issued = asyncio.run(
+        service.issue(
+            _save_recipe_draft(),
+            actor=scope,
+            source_run_id=UUID(submitted["id"]),
+        )
+    )
+
+    async def finish_run() -> None:
+        repository = AgentRunRepository(app.state.session_factory)
+        claimed = await repository.claim(UUID(submitted["id"]))
+        assert claimed is not None
+        completed = await repository.complete(
+            UUID(submitted["id"]),
+            {
+                "thinking": "summary",
+                "plan": "confirm",
+                "act": "prepared",
+                "answer": "Click to save",
+                "suggested_actions": [issued.model_dump(mode="json")],
+            },
+            attempt_count=claimed.attempt_count,
+        )
+        assert completed is not None
+
+    asyncio.run(finish_run())
+    completed = owner.get(f"/api/v1/agent/runs/{submitted['id']}")
+    action_reference = completed.json()["response"]["suggested_actions"][0]
+
+    assert set(action_reference) == {"id", "type", "expires_at"}
+    assert issued.token not in completed.text
+    assert (
+        intruder.post(f"/api/v1/agent/actions/{action_reference['id']}/execute").status_code == 404
+    )
+    queued = owner.post(f"/api/v1/agent/actions/{action_reference['id']}/execute")
+    assert queued.status_code == 202
+    assert queued.json()["status"] == "queued"
+    assert owner.post(f"/api/v1/agent/actions/{action_reference['id']}/execute").status_code == 409
+
+    async def persisted_text() -> str:
+        async with app.state.session_factory() as session:
+            record = await session.get(SuggestedActionRecord, issued.id)
+            run = await session.get(AgentRun, UUID(submitted["id"]))
+            assert record is not None and run is not None
+            return "\n".join((record.token_hash, record.arguments_json, run.response_json or ""))
+
+    assert issued.token not in asyncio.run(persisted_text())

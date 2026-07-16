@@ -72,6 +72,66 @@ async def test_litellm_completion_extracts_openai_compatible_message_content() -
 
 
 @pytest.mark.asyncio
+async def test_nested_completion_uses_bounded_primary_and_fallback_without_leaking_error() -> None:
+    calls: list[dict[str, object]] = []
+    private = "provider-secret-payload"
+
+    async def fake_acompletion(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise RuntimeError(private)
+        return {"choices": [{"message": {"content": '{"name":"Soup"}'}}]}
+
+    completion = LiteLLMCompletion(
+        acompletion=fake_acompletion,
+        fallback_model="openai/gpt-5-mini",
+        reasoning_effort="high",
+        timeout_seconds=12,
+        max_retries=2,
+        api_key="configured-api-key",
+    )
+    content = await completion(
+        model="openai/gpt-5.1",
+        prompt="Extract",
+        schema={"type": "object"},
+        repair=False,
+    )
+
+    assert content == '{"name":"Soup"}'
+    assert [call["model"] for call in calls] == ["openai/gpt-5.1", "openai/gpt-5-mini"]
+    assert all(call["reasoning_effort"] == "high" for call in calls)
+    assert all(call["timeout"] == 12 for call in calls)
+    assert all(call["max_retries"] == 2 for call in calls)
+    assert all(call["api_key"] == "configured-api-key" for call in calls)
+
+
+@pytest.mark.asyncio
+async def test_nested_completion_sanitizes_provider_and_response_errors() -> None:
+    private = "private-provider-response"
+
+    async def fail(**kwargs: object) -> object:
+        del kwargs
+        raise RuntimeError(private)
+
+    completion = LiteLLMCompletion(
+        acompletion=fail,
+        fallback_model="openai/gpt-5-mini",
+        reasoning_effort="high",
+        timeout_seconds=12,
+        max_retries=2,
+    )
+    with pytest.raises(ProviderResponseError) as raised:
+        await completion(
+            model="openai/gpt-5.1",
+            prompt="Extract",
+            schema={"type": "object"},
+            repair=False,
+        )
+    assert private not in str(raised.value)
+    assert raised.value.__cause__ is None
+
+
+@pytest.mark.asyncio
 async def test_provider_routes_embeddings_through_configured_model() -> None:
     calls: list[dict[str, object]] = []
 

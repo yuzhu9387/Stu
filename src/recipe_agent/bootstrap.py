@@ -10,7 +10,9 @@ from uuid import UUID, uuid4
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from redis.asyncio import Redis
 from sqlalchemy import select
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from recipe_agent.api.lark import LarkIntegrationDisabledError, LarkWebhookHandler
@@ -235,6 +237,28 @@ class DisabledLarkWebhookHandler:
         raise LarkIntegrationDisabledError("Lark integration is disabled")
 
 
+class ReadinessService:
+    """Probe database and broker without exposing connection details."""
+
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        redis_url: str,
+    ) -> None:
+        self._session_factory = session_factory
+        self._redis_url = redis_url
+
+    async def check(self) -> None:
+        async with self._session_factory() as session:
+            await session.execute(sql_text("SELECT 1"))
+        redis = Redis.from_url(self._redis_url, socket_connect_timeout=2, socket_timeout=2)
+        try:
+            if not await redis.ping():
+                raise RuntimeError("Broker readiness check failed")
+        finally:
+            await redis.aclose()
+
+
 @dataclass
 class Runtime:
     """Concrete runtime graph shared by the API and loop-local worker factories."""
@@ -254,6 +278,7 @@ class Runtime:
     feedback_service: FeedbackService
     import_service: ImportService
     lark_handler: LarkWebhookHandler | DisabledLarkWebhookHandler
+    readiness: ReadinessService
 
     async def aclose(self) -> None:
         bind = self.session_factory.kw.get("bind")
@@ -279,7 +304,13 @@ def build_runtime(settings: Settings) -> Runtime:
     )
     provider = LiteLLMProvider(
         model=settings.litellm_vision_model,
-        completion=LiteLLMCompletion(api_key=api_key),
+        completion=LiteLLMCompletion(
+            fallback_model=settings.litellm_fallback_model,
+            reasoning_effort=settings.litellm_reasoning_effort,
+            timeout_seconds=settings.litellm_timeout_seconds,
+            max_retries=settings.litellm_max_retries,
+            api_key=api_key,
+        ),
     )
     import_service = ImportService(
         repository=raw_repository,
@@ -378,6 +409,7 @@ def build_runtime(settings: Settings) -> Runtime:
         feedback_service=FeedbackService(repository=SqlFeedbackRepository(session_factory)),
         import_service=import_service,
         lark_handler=lark_handler,
+        readiness=ReadinessService(session_factory, settings.redis_url),
     )
 
 

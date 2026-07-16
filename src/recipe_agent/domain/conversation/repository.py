@@ -234,6 +234,31 @@ class AgentRunRepository:
             attempt_count=attempt_count,
         )
 
+    async def renew_lease(
+        self,
+        run_id: UUID,
+        *,
+        attempt_count: int,
+        now: datetime | None = None,
+        lease_duration: timedelta = DEFAULT_RUN_LEASE_DURATION,
+    ) -> bool:
+        """Extend only the currently fenced running attempt."""
+
+        current_time = now or datetime.now(UTC)
+        async with self._session_factory() as session, session.begin():
+            renewed = await session.scalar(
+                update(AgentRun)
+                .where(
+                    AgentRun.id == run_id,
+                    AgentRun.status == RunStatus.RUNNING.value,
+                    AgentRun.attempt_count == attempt_count,
+                )
+                .values(lease_expires_at=current_time + lease_duration)
+                .returning(AgentRun.id)
+                .execution_options(synchronize_session=False)
+            )
+            return renewed is not None
+
     async def fail(
         self,
         run_id: UUID,
@@ -773,6 +798,63 @@ class SuggestedActionRepository:
             )
             for action_id in action_ids
         )
+
+    async def get_delivery_claim_for_actor(
+        self,
+        action_id: UUID,
+        *,
+        account_id: UUID,
+        household_id: UUID,
+    ) -> SuggestedActionDeliveryClaims | None:
+        """Load one action only when both it and its source run belong to the actor."""
+
+        async with self._session_factory() as session:
+            record = await session.scalar(
+                select(SuggestedActionRecord)
+                .join(AgentRun, AgentRun.id == SuggestedActionRecord.run_id)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.account_id == account_id,
+                    SuggestedActionRecord.household_id == household_id,
+                    AgentRun.account_id == account_id,
+                    AgentRun.household_id == household_id,
+                )
+            )
+            if record is None:
+                return None
+            return SuggestedActionDeliveryClaims(
+                id=record.id,
+                token_hash=record.token_hash,
+                source_run_id=record.run_id,
+                account_id=record.account_id,
+                household_id=record.household_id,
+                action_type=record.action_type,
+                expires_at=_as_utc(record.expires_at),
+            )
+
+    async def renew_lease(
+        self,
+        action_id: UUID,
+        *,
+        attempt_count: int,
+        now: datetime,
+        lease_duration: timedelta,
+    ) -> bool:
+        """Extend only the currently fenced executing action attempt."""
+
+        async with self._session_factory() as session, session.begin():
+            renewed = await session.scalar(
+                update(SuggestedActionRecord)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.execution_status == "executing",
+                    SuggestedActionRecord.attempt_count == attempt_count,
+                )
+                .values(lease_expires_at=now + lease_duration)
+                .returning(SuggestedActionRecord.id)
+                .execution_options(synchronize_session=False)
+            )
+            return renewed is not None
 
     async def complete(
         self,

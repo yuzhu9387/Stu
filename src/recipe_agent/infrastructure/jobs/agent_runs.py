@@ -1,7 +1,9 @@
 """Celery publication and idempotent agent-run execution boundaries."""
 
-from collections.abc import Mapping
-from typing import Protocol
+import asyncio
+from collections.abc import Awaitable, Callable, Mapping
+from contextlib import suppress
+from typing import Protocol, cast
 from uuid import UUID
 
 from recipe_agent.domain.common.types import JsonValue
@@ -43,6 +45,8 @@ class RunLifecycle(Protocol):
         attempt_count: int,
         max_attempts: int,
     ) -> str: ...
+
+    async def renew_lease(self, run_id: UUID, *, attempt_count: int) -> bool: ...
 
 
 class AgentRunExecutor(Protocol):
@@ -100,6 +104,8 @@ async def run_agent_job(
     repository: RunLifecycle,
     executor: AgentRunExecutor,
     run_id: UUID,
+    *,
+    heartbeat_interval_seconds: float = 30,
 ) -> bool:
     """Claim and execute one run; duplicate task delivery is a no-op."""
 
@@ -107,7 +113,14 @@ async def run_agent_job(
     if claimed is None:
         return False
     try:
-        response = await executor.execute(run_id)
+        response = await _with_heartbeat(
+            executor.execute(run_id),
+            lambda: repository.renew_lease(
+                run_id,
+                attempt_count=claimed.attempt_count,
+            ),
+            interval_seconds=heartbeat_interval_seconds,
+        )
     except Exception:
         await repository.retry_or_fail(
             run_id,
@@ -118,6 +131,40 @@ async def run_agent_job(
         raise
     await repository.complete(run_id, response, attempt_count=claimed.attempt_count)
     return True
+
+
+async def _with_heartbeat[Result](
+    work: Awaitable[Result],
+    renew: Callable[[], Awaitable[bool]],
+    *,
+    interval_seconds: float,
+) -> Result:
+    if interval_seconds <= 0:
+        raise ValueError("Heartbeat interval must be positive")
+
+    async def heartbeat() -> None:
+        while True:
+            await asyncio.sleep(interval_seconds)
+            if not await renew():
+                raise RuntimeError("Worker lease was lost")
+
+    work_task: asyncio.Future[Result] = asyncio.ensure_future(work)
+    heartbeat_task = asyncio.create_task(heartbeat())
+    waiters = {
+        cast(asyncio.Future[object], work_task),
+        cast(asyncio.Future[object], heartbeat_task),
+    }
+    done, _ = await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+    if work_task in done:
+        heartbeat_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat_task
+        return await work_task
+    work_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await work_task
+    await heartbeat_task
+    raise RuntimeError("Worker heartbeat stopped unexpectedly")
 
 
 async def run_lark_delivery_job(

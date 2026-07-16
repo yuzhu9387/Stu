@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -219,6 +220,38 @@ async def test_worker_disposes_its_long_lived_database_engine() -> None:
     await worker._dispose_session_factory(type("Factory", (), {"kw": {"bind": engine}})())
 
     assert engine.closed is True
+
+
+async def test_dispatcher_reconciles_stale_queued_runs_and_actions_with_bounded_policy() -> None:
+    now = datetime(2026, 7, 16, tzinfo=UTC)
+
+    class Reconciler:
+        def __init__(self, result: int) -> None:
+            self.result = result
+            self.calls: list[dict[str, object]] = []
+
+        async def reconcile_stale_queued(self, **options) -> int:
+            self.calls.append(options)
+            return self.result
+
+    runs = Reconciler(1)
+    actions = Reconciler(2)
+
+    assert (
+        await worker.reconcile_stale_queues(
+            run_repository=runs,
+            action_repository=actions,
+            now=now,
+        )
+        == 3
+    )
+    expected = {
+        "now": now,
+        "stale_after": timedelta(minutes=2),
+        "max_dispatch_attempts": 3,
+    }
+    assert runs.calls == [expected]
+    assert actions.calls == [expected]
 
 
 async def test_slow_agent_execution_renews_attempt_fenced_lease() -> None:

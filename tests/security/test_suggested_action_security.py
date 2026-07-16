@@ -366,6 +366,72 @@ async def test_repeated_worker_death_fails_at_attempt_ceiling_without_new_outbox
 
 
 @pytest.mark.asyncio
+async def test_stale_published_queued_action_reopens_same_outbox_event(session_factory) -> None:
+    scope, run_id = await _identity_and_run(session_factory, "action-dispatch@example.com")
+    service = _service(session_factory, RecordingHandler())
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+    repository = SuggestedActionRepository(session_factory)
+    published_at = datetime(2026, 7, 16, tzinfo=UTC)
+    async with session_factory() as session, session.begin():
+        event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.topic == "agent.action.requested")
+        )
+        assert event is not None and event.payload == {"action_id": str(issued.id)}
+        event.attempts = 1
+        event.published_at = published_at
+        event_id = event.id
+
+    assert (
+        await repository.reconcile_stale_queued(
+            now=published_at + timedelta(minutes=2),
+            stale_after=timedelta(minutes=1),
+            max_dispatch_attempts=3,
+        )
+        == 1
+    )
+    async with session_factory() as session:
+        refreshed_event = await session.get(OutboxEvent, event_id)
+        record = await session.get(SuggestedActionRecord, issued.id)
+    assert refreshed_event is not None
+    assert refreshed_event.published_at is None
+    assert refreshed_event.attempts == 1
+    assert refreshed_event.last_error == "unclaimed_timeout"
+    assert record is not None and record.execution_status == "queued"
+
+
+@pytest.mark.asyncio
+async def test_queued_action_dispatch_exhaustion_fails_bounded(session_factory) -> None:
+    scope, run_id = await _identity_and_run(session_factory, "action-exhausted@example.com")
+    service = _service(session_factory, RecordingHandler())
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+    repository = SuggestedActionRepository(session_factory)
+    published_at = datetime(2026, 7, 16, tzinfo=UTC)
+    async with session_factory() as session, session.begin():
+        event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.topic == "agent.action.requested")
+        )
+        assert event is not None
+        event.attempts = 3
+        event.published_at = published_at
+
+    assert (
+        await repository.reconcile_stale_queued(
+            now=published_at + timedelta(minutes=2),
+            stale_after=timedelta(minutes=1),
+            max_dispatch_attempts=3,
+        )
+        == 0
+    )
+    async with session_factory() as session:
+        record = await session.get(SuggestedActionRecord, issued.id)
+    assert record is not None
+    assert record.execution_status == "failed"
+    assert record.error_code == "dispatch_attempts_exhausted"
+
+
+@pytest.mark.asyncio
 async def test_claim_defensively_fails_queued_action_already_at_attempt_ceiling(
     session_factory,
 ) -> None:
@@ -590,6 +656,44 @@ async def test_postgres_simultaneous_clicks_queue_exactly_once(postgres_action_f
     assert handler.calls == []
     assert (await service.execute_queued(issued.id)).status == "succeeded"
     assert handler.calls == [issued.id]
+
+
+@pytest.mark.asyncio
+async def test_postgres_concurrent_action_reconciliation_reopens_event_once(
+    postgres_action_factory,
+) -> None:
+    scope, run_id = await _identity_and_run(
+        postgres_action_factory, "action-reconcile-race@example.com"
+    )
+    service = _service(postgres_action_factory, RecordingHandler())
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+    published_at = datetime(2026, 7, 16, tzinfo=UTC)
+    async with postgres_action_factory() as session, session.begin():
+        event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.topic == "agent.action.requested")
+        )
+        assert event is not None and event.payload == {"action_id": str(issued.id)}
+        event.attempts = 1
+        event.published_at = published_at
+
+    first, second = await asyncio.gather(
+        SuggestedActionRepository(postgres_action_factory).reconcile_stale_queued(
+            now=published_at + timedelta(minutes=3),
+            stale_after=timedelta(minutes=2),
+            max_dispatch_attempts=3,
+        ),
+        SuggestedActionRepository(postgres_action_factory).reconcile_stale_queued(
+            now=published_at + timedelta(minutes=3),
+            stale_after=timedelta(minutes=2),
+            max_dispatch_attempts=3,
+        ),
+    )
+
+    assert sorted((first, second)) == [0, 1]
+    async with postgres_action_factory() as session:
+        refreshed = await session.get(OutboxEvent, event.id)
+    assert refreshed is not None and refreshed.published_at is None
 
 
 @pytest.mark.asyncio

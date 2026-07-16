@@ -1,15 +1,20 @@
+from collections import Counter
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+import recipe_agent.worker as worker
 from recipe_agent.domain.conversation.contracts import ConversationCommand, RunStatus
 from recipe_agent.domain.conversation.hub import ConversationHub
 from recipe_agent.domain.conversation.repository import (
     AgentRunRepository,
     ConversationNotFoundError,
+    SuggestedActionRepository,
 )
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.domain.identity.models import (
@@ -19,6 +24,8 @@ from recipe_agent.domain.identity.models import (
 )
 from recipe_agent.domain.identity.service import IdentityService
 from recipe_agent.infrastructure.db.outbox import OutboxEvent, OutboxRepository
+from recipe_agent.infrastructure.jobs.agent_runs import run_agent_job
+from recipe_agent.infrastructure.jobs.outbox import publish_pending
 
 
 async def _scope(identity: IdentityService, email: str):
@@ -274,6 +281,188 @@ async def test_expired_run_recovery_requeues_before_attempt_limit(
     )
     assert reclaimed is not None
     assert reclaimed.attempt_count == 2
+
+
+async def test_stale_published_queued_run_reopens_same_outbox_event_after_quiet_period(
+    session_factory: async_sessionmaker[AsyncSession],
+    identity_service: IdentityService,
+) -> None:
+    account_id, household_id = await _scope(identity_service, "run-dispatch@example.com")
+    repository = AgentRunRepository(session_factory)
+    run = await ConversationHub(repository).submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Recover my dispatch",
+            idempotency_key="run-dispatch-1",
+        )
+    )
+    published_at = datetime(2026, 7, 16, tzinfo=UTC)
+    async with session_factory() as session, session.begin():
+        event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.topic == "agent.run.requested")
+        )
+        assert event is not None and event.payload == {"run_id": str(run.id)}
+        event.attempts = 1
+        event.published_at = published_at
+        event_id = event.id
+
+    assert (
+        await repository.reconcile_stale_queued(
+            now=published_at + timedelta(seconds=59),
+            stale_after=timedelta(minutes=1),
+            max_dispatch_attempts=3,
+        )
+        == 0
+    )
+    assert (
+        await repository.reconcile_stale_queued(
+            now=published_at + timedelta(seconds=61),
+            stale_after=timedelta(minutes=1),
+            max_dispatch_attempts=3,
+        )
+        == 1
+    )
+    async with session_factory() as session:
+        refreshed_event = await session.get(OutboxEvent, event_id)
+        refreshed_run = await session.get(AgentRun, run.id)
+    assert refreshed_event is not None
+    assert refreshed_event.published_at is None
+    assert refreshed_event.attempts == 1
+    assert refreshed_event.last_error == "unclaimed_timeout"
+    assert refreshed_run is not None and refreshed_run.status == RunStatus.QUEUED.value
+
+
+class _RecordingDispatchPublisher:
+    def __init__(self) -> None:
+        self.events: Counter[UUID] = Counter()
+
+    async def publish(
+        self,
+        *,
+        event_id: UUID,
+        topic: str,
+        payload: Mapping[str, Any],
+    ) -> None:
+        assert topic == "agent.run.requested"
+        assert set(payload) == {"run_id"}
+        self.events[event_id] += 1
+
+
+class _UnavailableClaimRepository:
+    async def claim(self, run_id: UUID):
+        del run_id
+        raise ConnectionError("database unavailable before claim")
+
+
+class _CompletingExecutor:
+    async def execute(self, run_id: UUID) -> Mapping[str, Any]:
+        del run_id
+        return {"answer": "recovered"}
+
+
+async def test_published_run_survives_preclaim_retry_exhaustion_and_completes_after_reconcile(
+    session_factory: async_sessionmaker[AsyncSession],
+    identity_service: IdentityService,
+) -> None:
+    account_id, household_id = await _scope(identity_service, "run-process@example.com")
+    repository = AgentRunRepository(session_factory)
+    run = await ConversationHub(repository).submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Recover after the database returns",
+            idempotency_key="run-process-reconcile-1",
+        )
+    )
+    outbox = OutboxRepository()
+    publisher = _RecordingDispatchPublisher()
+    assert await publish_pending(outbox, publisher, session_factory) == 1
+    event_id = next(iter(publisher.events))
+
+    for _ in range(3):
+        with pytest.raises(ConnectionError, match="database unavailable"):
+            await run_agent_job(_UnavailableClaimRepository(), _CompletingExecutor(), run.id)
+
+    async with session_factory() as session:
+        still_queued = await session.get(AgentRun, run.id)
+        event = await session.get(OutboxEvent, event_id)
+    assert still_queued is not None and still_queued.status == RunStatus.QUEUED.value
+    assert event is not None and event.published_at is not None
+
+    assert (
+        await worker.reconcile_stale_queues(
+            run_repository=repository,
+            action_repository=SuggestedActionRepository(session_factory),
+            now=event.published_at + timedelta(minutes=3),
+        )
+        == 1
+    )
+    assert await publish_pending(outbox, publisher, session_factory) == 1
+    assert publisher.events == Counter({event_id: 2})
+
+    assert await run_agent_job(repository, _CompletingExecutor(), run.id)
+    assert not await run_agent_job(repository, _CompletingExecutor(), run.id)
+    completed = await repository.get_for_account(
+        run.id,
+        account_id=account_id,
+        household_id=household_id,
+    )
+    assert completed is not None
+    assert completed.status == RunStatus.COMPLETED
+    assert completed.response == {"answer": "recovered"}
+
+
+async def test_queued_run_dispatch_exhaustion_fails_and_queues_lark_terminal(
+    session_factory: async_sessionmaker[AsyncSession],
+    identity_service: IdentityService,
+) -> None:
+    account_id, household_id = await _scope(identity_service, "lark-dispatch@example.com")
+    repository = AgentRunRepository(session_factory)
+    run = await ConversationHub(repository).submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Fail after bounded dispatches",
+            transport="lark",
+            reply_target="oc_dispatch_test",
+            idempotency_key="lark-dispatch-exhausted-1",
+        )
+    )
+    published_at = datetime(2026, 7, 16, tzinfo=UTC)
+    async with session_factory() as session, session.begin():
+        event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.topic == "agent.run.requested")
+        )
+        assert event is not None
+        event.attempts = 3
+        event.published_at = published_at
+
+    assert (
+        await repository.reconcile_stale_queued(
+            now=published_at + timedelta(minutes=2),
+            stale_after=timedelta(minutes=1),
+            max_dispatch_attempts=3,
+        )
+        == 0
+    )
+    async with session_factory() as session:
+        failed = await session.get(AgentRun, run.id)
+        events = tuple(await session.scalars(select(OutboxEvent)))
+    assert failed is not None
+    assert failed.status == RunStatus.FAILED.value
+    assert failed.error_code == "dispatch_attempts_exhausted"
+    assert failed.completed_at is not None
+    assert [event.topic for event in events] == [
+        "agent.run.requested",
+        "lark.run.completed",
+    ]
 
 
 async def test_lark_chat_uuid_creates_once_then_reuses_private_conversation(

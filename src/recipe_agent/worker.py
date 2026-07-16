@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Callable, Mapping
 from contextlib import AbstractAsyncContextManager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -42,6 +42,8 @@ celery_app = Celery("recipe_agent")
 LarkDeliveryFactory = Callable[[], AbstractAsyncContextManager[LarkDeliveryExecutor]]
 _lark_delivery_factory: LarkDeliveryFactory | None = None
 _worker_settings: Settings | None = None
+QUEUE_DISPATCH_STALE_AFTER = timedelta(minutes=2)
+QUEUE_DISPATCH_MAX_ATTEMPTS = max(DEFAULT_ACTION_MAX_ATTEMPTS, DEFAULT_RUN_MAX_ATTEMPTS)
 
 
 class StructuredLogPublisher:
@@ -232,20 +234,47 @@ async def run() -> None:
     )
     try:
         while True:
+            now = datetime.now(UTC)
+            await reconcile_stale_queues(
+                run_repository=run_repository,
+                action_repository=action_repository,
+                now=now,
+            )
             await action_repository.recover_expired(
-                now=datetime.now(UTC),
+                now=now,
                 max_attempts=DEFAULT_ACTION_MAX_ATTEMPTS,
             )
             await run_repository.recover_expired(
-                now=datetime.now(UTC),
+                now=now,
                 max_attempts=DEFAULT_RUN_MAX_ATTEMPTS,
             )
-            for delivery_event_id in await delivery_store.recover_expired(now=datetime.now(UTC)):
+            for delivery_event_id in await delivery_store.recover_expired(now=now):
                 celery_app.send_task(LARK_DELIVERY_TASK_NAME, args=[str(delivery_event_id)])
             published = await publish_pending(repository, publisher, session_factory)
             await asyncio.sleep(1 if published else 3)
     finally:
         await _dispose_session_factory(session_factory)
+
+
+async def reconcile_stale_queues(
+    *,
+    run_repository: AgentRunRepository,
+    action_repository: SuggestedActionRepository,
+    now: datetime,
+) -> int:
+    """Reopen old published queue intents using one bounded dispatcher policy."""
+
+    runs = await run_repository.reconcile_stale_queued(
+        now=now,
+        stale_after=QUEUE_DISPATCH_STALE_AFTER,
+        max_dispatch_attempts=QUEUE_DISPATCH_MAX_ATTEMPTS,
+    )
+    actions = await action_repository.reconcile_stale_queued(
+        now=now,
+        stale_after=QUEUE_DISPATCH_STALE_AFTER,
+        max_dispatch_attempts=QUEUE_DISPATCH_MAX_ATTEMPTS,
+    )
+    return runs + actions
 
 
 async def _dispose_session_factory(session_factory: object) -> None:

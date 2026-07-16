@@ -23,7 +23,7 @@ from recipe_agent.domain.identity.models import (
     ConversationMessage,
     SuggestedActionRecord,
 )
-from recipe_agent.infrastructure.db.outbox import OutboxRepository
+from recipe_agent.infrastructure.db.outbox import OutboxEvent, OutboxRepository
 from recipe_agent.infrastructure.lark.events import add_lark_delivery_intent
 
 AGENT_RUN_REQUESTED_TOPIC = "agent.run.requested"
@@ -378,6 +378,74 @@ class AgentRunRepository:
                     )
                     recovered += 1
             return recovered
+
+    async def reconcile_stale_queued(
+        self,
+        *,
+        now: datetime,
+        stale_after: timedelta,
+        max_dispatch_attempts: int,
+        limit: int = 100,
+    ) -> int:
+        """Reopen the same stale published intent or fail after a bounded ceiling."""
+
+        _validate_reconciliation_options(stale_after, max_dispatch_attempts, limit)
+        current_time = _as_utc(now)
+        cutoff = current_time - stale_after
+        async with self._session_factory() as session, session.begin():
+            runs = tuple(
+                await session.scalars(
+                    select(AgentRun)
+                    .where(AgentRun.status == RunStatus.QUEUED.value)
+                    .order_by(AgentRun.created_at, AgentRun.id)
+                    .limit(limit)
+                )
+            )
+            reopened = 0
+            for run in runs:
+                event = await _latest_dispatch_event(
+                    session,
+                    topic=AGENT_RUN_REQUESTED_TOPIC,
+                    payload={"run_id": str(run.id)},
+                )
+                if (
+                    event is None
+                    or event.published_at is None
+                    or _as_utc(event.published_at) > cutoff
+                ):
+                    continue
+                if event.attempts >= max_dispatch_attempts:
+                    failed = await session.scalar(
+                        update(AgentRun)
+                        .where(
+                            AgentRun.id == run.id,
+                            AgentRun.status == RunStatus.QUEUED.value,
+                        )
+                        .values(
+                            status=RunStatus.FAILED.value,
+                            lease_expires_at=None,
+                            error_code="dispatch_attempts_exhausted",
+                            completed_at=current_time,
+                        )
+                        .returning(AgentRun)
+                        .execution_options(synchronize_session=False)
+                    )
+                    if failed is not None:
+                        await self._queue_lark_terminal(session, failed)
+                    continue
+                reopened_id = await session.scalar(
+                    update(OutboxEvent)
+                    .where(
+                        OutboxEvent.id == event.id,
+                        OutboxEvent.published_at == event.published_at,
+                        OutboxEvent.published_at <= cutoff,
+                    )
+                    .values(published_at=None, last_error="unclaimed_timeout")
+                    .returning(OutboxEvent.id)
+                    .execution_options(synchronize_session=False)
+                )
+                reopened += int(reopened_id is not None)
+            return reopened
 
     async def _finish(
         self,
@@ -735,6 +803,75 @@ class SuggestedActionRepository:
                 recovered += 1
             return recovered
 
+    async def reconcile_stale_queued(
+        self,
+        *,
+        now: datetime,
+        stale_after: timedelta,
+        max_dispatch_attempts: int,
+        limit: int = 100,
+    ) -> int:
+        """Reopen a stale action dispatch event without creating duplicate intent rows."""
+
+        _validate_reconciliation_options(stale_after, max_dispatch_attempts, limit)
+        current_time = _as_utc(now)
+        cutoff = current_time - stale_after
+        async with self._session_factory() as session, session.begin():
+            actions = tuple(
+                await session.scalars(
+                    select(SuggestedActionRecord)
+                    .where(SuggestedActionRecord.execution_status == "queued")
+                    .order_by(
+                        SuggestedActionRecord.consumed_at,
+                        SuggestedActionRecord.created_at,
+                        SuggestedActionRecord.id,
+                    )
+                    .limit(limit)
+                )
+            )
+            reopened = 0
+            for action in actions:
+                event = await _latest_dispatch_event(
+                    session,
+                    topic=ACTION_EXECUTION_REQUESTED_TOPIC,
+                    payload={"action_id": str(action.id)},
+                )
+                if (
+                    event is None
+                    or event.published_at is None
+                    or _as_utc(event.published_at) > cutoff
+                ):
+                    continue
+                if event.attempts >= max_dispatch_attempts:
+                    await session.execute(
+                        update(SuggestedActionRecord)
+                        .where(
+                            SuggestedActionRecord.id == action.id,
+                            SuggestedActionRecord.execution_status == "queued",
+                        )
+                        .values(
+                            execution_status="failed",
+                            lease_expires_at=None,
+                            result_json=None,
+                            error_code="dispatch_attempts_exhausted",
+                        )
+                        .execution_options(synchronize_session=False)
+                    )
+                    continue
+                reopened_id = await session.scalar(
+                    update(OutboxEvent)
+                    .where(
+                        OutboxEvent.id == event.id,
+                        OutboxEvent.published_at == event.published_at,
+                        OutboxEvent.published_at <= cutoff,
+                    )
+                    .values(published_at=None, last_error="unclaimed_timeout")
+                    .returning(OutboxEvent.id)
+                    .execution_options(synchronize_session=False)
+                )
+                reopened += int(reopened_id is not None)
+            return reopened
+
     async def get_for_actor(
         self,
         action_id: UUID,
@@ -970,6 +1107,40 @@ def _safe_response_json(response: Mapping[str, JsonValue]) -> str:
                 if isinstance(action, dict):
                     action.pop("token", None)
     return json.dumps(decoded, ensure_ascii=False, separators=(",", ":"))
+
+
+async def _latest_dispatch_event(
+    session: AsyncSession,
+    *,
+    topic: str,
+    payload: Mapping[str, Any],
+) -> OutboxEvent | None:
+    payload_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return cast(
+        OutboxEvent | None,
+        await session.scalar(
+            select(OutboxEvent)
+            .where(
+                OutboxEvent.topic == topic,
+                OutboxEvent.payload_json == payload_json,
+            )
+            .order_by(OutboxEvent.created_at.desc(), OutboxEvent.id.desc())
+            .limit(1)
+        ),
+    )
+
+
+def _validate_reconciliation_options(
+    stale_after: timedelta,
+    max_dispatch_attempts: int,
+    limit: int,
+) -> None:
+    if stale_after <= timedelta(0):
+        raise ValueError("Queue reconciliation age must be positive")
+    if max_dispatch_attempts < 1:
+        raise ValueError("Dispatch max attempts must be positive")
+    if limit < 1:
+        raise ValueError("Queue reconciliation limit must be positive")
 
 
 def _view(run: AgentRun) -> AgentRunView:

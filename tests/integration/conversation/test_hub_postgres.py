@@ -1,6 +1,7 @@
 import asyncio
 import os
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import psycopg
@@ -171,3 +172,48 @@ async def test_postgres_concurrent_run_claim_has_one_worker_lease(
     assert sum(claim is not None for claim in (first, second)) == 1
     claimed = first or second
     assert claimed is not None and claimed.attempt_count == 1
+
+
+async def test_postgres_concurrent_queued_reconciliation_reopens_event_once(
+    postgres_conversation_runtime: tuple[IdentityService, async_sessionmaker[AsyncSession]],
+) -> None:
+    identity, session_factory = postgres_conversation_runtime
+    authenticated = await identity.consume_magic_link(
+        (await identity.request_magic_link("run-reconcile-race@example.com")).token
+    )
+    run = await ConversationHub(AgentRunRepository(session_factory)).submit_message(
+        ConversationCommand(
+            account_id=authenticated.account.id,
+            household_id=authenticated.household.id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Reconcile once",
+            idempotency_key="run-reconcile-race",
+        )
+    )
+    published_at = datetime(2026, 7, 16, tzinfo=UTC)
+    async with session_factory() as session, session.begin():
+        event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.topic == "agent.run.requested")
+        )
+        assert event is not None and event.payload == {"run_id": str(run.id)}
+        event.attempts = 1
+        event.published_at = published_at
+
+    first, second = await asyncio.gather(
+        AgentRunRepository(session_factory).reconcile_stale_queued(
+            now=published_at + timedelta(minutes=3),
+            stale_after=timedelta(minutes=2),
+            max_dispatch_attempts=3,
+        ),
+        AgentRunRepository(session_factory).reconcile_stale_queued(
+            now=published_at + timedelta(minutes=3),
+            stale_after=timedelta(minutes=2),
+            max_dispatch_attempts=3,
+        ),
+    )
+
+    assert sorted((first, second)) == [0, 1]
+    async with session_factory() as session:
+        refreshed = await session.get(OutboxEvent, event.id)
+    assert refreshed is not None and refreshed.published_at is None

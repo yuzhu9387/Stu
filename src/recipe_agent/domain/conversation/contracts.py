@@ -35,6 +35,20 @@ class ConversationCommand(BaseModel):
     conversation_id: UUID
     locale: Locale
     message: str = Field(min_length=1)
+    transport: str = "web"
+    idempotency_key: str = Field(default_factory=lambda: str(uuid4()))
+
+    @property
+    def channel(self) -> str:
+        """Compatibility name used by transport adapters."""
+
+        return self.transport
+
+    @property
+    def text(self) -> str:
+        """Normalized human message text."""
+
+        return self.message
 
 
 class PlannedAction(BaseModel):

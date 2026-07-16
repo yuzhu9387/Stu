@@ -3,19 +3,25 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, exists, or_, select, update
+from sqlalchemy import delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from recipe_agent.domain.feedback.models import FeedbackEventRecord, RatingRecord
 from recipe_agent.domain.identity.models import (
     Account,
+    AgentRun,
+    Conversation,
     FamilyInvite,
     FamilyMembership,
     Household,
     LarkIdentity,
     LarkLinkCode,
     MagicLink,
+    SuggestedActionRecord,
     WebSession,
 )
+from recipe_agent.domain.planning.models import MealPlanRecord
+from recipe_agent.domain.recipes.models import MediaObject, RawInput, Recipe
 
 
 class NotFoundError(LookupError):
@@ -78,6 +84,51 @@ class IdentityRepository:
         )
         return result.scalar_one_or_none()
 
+    async def lock_membership_for_account(
+        self, account_id: UUID
+    ) -> FamilyMembership | None:
+        result = await self._session.execute(
+            select(FamilyMembership)
+            .where(FamilyMembership.account_id == account_id)
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def lock_household(self, household_id: UUID) -> Household | None:
+        result = await self._session.execute(
+            select(Household).where(Household.id == household_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def household_membership_count(self, household_id: UUID) -> int:
+        result = await self._session.execute(
+            select(func.count(FamilyMembership.id)).where(
+                FamilyMembership.household_id == household_id
+            )
+        )
+        return result.scalar_one()
+
+    async def household_has_business_records(self, household_id: UUID) -> bool:
+        household_columns = (
+            Recipe.household_id,
+            RawInput.household_id,
+            MediaObject.household_id,
+            MealPlanRecord.household_id,
+            FeedbackEventRecord.household_id,
+            RatingRecord.household_id,
+            Conversation.household_id,
+            AgentRun.household_id,
+            SuggestedActionRecord.household_id,
+        )
+        result = await self._session.execute(
+            select(
+                or_(
+                    *(exists().where(column == household_id) for column in household_columns)
+                )
+            )
+        )
+        return bool(result.scalar_one())
+
     async def create_family_invite(
         self,
         *,
@@ -111,17 +162,29 @@ class IdentityRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create_membership(
-        self, *, account_id: UUID, household_id: UUID, role: str
-    ) -> FamilyMembership:
-        membership = FamilyMembership(
-            account_id=account_id,
-            household_id=household_id,
-            role=role,
-        )
-        self._session.add(membership)
+    async def move_membership_to_family(
+        self,
+        *,
+        membership: FamilyMembership,
+        target_household_id: UUID,
+        now: datetime,
+    ) -> None:
+        source_household_id = membership.household_id
+        membership.household_id = target_household_id
+        membership.role = "member"
         await self._session.flush()
-        return membership
+        await self._session.execute(
+            update(WebSession)
+            .where(
+                WebSession.account_id == membership.account_id,
+                WebSession.household_id == source_household_id,
+                WebSession.expires_at > now,
+            )
+            .values(household_id=target_household_id)
+        )
+        await self._session.execute(
+            delete(Household).where(Household.id == source_household_id)
+        )
 
     async def create_web_session(
         self,

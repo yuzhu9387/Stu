@@ -1,5 +1,6 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, update
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from recipe_agent.app import create_app
 from recipe_agent.config import Settings
 from recipe_agent.domain.identity.models import FamilyMembership, WebSession
+from recipe_agent.domain.recipes.models import RawInput
 from recipe_agent.infrastructure.db.base import Base
 
 
@@ -146,3 +148,108 @@ def test_owner_family_and_lark_link_endpoints_use_session_scope(tmp_path) -> Non
     assert invite.json()["code"]
     assert lark_code.status_code == 201
     assert lark_code.json()["code"]
+
+
+def _login_with_magic_link(client: TestClient, email: str):
+    requested = client.post("/api/v1/auth/magic-links", json={"email": email})
+    token = requested.json()["development_token"]
+    return client.post("/api/v1/auth/sessions", json={"token": token})
+
+
+def test_login_then_accept_invite_uses_authenticated_account_only(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'accept-api.db'}"
+    asyncio.run(_create_schema(database_url))
+    app = create_app(_settings(database_url, environment="development"))
+    owner_client = TestClient(app)
+    member_client = TestClient(app)
+    _login_with_magic_link(owner_client, "owner@example.com")
+    owner_session = owner_client.get("/api/v1/auth/session").json()
+    invite = owner_client.post("/api/v1/families/invites").json()
+    _login_with_magic_link(member_client, "member@example.com")
+    member_before = member_client.get("/api/v1/auth/session").json()
+
+    accepted = member_client.post(
+        "/api/v1/families/invites/accept", json={"code": invite["code"]}
+    )
+    member_after = member_client.get("/api/v1/auth/session")
+
+    assert accepted.status_code == 201
+    assert accepted.json()["account_id"] == member_before["account_id"]
+    assert accepted.json()["household_id"] == owner_session["household_id"]
+    assert member_after.status_code == 200
+    assert member_after.json()["account_id"] == member_before["account_id"]
+    assert member_after.json()["household_id"] == owner_session["household_id"]
+    assert member_after.json()["account_id"] != owner_session["account_id"]
+
+
+def test_invite_accept_rejects_account_id_and_requires_session(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'accept-auth.db'}"
+    asyncio.run(_create_schema(database_url))
+    app = create_app(_settings(database_url, environment="development"))
+    owner_client = TestClient(app)
+    member_client = TestClient(app)
+    _login_with_magic_link(owner_client, "owner@example.com")
+    owner = owner_client.get("/api/v1/auth/session").json()
+    code = owner_client.post("/api/v1/families/invites").json()["code"]
+    _login_with_magic_link(member_client, "member@example.com")
+    member = member_client.get("/api/v1/auth/session").json()
+
+    selected = member_client.post(
+        "/api/v1/families/invites/accept",
+        json={"code": code, "account_id": owner["account_id"]},
+    )
+    unauthenticated = TestClient(app).post(
+        "/api/v1/families/invites/accept", json={"code": code}
+    )
+
+    async def add_personal_family_record() -> None:
+        async with app.state.identity_service._session_factory() as session:
+            session.add(
+                RawInput(
+                    household_id=UUID(member["household_id"]),
+                    owner_account_id=UUID(member["account_id"]),
+                    kind="text",
+                    raw_text="keep this recipe",
+                )
+            )
+            await session.commit()
+
+    asyncio.run(add_personal_family_record())
+    nonempty = member_client.post(
+        "/api/v1/families/invites/accept", json={"code": code}
+    )
+
+    assert selected.status_code == 422
+    assert unauthenticated.status_code == 401
+    assert nonempty.status_code == 409
+    assert nonempty.json() == {"detail": "Personal family is not empty"}
+
+
+def test_session_cookie_security_attributes_follow_environment(tmp_path) -> None:
+    development_url = f"sqlite+aiosqlite:///{tmp_path / 'cookie-development.db'}"
+    asyncio.run(_create_schema(development_url))
+    development = TestClient(
+        create_app(_settings(development_url, environment="development"))
+    )
+    development_cookie = _login_with_magic_link(
+        development, "development@example.com"
+    ).headers["set-cookie"]
+
+    production_url = f"sqlite+aiosqlite:///{tmp_path / 'cookie-production.db'}"
+    asyncio.run(_create_schema(production_url))
+    production_app = create_app(_settings(production_url, environment="production"))
+    production_delivery = asyncio.run(
+        production_app.state.identity_service.request_magic_link(
+            "production@example.com"
+        )
+    )
+    production_cookie = TestClient(production_app).post(
+        "/api/v1/auth/sessions", json={"token": production_delivery.token}
+    ).headers["set-cookie"]
+
+    for cookie in (development_cookie, production_cookie):
+        assert "HttpOnly" in cookie
+        assert "SameSite=lax" in cookie
+        assert "Path=/" in cookie
+    assert "Secure" not in development_cookie
+    assert "Secure" in production_cookie

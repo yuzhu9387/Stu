@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from recipe_agent.domain.identity.models import (
@@ -181,27 +182,47 @@ class IdentityService:
         return ExpiringCodeDelivery(code, expires_at)
 
     async def accept_family_invite(
-        self, account_id: UUID, code: str
+        self, scope: HouseholdScope, code: str
     ) -> FamilyMembership:
         now = self._now()
         async with self._session_factory() as session:
             repository = IdentityRepository(session)
-            if await repository.get_account(account_id) is None:
-                raise InvalidTokenError("Account does not exist")
-            if await repository.get_membership_for_account(account_id) is not None:
-                raise IdentityConflictError("Account already belongs to a family")
-            invite = await repository.consume_family_invite(
-                code_hash=_hash_token(code), account_id=account_id, now=now
-            )
-            if invite is None:
-                raise InvalidTokenError("Family invite is invalid or expired")
-            membership = await repository.create_membership(
-                account_id=account_id,
-                household_id=invite.household_id,
-                role="member",
-            )
-            await session.commit()
-            return membership
+            try:
+                invite = await repository.consume_family_invite(
+                    code_hash=_hash_token(code), account_id=scope.account_id, now=now
+                )
+                if invite is None:
+                    raise InvalidTokenError("Family invite is invalid or expired")
+                membership = await repository.lock_membership_for_account(scope.account_id)
+                source_household = await repository.lock_household(scope.household_id)
+                if (
+                    membership is None
+                    or membership.household_id != scope.household_id
+                    or source_household is None
+                ):
+                    raise InvalidTokenError("Authenticated family scope is no longer valid")
+                is_empty_singleton = (
+                    membership.role == "owner"
+                    and source_household.owner_account_id == scope.account_id
+                    and await repository.household_membership_count(scope.household_id) == 1
+                    and not await repository.household_has_business_records(
+                        scope.household_id
+                    )
+                )
+                if invite.household_id == scope.household_id or not is_empty_singleton:
+                    raise IdentityConflictError("Personal family is not empty")
+                await repository.move_membership_to_family(
+                    membership=membership,
+                    target_household_id=invite.household_id,
+                    now=now,
+                )
+                await session.commit()
+                return membership
+            except IntegrityError as error:
+                await session.rollback()
+                raise IdentityConflictError(
+                    "Family invite could not be accepted"
+                ) from error
 
     async def create_lark_link_code(self, account_id: UUID) -> LinkCodeDelivery:
         code = secrets.token_urlsafe(32)
@@ -223,20 +244,34 @@ class IdentityService:
         now = self._now()
         async with self._session_factory() as session:
             repository = IdentityRepository(session)
-            link = await repository.consume_lark_link_code(
+            try:
+                link = await repository.consume_lark_link_code(
+                    code_hash=_hash_token(code), now=now
+                )
+                if link is None:
+                    raise InvalidTokenError("Lark link code is invalid or expired")
+                if (
+                    await repository.get_lark_identity_by_account(link.account_id) is not None
+                    or await repository.get_lark_identity_by_open_id(open_id) is not None
+                ):
+                    await session.commit()
+                    raise IdentityConflictError("Lark identity is already linked")
+                identity = await repository.create_lark_identity(link.account_id, open_id)
+                await session.commit()
+                return identity
+            except IntegrityError as error:
+                await session.rollback()
+                await self._consume_lark_code_after_conflict(code, now)
+                raise IdentityConflictError("Lark identity is already linked") from error
+
+    async def _consume_lark_code_after_conflict(
+        self, code: str, now: datetime
+    ) -> None:
+        async with self._session_factory() as session:
+            await IdentityRepository(session).consume_lark_link_code(
                 code_hash=_hash_token(code), now=now
             )
-            if link is None:
-                raise InvalidTokenError("Lark link code is invalid or expired")
-            if (
-                await repository.get_lark_identity_by_account(link.account_id) is not None
-                or await repository.get_lark_identity_by_open_id(open_id) is not None
-            ):
-                await session.commit()
-                raise IdentityConflictError("Lark identity is already linked")
-            identity = await repository.create_lark_identity(link.account_id, open_id)
             await session.commit()
-            return identity
 
     async def resolve_lark_identity(self, open_id: str) -> HouseholdScope | None:
         async with self._session_factory() as session:

@@ -1,9 +1,19 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
-from recipe_agent.domain.identity.models import Account, FamilyMembership
+from recipe_agent.domain.feedback.models import FeedbackEventRecord, RatingRecord
+from recipe_agent.domain.identity.models import (
+    Account,
+    AgentRun,
+    Conversation,
+    FamilyMembership,
+    Household,
+    SuggestedActionRecord,
+)
 from recipe_agent.domain.identity.repository import IdentityRepository
 from recipe_agent.domain.identity.service import (
     HouseholdScope,
@@ -11,14 +21,8 @@ from recipe_agent.domain.identity.service import (
     IdentityService,
     InvalidTokenError,
 )
-
-
-async def _create_account_without_family(session_factory, email: str) -> Account:
-    async with session_factory() as session:
-        account = Account(email=email)
-        session.add(account)
-        await session.commit()
-        return account
+from recipe_agent.domain.planning.models import MealPlanRecord
+from recipe_agent.domain.recipes.models import MediaObject, RawInput, Recipe
 
 
 @pytest.mark.asyncio
@@ -27,38 +31,49 @@ async def test_two_accounts_join_one_family_without_merging_identity(
 ) -> None:
     owner_delivery = await identity_service.request_magic_link("owner@example.com")
     owner = await identity_service.consume_magic_link(owner_delivery.token)
-    member = await _create_account_without_family(session_factory, "member@example.com")
+    member_delivery = await identity_service.request_magic_link("member@example.com")
+    member = await identity_service.consume_magic_link(member_delivery.token)
+    member_source_household_id = member.household.id
 
     invite = await identity_service.create_family_invite(
         HouseholdScope(owner.account.id, owner.household.id)
     )
-    joined = await identity_service.accept_family_invite(member.id, invite.code)
+    joined = await identity_service.accept_family_invite(
+        HouseholdScope(member.account.id, member.household.id), invite.code
+    )
 
     assert joined.household_id == owner.household.id
-    assert joined.account_id == member.id
+    assert joined.account_id == member.account.id
     assert joined.account_id != owner.account.id
     assert joined.role == "member"
+    assert await identity_service.resolve_web_session(member.session_token) == HouseholdScope(
+        member.account.id, owner.household.id
+    )
 
-    member_delivery = await identity_service.request_magic_link("member@example.com")
-    reauthenticated = await identity_service.consume_magic_link(member_delivery.token)
+    reauth_delivery = await identity_service.request_magic_link("member@example.com")
+    reauthenticated = await identity_service.consume_magic_link(reauth_delivery.token)
     assert reauthenticated.household.id == owner.household.id
 
     async with session_factory() as session:
+        assert await session.get(Household, member_source_household_id) is None
         visible_member = await IdentityRepository(session).get_household_account(
-            HouseholdScope(owner.account.id, owner.household.id), member.id
+            HouseholdScope(owner.account.id, owner.household.id), member.account.id
         )
-    assert visible_member.id == member.id
+    assert visible_member.id == member.account.id
 
 
 @pytest.mark.asyncio
 async def test_only_family_owner_can_create_invite(identity_service, session_factory) -> None:
     owner_delivery = await identity_service.request_magic_link("owner@example.com")
     owner = await identity_service.consume_magic_link(owner_delivery.token)
-    member = await _create_account_without_family(session_factory, "member@example.com")
+    member_delivery = await identity_service.request_magic_link("member@example.com")
+    member = await identity_service.consume_magic_link(member_delivery.token)
     invite = await identity_service.create_family_invite(
         HouseholdScope(owner.account.id, owner.household.id)
     )
-    membership = await identity_service.accept_family_invite(member.id, invite.code)
+    membership = await identity_service.accept_family_invite(
+        HouseholdScope(member.account.id, member.household.id), invite.code
+    )
 
     with pytest.raises(PermissionError):
         await identity_service.create_family_invite(
@@ -72,19 +87,38 @@ async def test_family_invite_is_single_use_and_existing_membership_is_preserved(
 ) -> None:
     owner_delivery = await identity_service.request_magic_link("owner@example.com")
     owner = await identity_service.consume_magic_link(owner_delivery.token)
-    first = await _create_account_without_family(session_factory, "first@example.com")
+    first_delivery = await identity_service.request_magic_link("first@example.com")
+    first = await identity_service.consume_magic_link(first_delivery.token)
     second_delivery = await identity_service.request_magic_link("second@example.com")
     second = await identity_service.consume_magic_link(second_delivery.token)
     invite = await identity_service.create_family_invite(
         HouseholdScope(owner.account.id, owner.household.id)
     )
 
-    with pytest.raises(ValueError, match="already belongs"):
-        await identity_service.accept_family_invite(second.account.id, invite.code)
-    joined = await identity_service.accept_family_invite(first.id, invite.code)
-    third = await _create_account_without_family(session_factory, "third@example.com")
+    async with session_factory() as session:
+        session.add(
+            RawInput(
+                household_id=second.household.id,
+                owner_account_id=second.account.id,
+                kind="text",
+                raw_text="do not discard",
+            )
+        )
+        await session.commit()
+
+    with pytest.raises(IdentityConflictError, match="Personal family is not empty"):
+        await identity_service.accept_family_invite(
+            HouseholdScope(second.account.id, second.household.id), invite.code
+        )
+    joined = await identity_service.accept_family_invite(
+        HouseholdScope(first.account.id, first.household.id), invite.code
+    )
+    third_delivery = await identity_service.request_magic_link("third@example.com")
+    third = await identity_service.consume_magic_link(third_delivery.token)
     with pytest.raises(InvalidTokenError):
-        await identity_service.accept_family_invite(third.id, invite.code)
+        await identity_service.accept_family_invite(
+            HouseholdScope(third.account.id, third.household.id), invite.code
+        )
 
     async with session_factory() as session:
         result = await session.execute(
@@ -93,7 +127,7 @@ async def test_family_invite_is_single_use_and_existing_membership_is_preserved(
             )
         )
         preserved = result.scalar_one()
-    assert joined.account_id == first.id
+    assert joined.account_id == first.account.id
     assert preserved.household_id == second.household.id
 
 
@@ -104,7 +138,8 @@ async def test_family_invite_expires_after_ten_minutes(session_factory) -> None:
     service = IdentityService(session_factory=session_factory, now=lambda: clock["now"])
     owner_delivery = await service.request_magic_link("owner@example.com")
     owner = await service.consume_magic_link(owner_delivery.token)
-    member = await _create_account_without_family(session_factory, "member@example.com")
+    member_delivery = await service.request_magic_link("member@example.com")
+    member = await service.consume_magic_link(member_delivery.token)
     invite = await service.create_family_invite(
         HouseholdScope(owner.account.id, owner.household.id)
     )
@@ -112,7 +147,163 @@ async def test_family_invite_expires_after_ten_minutes(session_factory) -> None:
     assert invite.expires_at == now + timedelta(minutes=10)
     clock["now"] = now + timedelta(minutes=10)
     with pytest.raises(InvalidTokenError):
-        await service.accept_family_invite(member.id, invite.code)
+        await service.accept_family_invite(
+            HouseholdScope(member.account.id, member.household.id), invite.code
+        )
+
+
+@pytest.mark.asyncio
+async def test_family_with_another_member_cannot_be_replaced(
+    identity_service, session_factory
+) -> None:
+    owner_delivery = await identity_service.request_magic_link("owner@example.com")
+    owner = await identity_service.consume_magic_link(owner_delivery.token)
+    actor_delivery = await identity_service.request_magic_link("actor@example.com")
+    actor = await identity_service.consume_magic_link(actor_delivery.token)
+    invite = await identity_service.create_family_invite(
+        HouseholdScope(owner.account.id, owner.household.id)
+    )
+    async with session_factory() as session:
+        other = Account(email="other@example.com")
+        session.add(other)
+        await session.flush()
+        session.add(
+            FamilyMembership(
+                account_id=other.id,
+                household_id=actor.household.id,
+                role="member",
+            )
+        )
+        await session.commit()
+
+    with pytest.raises(IdentityConflictError, match="Personal family is not empty"):
+        await identity_service.accept_family_invite(
+            HouseholdScope(actor.account.id, actor.household.id), invite.code
+        )
+
+
+@pytest.mark.parametrize(
+    "record_kind",
+    (
+        "recipe",
+        "raw_input",
+        "media",
+        "plan",
+        "feedback",
+        "rating",
+        "conversation",
+        "run",
+        "suggested_action",
+    ),
+)
+@pytest.mark.asyncio
+async def test_every_business_record_kind_makes_family_nonempty(
+    identity_service, session_factory, record_kind
+) -> None:
+    delivery = await identity_service.request_magic_link(f"{record_kind}@example.com")
+    authenticated = await identity_service.consume_magic_link(delivery.token)
+    household_id = authenticated.household.id
+    account_id = authenticated.account.id
+    record_id = uuid4()
+    records = {
+        "recipe": Recipe(
+            id=record_id, household_id=household_id, owner_account_id=account_id
+        ),
+        "raw_input": RawInput(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            kind="text",
+        ),
+        "media": MediaObject(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            object_key=f"media/{record_id}",
+            content_type="image/jpeg",
+        ),
+        "plan": MealPlanRecord(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            week_start=date(2026, 7, 13),
+        ),
+        "feedback": FeedbackEventRecord(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            recipe_id=uuid4(),
+            raw_text="feedback",
+        ),
+        "rating": RatingRecord(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            recipe_id=uuid4(),
+            value=5,
+        ),
+        "conversation": Conversation(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            transport="web",
+        ),
+        "run": AgentRun(
+            id=record_id,
+            conversation_id=uuid4(),
+            account_id=account_id,
+            household_id=household_id,
+            transport="web",
+            idempotency_key=f"test:{record_id}",
+            status="queued",
+            request_json="{}",
+        ),
+        "suggested_action": SuggestedActionRecord(
+            id=record_id,
+            token_hash=record_id.hex * 2,
+            run_id=uuid4(),
+            account_id=account_id,
+            household_id=household_id,
+            action_type="test",
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
+        ),
+    }
+    async with session_factory() as session:
+        session.add(records[record_kind])
+        await session.commit()
+        assert await IdentityRepository(session).household_has_business_records(
+            household_id
+        )
+
+
+@pytest.mark.asyncio
+async def test_invite_membership_race_maps_integrity_error_to_domain_conflict(
+    identity_service, monkeypatch
+) -> None:
+    owner_delivery = await identity_service.request_magic_link("owner@example.com")
+    owner = await identity_service.consume_magic_link(owner_delivery.token)
+    actor_delivery = await identity_service.request_magic_link("actor@example.com")
+    actor = await identity_service.consume_magic_link(actor_delivery.token)
+    invite = await identity_service.create_family_invite(
+        HouseholdScope(owner.account.id, owner.household.id)
+    )
+
+    async def raise_integrity_error(*args, **kwargs):
+        raise IntegrityError("UPDATE membership", {}, Exception("unique race"))
+
+    monkeypatch.setattr(
+        IdentityRepository,
+        "move_membership_to_family",
+        raise_integrity_error,
+        raising=False,
+    )
+
+    with pytest.raises(
+        IdentityConflictError, match="Family invite could not be accepted"
+    ):
+        await identity_service.accept_family_invite(
+            HouseholdScope(actor.account.id, actor.household.id), invite.code
+        )
 
 
 @pytest.mark.asyncio
@@ -159,3 +350,22 @@ async def test_lark_open_id_and_account_each_link_only_once(identity_service) ->
         await identity_service.link_lark_identity(second_code.code, "ou_cook")
     with pytest.raises(InvalidTokenError):
         await identity_service.link_lark_identity(second_code.code, "ou_other")
+
+
+@pytest.mark.asyncio
+async def test_lark_uniqueness_race_maps_integrity_error_to_domain_conflict(
+    identity_service, monkeypatch
+) -> None:
+    delivery = await identity_service.request_magic_link("cook@example.com")
+    authenticated = await identity_service.consume_magic_link(delivery.token)
+    link = await identity_service.create_lark_link_code(authenticated.account.id)
+
+    async def raise_integrity_error(*args, **kwargs):
+        raise IntegrityError("INSERT lark identity", {}, Exception("unique race"))
+
+    monkeypatch.setattr(
+        IdentityRepository, "create_lark_identity", raise_integrity_error
+    )
+
+    with pytest.raises(IdentityConflictError, match="Lark identity is already linked"):
+        await identity_service.link_lark_identity(link.code, "ou_race")

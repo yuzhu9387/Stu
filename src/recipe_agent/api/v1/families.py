@@ -24,7 +24,8 @@ class FamilyInviteResponse(BaseModel):
 
 
 class FamilyInviteAccept(BaseModel):
-    account_id: UUID
+    model_config = ConfigDict(extra="forbid")
+
     code: str
 
 
@@ -57,14 +58,18 @@ async def create_invite(
     status_code=status.HTTP_201_CREATED,
 )
 async def accept_invite(
-    payload: FamilyInviteAccept, service: IdentityDependency
+    payload: FamilyInviteAccept,
+    scope: ScopeDependency,
+    service: IdentityDependency,
 ) -> FamilyMembershipResponse:
     try:
-        membership = await service.accept_family_invite(payload.account_id, payload.code)
+        membership = await service.accept_family_invite(scope, payload.code)
     except InvalidTokenError as error:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from error
     except IdentityConflictError as error:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT) from error
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(error)
+        ) from error
     return FamilyMembershipResponse.model_validate(membership)
 
 

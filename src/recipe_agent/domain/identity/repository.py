@@ -3,11 +3,12 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from recipe_agent.domain.identity.models import (
     Account,
+    FamilyInvite,
     FamilyMembership,
     Household,
     LarkIdentity,
@@ -43,6 +44,9 @@ class IdentityRepository:
         result = await self._session.execute(select(Account).where(Account.email == email))
         return result.scalar_one_or_none()
 
+    async def get_account(self, account_id: UUID) -> Account | None:
+        return await self._session.get(Account, account_id)
+
     async def create_account_and_household(self, email: str) -> tuple[Account, Household]:
         account = Account(email=email)
         self._session.add(account)
@@ -62,9 +66,62 @@ class IdentityRepository:
 
     async def get_household_for_account(self, account_id: UUID) -> Household | None:
         result = await self._session.execute(
-            select(Household).where(Household.owner_account_id == account_id)
+            select(Household)
+            .join(FamilyMembership, FamilyMembership.household_id == Household.id)
+            .where(FamilyMembership.account_id == account_id)
         )
         return result.scalar_one_or_none()
+
+    async def get_membership_for_account(self, account_id: UUID) -> FamilyMembership | None:
+        result = await self._session.execute(
+            select(FamilyMembership).where(FamilyMembership.account_id == account_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_family_invite(
+        self,
+        *,
+        household_id: UUID,
+        created_by_account_id: UUID,
+        code_hash: str,
+        expires_at: datetime,
+    ) -> FamilyInvite:
+        invite = FamilyInvite(
+            household_id=household_id,
+            created_by_account_id=created_by_account_id,
+            code_hash=code_hash,
+            expires_at=expires_at,
+        )
+        self._session.add(invite)
+        await self._session.flush()
+        return invite
+
+    async def consume_family_invite(
+        self, *, code_hash: str, account_id: UUID, now: datetime
+    ) -> FamilyInvite | None:
+        result = await self._session.execute(
+            update(FamilyInvite)
+            .where(
+                FamilyInvite.code_hash == code_hash,
+                FamilyInvite.consumed_at.is_(None),
+                FamilyInvite.expires_at > now,
+            )
+            .values(consumed_at=now, consumed_by_account_id=account_id)
+            .returning(FamilyInvite)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_membership(
+        self, *, account_id: UUID, household_id: UUID, role: str
+    ) -> FamilyMembership:
+        membership = FamilyMembership(
+            account_id=account_id,
+            household_id=household_id,
+            role=role,
+        )
+        self._session.add(membership)
+        await self._session.flush()
+        return membership
 
     async def create_web_session(
         self,
@@ -84,6 +141,17 @@ class IdentityRepository:
         await self._session.flush()
         return session
 
+    async def get_web_session(self, token_hash: str) -> WebSession | None:
+        result = await self._session.execute(
+            select(WebSession).where(WebSession.token_hash == token_hash)
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_web_session(self, token_hash: str) -> None:
+        await self._session.execute(
+            delete(WebSession).where(WebSession.token_hash == token_hash)
+        )
+
     async def create_lark_link_code(
         self, *, account_id: UUID, code_hash: str, expires_at: datetime
     ) -> LarkLinkCode:
@@ -96,9 +164,18 @@ class IdentityRepository:
         await self._session.flush()
         return link
 
-    async def get_lark_link_code(self, code_hash: str) -> LarkLinkCode | None:
+    async def consume_lark_link_code(
+        self, *, code_hash: str, now: datetime
+    ) -> LarkLinkCode | None:
         result = await self._session.execute(
-            select(LarkLinkCode).where(LarkLinkCode.code_hash == code_hash)
+            update(LarkLinkCode)
+            .where(
+                LarkLinkCode.code_hash == code_hash,
+                LarkLinkCode.consumed_at.is_(None),
+                LarkLinkCode.expires_at > now,
+            )
+            .values(consumed_at=now)
+            .returning(LarkLinkCode)
         )
         return result.scalar_one_or_none()
 
@@ -108,12 +185,35 @@ class IdentityRepository:
         await self._session.flush()
         return identity
 
+    async def get_lark_identity_by_open_id(self, open_id: str) -> LarkIdentity | None:
+        result = await self._session.execute(
+            select(LarkIdentity).where(LarkIdentity.open_id == open_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_lark_identity_by_account(self, account_id: UUID) -> LarkIdentity | None:
+        result = await self._session.execute(
+            select(LarkIdentity).where(LarkIdentity.account_id == account_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_household_account(self, scope: object, account_id: UUID) -> Account:
         household_id = getattr(scope, "household_id", None)
         result = await self._session.execute(
             select(Account)
-            .join(Household, Household.owner_account_id == Account.id)
-            .where(Account.id == account_id, Household.id == household_id)
+            .where(
+                Account.id == account_id,
+                or_(
+                    exists().where(
+                        Household.id == household_id,
+                        Household.owner_account_id == account_id,
+                    ),
+                    exists().where(
+                        FamilyMembership.account_id == account_id,
+                        FamilyMembership.household_id == household_id,
+                    ),
+                ),
+            )
         )
         account = result.scalar_one_or_none()
         if account is None:

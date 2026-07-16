@@ -5,7 +5,9 @@ from fastapi.responses import PlainTextResponse
 
 from recipe_agent.api.lark import router as lark_router
 from recipe_agent.api.security import RequestSecurityMiddleware
+from recipe_agent.api.session import SessionScopeMiddleware
 from recipe_agent.api.v1.auth import router as auth_router
+from recipe_agent.api.v1.families import router as families_router
 from recipe_agent.api.v1.feedback import router as feedback_router
 from recipe_agent.api.v1.planning import router as planning_router
 from recipe_agent.api.v1.recommendations import router as recommendations_router
@@ -24,15 +26,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = resolved_settings
     metrics_registry = MetricsRegistry()
     app.state.metrics = metrics_registry
+    identity_service = IdentityService(
+        session_factory=create_session_factory(resolved_settings)
+    )
+    app.state.identity_service = identity_service
     app.add_middleware(
         RequestSecurityMiddleware,
         max_request_bytes=resolved_settings.max_request_bytes,
         metrics=metrics_registry,
     )
-    app.state.identity_service = IdentityService(
-        session_factory=create_session_factory(resolved_settings)
-    )
+    app.add_middleware(SessionScopeMiddleware, identity=identity_service)
     app.include_router(auth_router)
+    app.include_router(families_router)
     app.include_router(feedback_router)
     app.include_router(planning_router)
     app.include_router(recommendations_router)

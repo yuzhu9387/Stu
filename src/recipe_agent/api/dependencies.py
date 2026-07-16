@@ -1,8 +1,10 @@
 """Authenticated API scope dependencies."""
 
-from fastapi import HTTPException, Request, status
+from typing import Annotated
 
-from recipe_agent.domain.identity.service import HouseholdScope
+from fastapi import Depends, HTTPException, Request, status
+
+from recipe_agent.domain.identity.service import HouseholdScope, IdentityService
 
 
 def get_household_scope(request: Request) -> HouseholdScope:
@@ -10,3 +12,12 @@ def get_household_scope(request: Request) -> HouseholdScope:
     if scope is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return scope
+
+
+def get_identity_service(request: Request) -> IdentityService:
+    service: IdentityService = request.app.state.identity_service
+    return service
+
+
+ScopeDependency = Annotated[HouseholdScope, Depends(get_household_scope)]
+IdentityDependency = Annotated[IdentityService, Depends(get_identity_service)]

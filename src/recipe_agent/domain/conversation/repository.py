@@ -48,7 +48,10 @@ class AgentRunRepository:
             try:
                 async with session.begin_nested():
                     if conversation is None:
-                        conversation = await self._create_conversation(session, command)
+                        if command.conversation_id is None:
+                            conversation = await self._create_conversation(session, command)
+                        else:
+                            conversation = await self._get_or_create_conversation(session, command)
                     session.add(
                         ConversationMessage(
                             conversation_id=conversation.id,
@@ -183,12 +186,34 @@ class AgentRunRepository:
             if command.allow_conversation_creation:
                 return None
             raise ConversationNotFoundError("Conversation not found")
+        self._validate_conversation_ownership(conversation, command)
+        return conversation
+
+    async def _get_or_create_conversation(
+        self, session: AsyncSession, command: ConversationCommand
+    ) -> Conversation:
+        try:
+            async with session.begin_nested():
+                return await self._create_conversation(session, command)
+        except IntegrityError as error:
+            conversation = await session.get(
+                Conversation,
+                command.conversation_id,
+                populate_existing=True,
+            )
+            if conversation is None:
+                raise error
+            self._validate_conversation_ownership(conversation, command)
+            return conversation
+
+    def _validate_conversation_ownership(
+        self, conversation: Conversation, command: ConversationCommand
+    ) -> None:
         if (
             conversation.owner_account_id != command.account_id
             or conversation.household_id != command.household_id
         ):
             raise ConversationNotFoundError("Conversation not found")
-        return conversation
 
     async def _create_conversation(
         self, session: AsyncSession, command: ConversationCommand

@@ -93,3 +93,53 @@ async def test_simultaneous_same_key_submission_creates_one_durable_request(
         assert await session.scalar(select(func.count()).select_from(ConversationMessage)) == 1
         assert await session.scalar(select(func.count()).select_from(AgentRun)) == 1
         assert await session.scalar(select(func.count()).select_from(OutboxEvent)) == 1
+
+
+async def test_simultaneous_first_lark_events_share_deterministic_conversation(
+    postgres_conversation_runtime: tuple[IdentityService, async_sessionmaker[AsyncSession]],
+) -> None:
+    identity, session_factory = postgres_conversation_runtime
+    authenticated = await identity.consume_magic_link(
+        (await identity.request_magic_link("lark-race@example.com")).token
+    )
+    hub = ConversationHub(AgentRunRepository(session_factory))
+    chat_id = uuid4()
+    first_command = ConversationCommand(
+        account_id=authenticated.account.id,
+        household_id=authenticated.household.id,
+        conversation_id=chat_id,
+        allow_conversation_creation=True,
+        locale=Locale.EN_US,
+        message="First simultaneous Lark event",
+        transport="lark",
+        idempotency_key="lark-simultaneous-1",
+    )
+    second_command = ConversationCommand(
+        account_id=authenticated.account.id,
+        household_id=authenticated.household.id,
+        conversation_id=chat_id,
+        allow_conversation_creation=True,
+        locale=Locale.EN_US,
+        message="Second simultaneous Lark event",
+        transport="lark",
+        idempotency_key="lark-simultaneous-2",
+    )
+    assert first_command.run_id != second_command.run_id
+
+    first, second = await asyncio.wait_for(
+        asyncio.gather(
+            hub.submit_message(first_command),
+            hub.submit_message(second_command),
+        ),
+        timeout=10,
+    )
+
+    assert first.id == first_command.run_id
+    assert second.id == second_command.run_id
+    assert first.conversation_id == chat_id
+    assert second.conversation_id == chat_id
+    async with session_factory() as session:
+        assert await session.scalar(select(func.count()).select_from(Conversation)) == 1
+        assert await session.scalar(select(func.count()).select_from(ConversationMessage)) == 2
+        assert await session.scalar(select(func.count()).select_from(AgentRun)) == 2
+        assert await session.scalar(select(func.count()).select_from(OutboxEvent)) == 2

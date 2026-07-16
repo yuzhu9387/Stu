@@ -82,13 +82,13 @@ async def get_share(
     return result
 
 
-@public_router.get("/{token}", response_model=ShareRecipeSnapshot)
+@public_router.get("/{share_token}", response_model=ShareRecipeSnapshot)
 async def get_public_share(
-    token: str,
+    share_token: str,
     service: Annotated[ShareService, Depends(get_share_service)],
 ) -> ShareRecipeSnapshot:
     try:
-        record = await service.resolve_token(token)
+        record = await service.resolve_token(share_token)
         return ShareRecipeSnapshot.model_validate(record.snapshot)
     except (InvalidShareTokenError, ValueError) as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from error

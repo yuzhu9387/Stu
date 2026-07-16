@@ -398,3 +398,21 @@ def test_registry_exposes_exactly_eight_closed_read_only_schemas() -> None:
         assert definition.parameters["type"] == "object"
         assert definition.parameters["additionalProperties"] is False
         assert set(definition.parameters["required"]) == set(definition.parameters["properties"])
+
+
+def test_registry_removes_provider_unsupported_schema_keywords() -> None:
+    unsupported = {"default", "title", "uniqueItems"}
+
+    def assert_supported(node: object) -> None:
+        if isinstance(node, list):
+            for item in node:
+                assert_supported(item)
+            return
+        if not isinstance(node, dict):
+            return
+        assert unsupported.isdisjoint(node)
+        for child in node.values():
+            assert_supported(child)
+
+    for definition in ReadOnlyToolRegistry.tool_definitions().values():
+        assert_supported(definition.parameters)

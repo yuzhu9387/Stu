@@ -258,6 +258,11 @@ def _strict_schema(schema: dict[str, Any]) -> dict[str, JsonValue]:
             return
         if not isinstance(node, dict):
             return
+        # Pydantic emits validation and presentation keywords that OpenAI's
+        # strict function-tool schema does not accept. Runtime Pydantic models
+        # still enforce uniqueness and defaults after the model returns args.
+        for unsupported_keyword in ("default", "title", "uniqueItems"):
+            node.pop(unsupported_keyword, None)
         if node.get("type") == "object":
             properties = node.get("properties", {})
             if isinstance(properties, dict):

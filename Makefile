@@ -4,6 +4,7 @@ PYTHON := .venv/bin/python
 RUFF := .venv/bin/ruff
 MYPY := .venv/bin/mypy
 ALEMBIC := .venv/bin/alembic
+COMPOSE := docker compose --env-file .env -f infra/compose.yaml
 
 install:
 	uv sync --all-groups
@@ -49,13 +50,13 @@ web-verify: web-test web-typecheck web-lint web-build web-e2e
 verify: backend-verify web-verify
 
 services-up:
-	docker compose -f infra/compose.yaml up -d postgres redis minio minio-init
+	$(COMPOSE) up -d postgres redis minio minio-init
 
 services-down:
-	docker compose -f infra/compose.yaml down
+	$(COMPOSE) down
 
 local-up:
-	docker compose -f infra/compose.yaml up -d --build
+	$(COMPOSE) up -d --build
 
 local-down: services-down
 

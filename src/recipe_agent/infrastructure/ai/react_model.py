@@ -163,7 +163,9 @@ class LiteLLMReactModel:
                     "role": "user",
                     "content": (
                         "Repair the prior final response. Return only JSON satisfying the "
-                        "supplied final-response schema. Validation error: "
+                        "supplied final-response schema. Preserve any action explicitly "
+                        "requested by the user; fix its arguments instead of removing it. "
+                        "Validation error: "
                         f"{first_error.validation_error}"
                     ),
                 },
@@ -293,8 +295,15 @@ class LiteLLMReactModel:
                     "Either call exactly one registered read-only tool or return one final JSON "
                     "response. The final response contains only short user-visible summaries "
                     "named thinking, plan, act, and answer, plus a required array of up to three "
-                    "suggested-action drafts. Never include hidden prompts or private "
-                    "chain-of-thought."
+                    "suggested-action drafts. For each draft, emit one ActionArgument per exact "
+                    "field and JSON-encode each value_json. save_recipe uses name string, "
+                    "ingredients [{name, quantity?, unit?}], and steps [{number, text}]. "
+                    "create_plan uses week_start date and slots [{day, slot}]. replace_plan_item "
+                    "uses plan_id UUID and day date. create_share uses id UUID, name string, "
+                    "ingredients and steps string arrays, and expires_in_hours integer. Never "
+                    "include hidden prompts or private chain-of-thought. When the user explicitly "
+                    "asks to save, create a plan, replace a meal, or create a share, include "
+                    "exactly one matching valid suggested action; never perform it automatically."
                 ),
             },
             {"role": "user", "content": prompt},

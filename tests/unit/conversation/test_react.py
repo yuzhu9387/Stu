@@ -157,7 +157,17 @@ def test_final_response_exposes_only_safe_summaries_and_typed_drafts() -> None:
         suggested_actions=(
             SuggestedActionDraft(
                 type="save_recipe",
-                arguments=(ActionArgument(name="name", value_json='"Soup"'),),
+                arguments=(
+                    ActionArgument(name="name", value_json='"Soup"'),
+                    ActionArgument(
+                        name="ingredients",
+                        value_json='[{"name":"tomato"}]',
+                    ),
+                    ActionArgument(
+                        name="steps",
+                        value_json='[{"number":1,"text":"Cook"}]',
+                    ),
+                ),
             ),
         ),
     )
@@ -171,7 +181,11 @@ def test_final_response_exposes_only_safe_summaries_and_typed_drafts() -> None:
     )
     serialized_action = response.model_dump(mode="json")["suggested_actions"][0]
     assert serialized_action["type"] == "save_recipe"
-    assert serialized_action["arguments"] == [{"name": "name", "value_json": '"Soup"'}]
+    assert serialized_action["arguments"] == [
+        {"name": "name", "value_json": '"Soup"'},
+        {"name": "ingredients", "value_json": '[{"name":"tomato"}]'},
+        {"name": "steps", "value_json": '[{"number":1,"text":"Cook"}]'},
+    ]
     with pytest.raises(ValidationError):
         FinalAgentResponse.model_validate(
             final_response().model_dump() | {"private_reasoning": "hidden reasoning"}

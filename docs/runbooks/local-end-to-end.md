@@ -27,21 +27,22 @@ To remove old local test data first:
 
 ```bash
 make local-down
-docker compose -f infra/compose.yaml down -v
+docker compose --env-file .env -f infra/compose.yaml down -v
 ```
 
 Then start PostgreSQL, Redis, MinIO, migrations, API, worker, dispatcher, and Web:
 
 ```bash
 make local-up
-docker compose -f infra/compose.yaml ps
+docker compose --env-file .env -f infra/compose.yaml ps
 ```
 
 Wait until `api`, `postgres`, `redis`, and `minio` are healthy. Open:
 
-- Web: <http://127.0.0.1:3000/chat>
+- Web: <http://127.0.0.1:13107/chat>
 - API readiness: <http://127.0.0.1:8000/health/ready>
 - API docs: <http://127.0.0.1:8000/docs>
+- PostgreSQL: `postgresql://recipe:recipe@127.0.0.1:55433/recipe`
 
 If running processes directly instead of Docker, use five terminals: `make services-up`,
 `make migrate`, `make run-api`, `make run-worker`, `make run-dispatcher`, and `make run-web`.
@@ -102,9 +103,9 @@ The webhook only verifies and durably queues work; it does not call the Lark API
 Do not select token hashes, source payloads, or secret columns while screen sharing. Useful checks:
 
 ```bash
-docker compose -f infra/compose.yaml exec postgres psql -U recipe -d recipe -c \
+docker compose --env-file .env -f infra/compose.yaml exec postgres psql -U recipe -d recipe -c \
   "select status, count(*) from agent_runs group by status;"
-docker compose -f infra/compose.yaml exec postgres psql -U recipe -d recipe -c \
+docker compose --env-file .env -f infra/compose.yaml exec postgres psql -U recipe -d recipe -c \
   "select execution_status, count(*) from suggested_actions group by execution_status;"
 ```
 
@@ -119,7 +120,7 @@ The test checks only the typed decision contract and never prints keys, prompts,
 ## 10. Troubleshooting and shutdown
 
 ```bash
-docker compose -f infra/compose.yaml logs --tail=100 api worker dispatcher web
+docker compose --env-file .env -f infra/compose.yaml logs --tail=100 api worker dispatcher web
 make local-down
 ```
 

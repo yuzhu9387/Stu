@@ -255,6 +255,73 @@ async def test_invalid_decision_gets_exactly_one_structured_output_repair() -> N
 
 
 @pytest.mark.asyncio
+async def test_invalid_suggested_action_arguments_get_one_repair() -> None:
+    invalid_action = json.dumps(
+        {
+            "thinking": "Drafted a recipe.",
+            "plan": "Offer a safe confirmation.",
+            "act": "Prepared a save action.",
+            "answer": "Review and save the recipe.",
+            "suggested_actions": [
+                {
+                    "type": "save_recipe",
+                    "arguments": [{"name": "recipe", "value_json": '{"name":"Soup"}'}],
+                }
+            ],
+        }
+    )
+    repaired_action = json.dumps(
+        {
+            "thinking": "Drafted a recipe.",
+            "plan": "Offer a safe confirmation.",
+            "act": "Prepared a valid save action.",
+            "answer": "Review and save the recipe.",
+            "suggested_actions": [
+                {
+                    "type": "save_recipe",
+                    "arguments": [
+                        {"name": "name", "value_json": '"Soup"'},
+                        {
+                            "name": "ingredients",
+                            "value_json": '[{"name":"tomato"}]',
+                        },
+                        {
+                            "name": "steps",
+                            "value_json": '[{"number":1,"text":"Cook"}]',
+                        },
+                    ],
+                }
+            ],
+        }
+    )
+    fake = RecordedACompletion(
+        [
+            model_response(content=invalid_action),
+            model_response(content=repaired_action),
+        ]
+    )
+    model = LiteLLMReactModel(
+        model="openai/gpt-5.1",
+        fallback_model="openai/gpt-5-mini",
+        reasoning_effort="high",
+        timeout_seconds=90,
+        max_retries=0,
+        tool_definitions=definitions(),
+        acompletion=fake,
+    )
+
+    decision = await model.decide(context(), ())
+
+    assert decision.final is not None
+    assert len(decision.final.suggested_actions) == 1
+    assert len(fake.calls) == 2
+    repair_message = fake.calls[1]["messages"][-1]["content"]  # type: ignore[index]
+    assert "save_recipe requires one JSON argument per field" in repair_message
+    assert "steps is a JSON array of objects with integer number and text" in repair_message
+    assert "fix its arguments instead of removing it" in repair_message
+
+
+@pytest.mark.asyncio
 async def test_invalid_repair_is_not_retried_indefinitely() -> None:
     fake = RecordedACompletion([completion("{}"), completion("{}")])
     model = LiteLLMReactModel(

@@ -63,7 +63,8 @@ async def test_readiness_times_out_as_503_when_dependency_hangs(monkeypatch) -> 
 
 def test_local_up_starts_complete_stack() -> None:
     makefile = Path("Makefile").read_text(encoding="utf-8")
-    assert "local-up:\n\tdocker compose -f infra/compose.yaml up -d --build" in makefile
+    assert "COMPOSE := docker compose --env-file .env -f infra/compose.yaml" in makefile
+    assert "local-up:\n\t$(COMPOSE) up -d --build" in makefile
 
 
 def test_public_share_endpoint_returns_only_allowlisted_recipe_fields() -> None:

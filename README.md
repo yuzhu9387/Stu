@@ -9,7 +9,7 @@ The application uses a hub-and-spoke agent architecture, FastAPI, PostgreSQL, Li
 1. Copy `.env.example` to `.env` and provide development credentials.
 2. Run `make install` and `pnpm install`.
 3. Run `make local-up` to start migrations, PostgreSQL, Redis, MinIO, API, workers, and Web.
-4. Open <http://127.0.0.1:3000/chat>.
+4. Open <http://127.0.0.1:13107/chat>.
 
 Run the full quality gate with `make verify`. Deployment and recovery procedures live in `docs/runbooks/`.
 The complete local Web/Lark test sequence is in

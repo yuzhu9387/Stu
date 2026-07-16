@@ -37,9 +37,7 @@ class FamilyMembershipResponse(BaseModel):
     role: str
 
 
-@router.post(
-    "/invites", response_model=FamilyInviteResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/invites", response_model=FamilyInviteResponse, status_code=status.HTTP_201_CREATED)
 async def create_invite(
     scope: ScopeDependency, service: IdentityDependency
 ) -> FamilyInviteResponse:
@@ -67,9 +65,7 @@ async def accept_invite(
     except InvalidTokenError as error:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from error
     except IdentityConflictError as error:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(error)
-        ) from error
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     return FamilyMembershipResponse.model_validate(membership)
 
 

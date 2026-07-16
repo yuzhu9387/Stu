@@ -38,9 +38,7 @@ async def postgres_identity_service() -> AsyncIterator[
     schema_name = f"identity_test_{uuid4().hex}"
     sync_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
     with psycopg.connect(sync_url) as connection:
-        connection.execute(
-            sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema_name))
-        )
+        connection.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema_name)))
 
     engine = create_async_engine(
         database_url,
@@ -55,9 +53,7 @@ async def postgres_identity_service() -> AsyncIterator[
         await engine.dispose()
         with psycopg.connect(sync_url) as connection:
             connection.execute(
-                sql.SQL("DROP SCHEMA {} CASCADE").format(
-                    sql.Identifier(schema_name)
-                )
+                sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema_name))
             )
 
 
@@ -138,12 +134,8 @@ async def test_postgres_reciprocal_joins_finish_without_unhandled_db_error(
         timeout=10,
     )
 
-    assert sum(isinstance(result, FamilyMembership) for result in results) == 1, repr(
-        results
-    )
-    assert sum(isinstance(result, IdentityConflictError) for result in results) == 1, repr(
-        results
-    )
+    assert sum(isinstance(result, FamilyMembership) for result in results) == 1, repr(results)
+    assert sum(isinstance(result, IdentityConflictError) for result in results) == 1, repr(results)
     async with session_factory() as session:
         memberships = (await session.scalars(select(FamilyMembership))).all()
     assert len(memberships) == 2

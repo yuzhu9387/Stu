@@ -90,9 +90,7 @@ class IdentityRepository:
         )
         return result.scalar_one_or_none()
 
-    async def lock_membership_for_account(
-        self, account_id: UUID
-    ) -> FamilyMembership | None:
+    async def lock_membership_for_account(self, account_id: UUID) -> FamilyMembership | None:
         result = await self._session.execute(
             select(FamilyMembership)
             .where(FamilyMembership.account_id == account_id)
@@ -106,9 +104,7 @@ class IdentityRepository:
         )
         return result.scalar_one_or_none()
 
-    async def lock_households(
-        self, household_ids: tuple[UUID, ...]
-    ) -> tuple[Household, ...]:
+    async def lock_households(self, household_ids: tuple[UUID, ...]) -> tuple[Household, ...]:
         result = await self._session.execute(
             select(Household)
             .where(Household.id.in_(household_ids))
@@ -138,11 +134,7 @@ class IdentityRepository:
             SuggestedActionRecord.household_id,
         )
         result = await self._session.execute(
-            select(
-                or_(
-                    *(exists().where(column == household_id) for column in household_columns)
-                )
-            )
+            select(or_(*(exists().where(column == household_id) for column in household_columns)))
         )
         return bool(result.scalar_one())
 
@@ -200,9 +192,7 @@ class IdentityRepository:
             )
             .values(household_id=target_household_id)
         )
-        await self._session.execute(
-            delete(Household).where(Household.id == source_household_id)
-        )
+        await self._session.execute(delete(Household).where(Household.id == source_household_id))
 
     async def create_web_session(
         self,
@@ -229,9 +219,7 @@ class IdentityRepository:
         return result.scalar_one_or_none()
 
     async def delete_web_session(self, token_hash: str) -> None:
-        await self._session.execute(
-            delete(WebSession).where(WebSession.token_hash == token_hash)
-        )
+        await self._session.execute(delete(WebSession).where(WebSession.token_hash == token_hash))
 
     async def create_lark_link_code(
         self, *, account_id: UUID, code_hash: str, expires_at: datetime
@@ -245,9 +233,7 @@ class IdentityRepository:
         await self._session.flush()
         return link
 
-    async def consume_lark_link_code(
-        self, *, code_hash: str, now: datetime
-    ) -> LarkLinkCode | None:
+    async def consume_lark_link_code(self, *, code_hash: str, now: datetime) -> LarkLinkCode | None:
         result = await self._session.execute(
             update(LarkLinkCode)
             .where(
@@ -281,8 +267,7 @@ class IdentityRepository:
     async def get_household_account(self, scope: object, account_id: UUID) -> Account:
         household_id = getattr(scope, "household_id", None)
         result = await self._session.execute(
-            select(Account)
-            .where(
+            select(Account).where(
                 Account.id == account_id,
                 or_(
                     exists().where(

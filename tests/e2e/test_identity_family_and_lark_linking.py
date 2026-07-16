@@ -122,9 +122,7 @@ async def test_family_invite_is_single_use_and_existing_membership_is_preserved(
 
     async with session_factory() as session:
         result = await session.execute(
-            select(FamilyMembership).where(
-                FamilyMembership.account_id == second.account.id
-            )
+            select(FamilyMembership).where(FamilyMembership.account_id == second.account.id)
         )
         preserved = result.scalar_one()
     assert joined.account_id == first.account.id
@@ -206,9 +204,7 @@ async def test_every_business_record_kind_makes_family_nonempty(
     account_id = authenticated.account.id
     record_id = uuid4()
     records = {
-        "recipe": Recipe(
-            id=record_id, household_id=household_id, owner_account_id=account_id
-        ),
+        "recipe": Recipe(id=record_id, household_id=household_id, owner_account_id=account_id),
         "raw_input": RawInput(
             id=record_id,
             household_id=household_id,
@@ -271,9 +267,7 @@ async def test_every_business_record_kind_makes_family_nonempty(
     async with session_factory() as session:
         session.add(records[record_kind])
         await session.commit()
-        assert await IdentityRepository(session).household_has_business_records(
-            household_id
-        )
+        assert await IdentityRepository(session).household_has_business_records(household_id)
 
 
 @pytest.mark.asyncio
@@ -299,15 +293,11 @@ async def test_invite_membership_race_maps_integrity_error_to_domain_conflict(
         raising=False,
     )
 
-    with pytest.raises(
-        IdentityConflictError, match="Family invite could not be accepted"
-    ):
+    with pytest.raises(IdentityConflictError, match="Family invite could not be accepted"):
         await identity_service.accept_family_invite(
             HouseholdScope(actor.account.id, actor.household.id), invite.code
         )
-    monkeypatch.setattr(
-        IdentityRepository, "move_membership_to_family", original_move
-    )
+    monkeypatch.setattr(IdentityRepository, "move_membership_to_family", original_move)
     retried = await identity_service.accept_family_invite(
         HouseholdScope(actor.account.id, actor.household.id), invite.code
     )
@@ -336,9 +326,7 @@ async def test_invite_acceptance_requests_both_household_locks(
                 households.append(household)
         return tuple(households)
 
-    monkeypatch.setattr(
-        IdentityRepository, "lock_households", record_lock_request, raising=False
-    )
+    monkeypatch.setattr(IdentityRepository, "lock_households", record_lock_request, raising=False)
 
     await identity_service.accept_family_invite(
         HouseholdScope(actor.account.id, actor.household.id), invite.code
@@ -369,22 +357,16 @@ async def test_retryable_postgres_transaction_error_maps_to_domain_conflict(
     async def raise_retryable_error(*args, **kwargs):
         raise OperationalError("lock households", {}, _SqlStateError(sqlstate))
 
-    monkeypatch.setattr(
-        IdentityRepository, "lock_households", raise_retryable_error, raising=False
-    )
+    monkeypatch.setattr(IdentityRepository, "lock_households", raise_retryable_error, raising=False)
 
-    with pytest.raises(
-        IdentityConflictError, match="Family invite could not be accepted"
-    ):
+    with pytest.raises(IdentityConflictError, match="Family invite could not be accepted"):
         await identity_service.accept_family_invite(
             HouseholdScope(actor.account.id, actor.household.id), invite.code
         )
 
 
 @pytest.mark.asyncio
-async def test_unrelated_database_error_is_not_swallowed(
-    identity_service, monkeypatch
-) -> None:
+async def test_unrelated_database_error_is_not_swallowed(identity_service, monkeypatch) -> None:
     owner_delivery = await identity_service.request_magic_link("owner@example.com")
     owner = await identity_service.consume_magic_link(owner_delivery.token)
     actor_delivery = await identity_service.request_magic_link("actor@example.com")
@@ -396,9 +378,7 @@ async def test_unrelated_database_error_is_not_swallowed(
     async def raise_unrelated_error(*args, **kwargs):
         raise OperationalError("lock households", {}, _SqlStateError("08006"))
 
-    monkeypatch.setattr(
-        IdentityRepository, "lock_households", raise_unrelated_error, raising=False
-    )
+    monkeypatch.setattr(IdentityRepository, "lock_households", raise_unrelated_error, raising=False)
 
     with pytest.raises(OperationalError):
         await identity_service.accept_family_invite(
@@ -463,9 +443,7 @@ async def test_lark_uniqueness_race_maps_integrity_error_to_domain_conflict(
     async def raise_integrity_error(*args, **kwargs):
         raise IntegrityError("INSERT lark identity", {}, Exception("unique race"))
 
-    monkeypatch.setattr(
-        IdentityRepository, "create_lark_identity", raise_integrity_error
-    )
+    monkeypatch.setattr(IdentityRepository, "create_lark_identity", raise_integrity_error)
 
     with pytest.raises(IdentityConflictError, match="Lark identity is already linked"):
         await identity_service.link_lark_identity(link.code, "ou_race")

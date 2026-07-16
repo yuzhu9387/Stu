@@ -12,9 +12,7 @@ class SessionScopeMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._identity = identity
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         token = request.cookies.get("recipe_session")
         if token:
             request.state.household_scope = await self._identity.resolve_web_session(token)

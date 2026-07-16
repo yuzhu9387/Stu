@@ -69,9 +69,7 @@ class LarkLinkCodeResponse(BaseModel):
 
 
 @router.get("/session", response_model=SessionResponse)
-async def get_session(
-    scope: ScopeDependency, service: IdentityDependency
-) -> SessionResponse:
+async def get_session(scope: ScopeDependency, service: IdentityDependency) -> SessionResponse:
     try:
         identity = await service.get_session_identity(scope)
     except InvalidTokenError as error:
@@ -85,9 +83,7 @@ async def get_session(
 
 
 @router.delete("/session", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_session(
-    request: Request, response: Response, service: IdentityDependency
-) -> None:
+async def delete_session(request: Request, response: Response, service: IdentityDependency) -> None:
     token = request.cookies.get("recipe_session")
     if token:
         await service.delete_web_session(token)

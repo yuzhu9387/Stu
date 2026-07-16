@@ -80,9 +80,7 @@ def test_expired_or_membership_inconsistent_sessions_are_unauthenticated(tmp_pat
     async def remove_membership() -> None:
         async with app.state.identity_service._session_factory() as session:
             await session.execute(
-                delete(FamilyMembership).where(
-                    FamilyMembership.account_id == valid.account.id
-                )
+                delete(FamilyMembership).where(FamilyMembership.account_id == valid.account.id)
             )
             await session.commit()
 
@@ -122,9 +120,7 @@ def test_magic_link_token_is_exposed_only_in_development(tmp_path) -> None:
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'development.db'}"
     asyncio.run(_create_schema(database_url))
     client = TestClient(create_app(_settings(database_url, environment="development")))
-    response = client.post(
-        "/api/v1/auth/magic-links", json={"email": "developer@example.com"}
-    )
+    response = client.post("/api/v1/auth/magic-links", json={"email": "developer@example.com"})
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
     assert response.json()["development_token"]
@@ -168,9 +164,7 @@ def test_login_then_accept_invite_uses_authenticated_account_only(tmp_path) -> N
     _login_with_magic_link(member_client, "member@example.com")
     member_before = member_client.get("/api/v1/auth/session").json()
 
-    accepted = member_client.post(
-        "/api/v1/families/invites/accept", json={"code": invite["code"]}
-    )
+    accepted = member_client.post("/api/v1/families/invites/accept", json={"code": invite["code"]})
     member_after = member_client.get("/api/v1/auth/session")
 
     assert accepted.status_code == 201
@@ -198,9 +192,7 @@ def test_invite_accept_rejects_account_id_and_requires_session(tmp_path) -> None
         "/api/v1/families/invites/accept",
         json={"code": code, "account_id": owner["account_id"]},
     )
-    unauthenticated = TestClient(app).post(
-        "/api/v1/families/invites/accept", json={"code": code}
-    )
+    unauthenticated = TestClient(app).post("/api/v1/families/invites/accept", json={"code": code})
 
     async def add_personal_family_record() -> None:
         async with app.state.identity_service._session_factory() as session:
@@ -215,9 +207,7 @@ def test_invite_accept_rejects_account_id_and_requires_session(tmp_path) -> None
             await session.commit()
 
     asyncio.run(add_personal_family_record())
-    nonempty = member_client.post(
-        "/api/v1/families/invites/accept", json={"code": code}
-    )
+    nonempty = member_client.post("/api/v1/families/invites/accept", json={"code": code})
 
     assert selected.status_code == 422
     assert unauthenticated.status_code == 401
@@ -228,24 +218,22 @@ def test_invite_accept_rejects_account_id_and_requires_session(tmp_path) -> None
 def test_session_cookie_security_attributes_follow_environment(tmp_path) -> None:
     development_url = f"sqlite+aiosqlite:///{tmp_path / 'cookie-development.db'}"
     asyncio.run(_create_schema(development_url))
-    development = TestClient(
-        create_app(_settings(development_url, environment="development"))
-    )
-    development_cookie = _login_with_magic_link(
-        development, "development@example.com"
-    ).headers["set-cookie"]
+    development = TestClient(create_app(_settings(development_url, environment="development")))
+    development_cookie = _login_with_magic_link(development, "development@example.com").headers[
+        "set-cookie"
+    ]
 
     production_url = f"sqlite+aiosqlite:///{tmp_path / 'cookie-production.db'}"
     asyncio.run(_create_schema(production_url))
     production_app = create_app(_settings(production_url, environment="production"))
     production_delivery = asyncio.run(
-        production_app.state.identity_service.request_magic_link(
-            "production@example.com"
-        )
+        production_app.state.identity_service.request_magic_link("production@example.com")
     )
-    production_cookie = TestClient(production_app).post(
-        "/api/v1/auth/sessions", json={"token": production_delivery.token}
-    ).headers["set-cookie"]
+    production_cookie = (
+        TestClient(production_app)
+        .post("/api/v1/auth/sessions", json={"token": production_delivery.token})
+        .headers["set-cookie"]
+    )
 
     for cookie in (development_cookie, production_cookie):
         assert "HttpOnly" in cookie

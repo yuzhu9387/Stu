@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from recipe_agent.domain.feedback.contracts import FeedbackEvent, RecipeVersionReference
 from recipe_agent.domain.feedback.models import FeedbackEventRecord, RecipeVersionDeltaRecord
+from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.recipes.models import (
     Recipe,
     RecipeIngredient,
@@ -46,6 +47,28 @@ class SqlFeedbackRepository:
                 household_id=record.household_id,
                 recipe_id=record.recipe_id,
                 raw_text=record.raw_text,
+            )
+
+    async def list_events(self, scope: HouseholdScope) -> tuple[FeedbackEvent, ...]:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(FeedbackEventRecord)
+                .where(
+                    FeedbackEventRecord.owner_account_id == scope.account_id,
+                    FeedbackEventRecord.household_id == scope.household_id,
+                )
+                .order_by(FeedbackEventRecord.created_at.desc(), FeedbackEventRecord.id)
+                .limit(100)
+            )
+            return tuple(
+                FeedbackEvent(
+                    id=record.id,
+                    owner_account_id=record.owner_account_id,
+                    household_id=record.household_id,
+                    recipe_id=record.recipe_id,
+                    raw_text=record.raw_text,
+                )
+                for record in result.scalars()
             )
 
     async def active_version_id(self, household_id: UUID, recipe_id: UUID) -> UUID:

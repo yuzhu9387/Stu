@@ -9,9 +9,13 @@ from recipe_agent.api.session import SessionScopeMiddleware
 from recipe_agent.api.v1.agent import router as agent_router
 from recipe_agent.api.v1.auth import router as auth_router
 from recipe_agent.api.v1.families import router as families_router
+from recipe_agent.api.v1.feature_reads import router as feature_reads_router
 from recipe_agent.api.v1.feedback import router as feedback_router
+from recipe_agent.api.v1.imports import router as imports_router
 from recipe_agent.api.v1.planning import router as planning_router
+from recipe_agent.api.v1.recipes import router as recipes_router
 from recipe_agent.api.v1.recommendations import router as recommendations_router
+from recipe_agent.api.v1.settings import router as settings_router
 from recipe_agent.api.v1.shares import router as shares_router
 from recipe_agent.config import Settings, get_settings
 from recipe_agent.domain.conversation.hub import ConversationHub
@@ -30,6 +34,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     metrics_registry = MetricsRegistry()
     app.state.metrics = metrics_registry
     session_factory = create_session_factory(resolved_settings)
+    app.state.session_factory = session_factory
     identity_service = IdentityService(session_factory=session_factory)
     app.state.identity_service = identity_service
     app.state.conversation_hub = ConversationHub(AgentRunRepository(session_factory))
@@ -43,9 +48,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agent_router)
     app.include_router(families_router)
     app.include_router(feedback_router)
+    app.include_router(feature_reads_router)
+    app.include_router(imports_router)
     app.include_router(planning_router)
+    app.include_router(recipes_router)
     app.include_router(recommendations_router)
     app.include_router(shares_router)
+    app.include_router(settings_router)
     app.include_router(lark_router)
 
     @app.get("/health/live", tags=["operations"])

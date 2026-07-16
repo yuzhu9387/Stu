@@ -16,11 +16,13 @@ from recipe_agent.domain.recommendations.contracts import (
 class MemoryPlanRepository:
     def __init__(self, plan: MealPlan) -> None:
         self.plan = plan
+        self.save_calls = 0
 
     async def get(self, household_id: object, plan_id: object) -> MealPlan:
         return self.plan
 
     async def save(self, plan: MealPlan) -> MealPlan:
+        self.save_calls += 1
         self.plan = plan
         return plan
 
@@ -113,3 +115,37 @@ async def test_create_week_avoids_duplicate_recipe_ids() -> None:
 
     assert len(plan.items) == 3
     assert len({item.recipe_id for item in plan.items}) == 3
+
+
+@pytest.mark.asyncio
+async def test_preview_replacement_does_not_save_the_proposed_plan() -> None:
+    household_id = uuid4()
+    day = date(2026, 7, 13)
+    saved_plan = MealPlan(
+        id=uuid4(),
+        owner_account_id=uuid4(),
+        household_id=household_id,
+        week_start=day,
+        version=1,
+        items=(
+            PlanItem(
+                id=uuid4(),
+                day=day,
+                slot="dinner",
+                recipe_id=uuid4(),
+                recipe_name="Original",
+                reason_codes=(),
+            ),
+        ),
+    )
+    repository = MemoryPlanRepository(saved_plan)
+    service = PlanningService(
+        repository=repository,
+        recommendations=FixedRecommendations(uuid4()),
+    )
+
+    preview = await service.preview_replace_item(household_id, saved_plan.id, day)
+
+    assert preview.version == 2
+    assert repository.save_calls == 0
+    assert repository.plan == saved_plan

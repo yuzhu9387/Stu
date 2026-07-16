@@ -56,9 +56,13 @@ async def test_feedback_version_and_private_share_flow(
     shares = ShareService(repository=SqlShareRepository(session_factory))
     delivery = await shares.create_snapshot(
         projected.model_dump(mode="json"),
+        owner_account_id=owner_account_id,
+        household_id=household_id,
         expires_in=timedelta(hours=1),
     )
 
     resolved = await shares.resolve_token(delivery.token)
     assert resolved.snapshot["name"] == "Family Soup"
+    assert resolved.owner_account_id == owner_account_id
+    assert resolved.household_id == household_id
     assert "child_name" not in resolved.snapshot

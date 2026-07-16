@@ -4,14 +4,19 @@ from collections.abc import Mapping
 from typing import Any, Protocol
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from recipe_agent.domain.identity.models import Account
+from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.imports.contracts import ImportCommand, InputKind
 from recipe_agent.domain.recipes.contracts import (
+    RawInputSummary,
     RecipeCandidate,
+    RecipeDetail,
     RecipeIngredientCandidate,
     RecipeStepCandidate,
+    RecipeSummary,
     RecipeView,
 )
 from recipe_agent.domain.recipes.models import (
@@ -77,6 +82,52 @@ class RawInputRepository:
             if raw is None:
                 raise RawInputNotFoundError("Raw input not found")
             return raw
+
+    async def list_summaries(self, scope: HouseholdScope) -> tuple[RawInputSummary, ...]:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(RawInput, Account.email)
+                .join(Account, Account.id == RawInput.owner_account_id)
+                .where(
+                    RawInput.owner_account_id == scope.account_id,
+                    RawInput.household_id == scope.household_id,
+                )
+                .order_by(RawInput.created_at.desc(), RawInput.id)
+                .limit(100)
+            )
+            return tuple(self._summary(record, email, scope) for record, email in result.all())
+
+    async def get_summary(self, scope: HouseholdScope, raw_input_id: UUID) -> RawInputSummary:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(RawInput, Account.email)
+                .join(Account, Account.id == RawInput.owner_account_id)
+                .where(
+                    RawInput.id == raw_input_id,
+                    RawInput.owner_account_id == scope.account_id,
+                    RawInput.household_id == scope.household_id,
+                )
+            )
+            row = result.one_or_none()
+            if row is None:
+                raise RawInputNotFoundError("Raw input not found")
+            return self._summary(row[0], row[1], scope)
+
+    @staticmethod
+    def _summary(record: RawInput, email: str, scope: HouseholdScope) -> RawInputSummary:
+        return RawInputSummary(
+            id=record.id,
+            owner_account_id=record.owner_account_id,
+            owner_display_name=_owner_display_name(email),
+            is_owned_by_current_account=record.owner_account_id == scope.account_id,
+            household_id=record.household_id,
+            kind=record.kind,
+            status=(
+                record.status.value if isinstance(record.status, RawInputStatus) else record.status
+            ),
+            error=record.error,
+            created_at=record.created_at,
+        )
 
     async def mark_needs_review(
         self,
@@ -226,3 +277,103 @@ class RecipeRepository:
                     for item in step_result.scalars()
                 ),
             )
+
+    async def search_owned(self, scope: HouseholdScope, query: str) -> tuple[RecipeSummary, ...]:
+        return await self._search(scope, query, owned_only=True)
+
+    async def search_family(self, scope: HouseholdScope, query: str) -> tuple[RecipeSummary, ...]:
+        return await self._search(scope, query, owned_only=False)
+
+    async def list_for_scope(self, scope: HouseholdScope) -> tuple[RecipeSummary, ...]:
+        return await self._search(scope, "", owned_only=False)
+
+    async def _search(
+        self, scope: HouseholdScope, query: str, *, owned_only: bool
+    ) -> tuple[RecipeSummary, ...]:
+        async with self._session_factory() as session:
+            statement = (
+                select(Recipe, RecipeVersion.name, Account.email)
+                .join(RecipeVersion, RecipeVersion.id == Recipe.active_version_id)
+                .join(Account, Account.id == Recipe.owner_account_id)
+                .where(Recipe.household_id == scope.household_id)
+            )
+            if owned_only:
+                statement = statement.where(Recipe.owner_account_id == scope.account_id)
+            else:
+                statement = statement.where(
+                    or_(
+                        Recipe.visibility == "family",
+                        Recipe.owner_account_id == scope.account_id,
+                    )
+                )
+            normalized_query = query.strip()
+            if normalized_query:
+                statement = statement.where(
+                    RecipeVersion.name.icontains(normalized_query, autoescape=True)
+                )
+            result = await session.execute(
+                statement.order_by(Recipe.created_at.desc(), Recipe.id).limit(100)
+            )
+            return tuple(
+                self._summary(record, name, email, scope) for record, name, email in result.all()
+            )
+
+    async def get_for_scope(self, scope: HouseholdScope, recipe_id: UUID) -> RecipeDetail:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(Recipe, RecipeVersion, Account.email)
+                .join(RecipeVersion, RecipeVersion.id == Recipe.active_version_id)
+                .join(Account, Account.id == Recipe.owner_account_id)
+                .where(
+                    Recipe.id == recipe_id,
+                    Recipe.household_id == scope.household_id,
+                    or_(
+                        Recipe.visibility == "family",
+                        Recipe.owner_account_id == scope.account_id,
+                    ),
+                )
+            )
+            row = result.one_or_none()
+            if row is None:
+                raise RecipeNotFoundError("Recipe not found")
+            recipe, version, email = row
+            ingredient_result = await session.execute(
+                select(RecipeIngredient)
+                .where(RecipeIngredient.version_id == version.id)
+                .order_by(RecipeIngredient.position)
+            )
+            step_result = await session.execute(
+                select(RecipeStep)
+                .where(RecipeStep.version_id == version.id)
+                .order_by(RecipeStep.number)
+            )
+            return RecipeDetail(
+                **self._summary(recipe, version.name, email, scope).model_dump(),
+                ingredients=tuple(
+                    RecipeIngredientCandidate(
+                        name=item.name, quantity=item.quantity, unit=item.unit
+                    )
+                    for item in ingredient_result.scalars()
+                ),
+                steps=tuple(
+                    RecipeStepCandidate(number=item.number, text=item.text)
+                    for item in step_result.scalars()
+                ),
+            )
+
+    @staticmethod
+    def _summary(record: Recipe, name: str, email: str, scope: HouseholdScope) -> RecipeSummary:
+        return RecipeSummary(
+            id=record.id,
+            owner_account_id=record.owner_account_id,
+            owner_display_name=_owner_display_name(email),
+            is_owned_by_current_account=record.owner_account_id == scope.account_id,
+            household_id=record.household_id,
+            name=name,
+            visibility=record.visibility,
+            created_at=record.created_at,
+        )
+
+
+def _owner_display_name(email: str) -> str:
+    return email.partition("@")[0]

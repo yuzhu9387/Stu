@@ -48,6 +48,7 @@ def _to_result(candidate: RecommendationCandidate) -> RecommendationResult:
         reasons.append("well_rated")
     return RecommendationResult(
         id=candidate.id,
+        owner_account_id=candidate.owner_account_id,
         name=candidate.name,
         source=candidate.source,
         score=score,

@@ -42,11 +42,20 @@ class FixedFeedbackService:
 class RecordingShareService:
     def __init__(self) -> None:
         self.snapshots: list[dict[str, object]] = []
+        self.owner_account_ids: list[object] = []
+        self.household_ids: list[object] = []
 
     async def create_snapshot(
-        self, snapshot: dict[str, object], *, expires_in: timedelta
+        self,
+        snapshot: dict[str, object],
+        *,
+        owner_account_id: object,
+        household_id: object,
+        expires_in: timedelta,
     ) -> ShareDelivery:
         self.snapshots.append(snapshot)
+        self.owner_account_ids.append(owner_account_id)
+        self.household_ids.append(household_id)
         return ShareDelivery(token="private-token")
 
 
@@ -87,3 +96,5 @@ def test_feedback_and_share_creation_use_authenticated_scope_and_public_schema()
         "ingredients": ["tomato"],
         "steps": ["Simmer"],
     }
+    assert shares.owner_account_ids == [owner_account_id]
+    assert shares.household_ids == [household_id]

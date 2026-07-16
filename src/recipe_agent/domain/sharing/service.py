@@ -5,6 +5,9 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 from recipe_agent.domain.common.types import JsonValue
 
@@ -18,12 +21,26 @@ class ShareRecord:
     token_hash: str
     snapshot: dict[str, JsonValue]
     expires_at: datetime
+    owner_account_id: UUID | None = None
+    household_id: UUID | None = None
     revoked_at: datetime | None = None
 
 
 @dataclass(frozen=True)
 class ShareDelivery:
     token: str
+
+
+class ShareSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID
+    owner_account_id: UUID
+    owner_display_name: str
+    is_owned_by_current_account: bool
+    household_id: UUID
+    expires_at: datetime
+    revoked_at: datetime | None
 
 
 class ShareRepository(Protocol):
@@ -42,6 +59,8 @@ class ShareService:
         self,
         snapshot: dict[str, JsonValue],
         *,
+        owner_account_id: UUID,
+        household_id: UUID,
         expires_in: timedelta,
     ) -> ShareDelivery:
         token = secrets.token_urlsafe(32)
@@ -49,6 +68,8 @@ class ShareService:
             token_hash=_hash_token(token),
             snapshot=snapshot,
             expires_at=datetime.now(UTC) + expires_in,
+            owner_account_id=owner_account_id,
+            household_id=household_id,
         )
         await self._repository.save(record)
         return ShareDelivery(token=token)

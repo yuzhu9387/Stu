@@ -70,6 +70,25 @@ class SessionIdentity:
     role: str
 
 
+@dataclass(frozen=True)
+class FamilyMemberView:
+    owner_account_id: UUID
+    owner_display_name: str
+    is_owned_by_current_account: bool
+    household_id: UUID
+    email: str
+    role: str
+
+
+@dataclass(frozen=True)
+class LarkBindingView:
+    owner_account_id: UUID
+    owner_display_name: str
+    is_owned_by_current_account: bool
+    household_id: UUID
+    is_linked: bool
+
+
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -161,6 +180,35 @@ class IdentityService:
             if membership is None or membership.household_id != scope.household_id:
                 raise InvalidTokenError("Family membership is no longer valid")
             return membership
+
+    async def list_family_members(self, scope: HouseholdScope) -> tuple[FamilyMemberView, ...]:
+        async with self._session_factory() as session:
+            repository = IdentityRepository(session)
+            rows = await repository.list_household_members(scope.household_id)
+            return tuple(
+                FamilyMemberView(
+                    owner_account_id=account.id,
+                    owner_display_name=account.email.partition("@")[0],
+                    is_owned_by_current_account=account.id == scope.account_id,
+                    household_id=membership.household_id,
+                    email=account.email,
+                    role=membership.role,
+                )
+                for account, membership in rows
+            )
+
+    async def get_lark_binding(self, scope: HouseholdScope) -> LarkBindingView:
+        async with self._session_factory() as session:
+            repository = IdentityRepository(session)
+            account = await repository.get_household_account(scope, scope.account_id)
+            identity = await repository.get_lark_identity_by_account(scope.account_id)
+            return LarkBindingView(
+                owner_account_id=account.id,
+                owner_display_name=account.email.partition("@")[0],
+                is_owned_by_current_account=True,
+                household_id=scope.household_id,
+                is_linked=identity is not None,
+            )
 
     async def create_family_invite(self, scope: HouseholdScope) -> ExpiringCodeDelivery:
         now = self._now()

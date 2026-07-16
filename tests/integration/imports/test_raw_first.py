@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from recipe_agent.domain.imports.adapters import AdapterRegistry, ExternalPlatformError, TextAdapter
@@ -11,7 +12,7 @@ from recipe_agent.domain.recipes.contracts import (
     RecipeIngredientCandidate,
     RecipeStepCandidate,
 )
-from recipe_agent.domain.recipes.models import RawInputStatus
+from recipe_agent.domain.recipes.models import RawInput, RawInputStatus, Recipe
 from recipe_agent.domain.recipes.repository import (
     RawInputNotFoundError,
     RawInputRepository,
@@ -130,3 +131,27 @@ async def test_successful_import_persists_structured_recipe(
     assert recipe.name == "Family Soup"
     assert saved_raw.owner_account_id == command.owner_account_id
     assert saved_raw.status is RawInputStatus.EXTRACTED
+
+
+@pytest.mark.asyncio
+async def test_import_preview_parses_without_persisting_source_or_recipe(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    service = ImportService(
+        repository=RawInputRepository(session_factory),
+        adapters=AdapterRegistry([TextAdapter()]),
+        ai_provider=FixedAIProvider(),
+        recipes=RecipeRepository(session_factory),
+    )
+
+    preview = await service.preview(
+        uuid4(),
+        uuid4(),
+        InputKind.TEXT,
+        "Family soup: boil one liter of water.",
+    )
+
+    assert preview.name == "Family Soup"
+    async with session_factory() as session:
+        assert await session.scalar(select(func.count()).select_from(RawInput)) == 0
+        assert await session.scalar(select(func.count()).select_from(Recipe)) == 0

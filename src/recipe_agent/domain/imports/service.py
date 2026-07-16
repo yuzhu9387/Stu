@@ -1,6 +1,6 @@
 """Raw-first import orchestration."""
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from recipe_agent.domain.common.ai import AIProvider
 from recipe_agent.domain.imports.adapters import AdapterRegistry
@@ -67,3 +67,23 @@ class ImportService:
             recipe_id=recipe.id,
             extracted=extracted,
         )
+
+    async def preview(
+        self,
+        owner_account_id: UUID,
+        household_id: UUID,
+        kind: InputKind,
+        source: str,
+    ) -> RecipeCandidate:
+        """Extract and parse a recipe without persisting raw input or a recipe."""
+
+        if self._ai_provider is None:
+            raise RuntimeError("Recipe extraction dependencies are not configured")
+        command = ImportCommand(
+            owner_account_id=owner_account_id,
+            household_id=household_id,
+            kind=kind,
+            source=source,
+        )
+        extracted = await self._adapters.extract(uuid4(), command)
+        return await self._ai_provider.parse_structured(extracted.text, RecipeCandidate)

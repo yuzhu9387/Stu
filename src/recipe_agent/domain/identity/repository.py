@@ -84,6 +84,17 @@ class IdentityRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_household_members(
+        self, household_id: UUID
+    ) -> tuple[tuple[Account, FamilyMembership], ...]:
+        result = await self._session.execute(
+            select(Account, FamilyMembership)
+            .join(FamilyMembership, FamilyMembership.account_id == Account.id)
+            .where(FamilyMembership.household_id == household_id)
+            .order_by(Account.email, Account.id)
+        )
+        return tuple((account, membership) for account, membership in result.all())
+
     async def get_family_invite(self, code_hash: str) -> FamilyInvite | None:
         result = await self._session.execute(
             select(FamilyInvite).where(FamilyInvite.code_hash == code_hash)

@@ -31,6 +31,7 @@ class RecommendationCandidate(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: UUID
+    owner_account_id: UUID | None = None
     name: str = Field(min_length=1)
     source: RecommendationSource
     features: RecommendationFeatures
@@ -54,6 +55,7 @@ class RecommendationResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: UUID
+    owner_account_id: UUID | None = None
     name: str
     source: RecommendationSource
     score: Decimal

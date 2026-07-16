@@ -435,3 +435,88 @@ def test_suggested_actions_enforce_schema_and_allow_unconsumed_rows(
             """,
             parameters | {"id": uuid4(), "token_hash": "h" * 64, "household_id": uuid4()},
         )
+
+
+def test_live_read_migration_preserves_legacy_shares_and_adds_preferences(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0007_unified_runtime")
+    account_id = uuid4()
+    household_id = uuid4()
+    assert postgres_database.fetch_one(
+        "INSERT INTO accounts (id, email) VALUES (%(id)s, %(email)s) RETURNING id",
+        {"id": account_id, "email": f"{account_id}@example.com"},
+    ) == (account_id,)
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO households (id, owner_account_id)
+        VALUES (%(id)s, %(account_id)s) RETURNING id
+        """,
+        {"id": household_id, "account_id": account_id},
+    ) == (household_id,)
+    share_id = uuid4()
+    expires_at = datetime.now(UTC) + timedelta(hours=1)
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO share_snapshots
+            (id, token_hash, snapshot_json, expires_at)
+        VALUES (%(id)s, %(token_hash)s, '{}', %(expires_at)s)
+        RETURNING id
+        """,
+        {
+            "id": share_id,
+            "token_hash": "l" * 64,
+            "expires_at": expires_at,
+        },
+    ) == (share_id,)
+
+    postgres_database.upgrade("head")
+
+    assert postgres_database.fetch_one(
+        """
+        SELECT owner_account_id, household_id
+        FROM share_snapshots WHERE id = %(id)s
+        """,
+        {"id": share_id},
+    ) == (None, None)
+    preference_id = uuid4()
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO dietary_preferences
+            (id, owner_account_id, household_id, label)
+        VALUES (%(id)s, %(account_id)s, %(household_id)s, 'vegetarian')
+        RETURNING visibility, created_at IS NOT NULL
+        """,
+        {
+            "id": preference_id,
+            "account_id": account_id,
+            "household_id": household_id,
+        },
+    ) == ("family", True)
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO dietary_preferences
+                (id, owner_account_id, household_id, label)
+            VALUES (%(id)s, %(account_id)s, %(household_id)s, 'vegetarian')
+            """,
+            {
+                "id": uuid4(),
+                "account_id": account_id,
+                "household_id": household_id,
+            },
+        )
+
+    postgres_database.downgrade("0007_unified_runtime")
+    assert postgres_database.fetch_one(
+        "SELECT id FROM share_snapshots WHERE id = %(id)s", {"id": share_id}
+    ) == (share_id,)
+    assert (
+        postgres_database.fetch_one(
+            """
+        SELECT table_name FROM information_schema.tables
+        WHERE table_name = 'dietary_preferences'
+        """
+        )
+        is None
+    )

@@ -1,5 +1,5 @@
-import { FeatureScreen } from "@/components/feature-screen";
+import { LiveFeatureScreen } from "@/features/records/live-feature-screen";
 
 export default function ShoppingPage() {
-  return <FeatureScreen page="shopping" />;
+  return <LiveFeatureScreen page="shopping" />;
 }

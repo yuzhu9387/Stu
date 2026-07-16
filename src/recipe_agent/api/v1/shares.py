@@ -12,9 +12,10 @@ from recipe_agent.domain.common.types import JsonValue
 from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.sharing.projection import ShareRecipeSnapshot
 from recipe_agent.domain.sharing.repository import SqlShareRepository
-from recipe_agent.domain.sharing.service import ShareService, ShareSummary
+from recipe_agent.domain.sharing.service import InvalidShareTokenError, ShareService, ShareSummary
 
 router = APIRouter(prefix="/api/v1/shares", tags=["sharing"])
+public_router = APIRouter(prefix="/api/v1/public/shares", tags=["public sharing"])
 
 
 class CreateShareRequest(ShareRecipeSnapshot):
@@ -79,3 +80,15 @@ async def get_share(
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return result
+
+
+@public_router.get("/{token}", response_model=ShareRecipeSnapshot)
+async def get_public_share(
+    token: str,
+    service: Annotated[ShareService, Depends(get_share_service)],
+) -> ShareRecipeSnapshot:
+    try:
+        record = await service.resolve_token(token)
+        return ShareRecipeSnapshot.model_validate(record.snapshot)
+    except (InvalidShareTokenError, ValueError) as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from error

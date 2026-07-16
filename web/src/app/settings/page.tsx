@@ -1,5 +1,5 @@
-import { FeatureScreen } from "@/components/feature-screen";
+import { AccountFamilySettings } from "@/features/settings/account-family-settings";
 
 export default function SettingsPage() {
-  return <FeatureScreen page="settings" />;
+  return <AccountFamilySettings />;
 }

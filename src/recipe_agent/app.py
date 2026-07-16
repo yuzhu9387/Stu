@@ -21,6 +21,7 @@ from recipe_agent.api.v1.planning import router as planning_router
 from recipe_agent.api.v1.recipes import router as recipes_router
 from recipe_agent.api.v1.recommendations import router as recommendations_router
 from recipe_agent.api.v1.settings import router as settings_router
+from recipe_agent.api.v1.shares import public_router as public_shares_router
 from recipe_agent.api.v1.shares import router as shares_router
 from recipe_agent.bootstrap import build_runtime
 from recipe_agent.config import Settings, get_settings
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(recipes_router)
     app.include_router(recommendations_router)
     app.include_router(shares_router)
+    app.include_router(public_shares_router)
     app.include_router(settings_router)
     app.include_router(lark_router)
 

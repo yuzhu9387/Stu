@@ -1,5 +1,7 @@
 import asyncio
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -8,6 +10,7 @@ from fastapi.testclient import TestClient
 import recipe_agent.app as app_module
 from recipe_agent.app import create_app
 from recipe_agent.config import Settings
+from recipe_agent.domain.sharing.service import ShareRecord
 
 
 def test_health_endpoints_report_application_state() -> None:
@@ -61,3 +64,27 @@ async def test_readiness_times_out_as_503_when_dependency_hangs(monkeypatch) -> 
 def test_local_up_starts_complete_stack() -> None:
     makefile = Path("Makefile").read_text(encoding="utf-8")
     assert "local-up:\n\tdocker compose -f infra/compose.yaml up -d --build" in makefile
+
+
+def test_public_share_endpoint_returns_only_allowlisted_recipe_fields() -> None:
+    app = create_app(Settings(_env_file=None, environment="test"))
+
+    class Shares:
+        async def resolve_token(self, token: str) -> ShareRecord:
+            assert token == "public-token"
+            return ShareRecord(
+                token_hash="hash-only",
+                snapshot={
+                    "id": str(uuid4()),
+                    "name": "Family Soup",
+                    "ingredients": ["tomato"],
+                    "steps": ["Simmer."],
+                },
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+            )
+
+    app.state.share_service = Shares()
+    response = TestClient(app).get("/api/v1/public/shares/public-token")
+
+    assert response.status_code == 200
+    assert set(response.json()) == {"id", "name", "ingredients", "steps"}

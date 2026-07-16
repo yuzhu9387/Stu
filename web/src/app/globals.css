@@ -222,6 +222,8 @@ input:focus-visible {
   box-shadow: 0 0 0 4px rgba(77, 156, 120, 0.13);
 }
 
+.status-pill.disconnected > span { background: #b88a42; box-shadow: 0 0 0 4px rgba(184, 138, 66, 0.13); }
+
 .language-switcher {
   display: flex;
   padding: 3px;
@@ -565,6 +567,42 @@ input:focus-visible {
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+
+.empty-state {
+  margin: 32px 0;
+  padding: 22px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  color: var(--ink-soft);
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.code-delivery {
+  margin: 18px 0 0;
+  padding: 15px 18px;
+  border-radius: 12px;
+  background: var(--cream);
+  color: var(--ink-soft);
+}
+
+.code-delivery strong { color: var(--pine); letter-spacing: 0.08em; }
+
+.join-family-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.join-family-form label { width: 100%; color: var(--ink-soft); font-size: 12px; font-weight: 800; }
+.join-family-form input { min-width: 230px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: white; }
 
 .agent-progress {
   border-radius: 16px;

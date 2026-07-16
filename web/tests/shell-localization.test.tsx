@@ -11,7 +11,7 @@ describe("shell localization", () => {
 
     expect(screen.getByText("余家")).toBeVisible();
     expect(screen.getByText("已记住 12 道菜谱")).toBeVisible();
-    expect(screen.getByText("Lark 已连接")).toBeVisible();
+    expect(screen.getByText("Lark 未连接")).toBeVisible();
     expect(screen.getByText("网址 · 图片 · 表格")).toBeVisible();
     expect(screen.queryByText("Yu household")).not.toBeInTheDocument();
 
@@ -19,7 +19,7 @@ describe("shell localization", () => {
 
     expect(screen.getByText("Yu household")).toBeVisible();
     expect(screen.getByText("12 recipes remembered")).toBeVisible();
-    expect(screen.getByText("Lark connected")).toBeVisible();
+    expect(screen.getByText("Lark not connected")).toBeVisible();
     expect(screen.getByText("URL · image · spreadsheet")).toBeVisible();
     expect(screen.queryByText("余家")).not.toBeInTheDocument();
   });

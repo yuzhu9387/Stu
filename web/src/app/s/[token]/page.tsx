@@ -1,5 +1,6 @@
-import { FeatureScreen } from "@/components/feature-screen";
+import { PublicShare } from "@/features/records/public-share";
 
-export default function SharedRecipePage() {
-  return <FeatureScreen page="publicShare" />;
+export default async function SharedRecipePage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  return <PublicShare token={token} />;
 }

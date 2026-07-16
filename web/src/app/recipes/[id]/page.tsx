@@ -1,5 +1,6 @@
-import { FeatureScreen } from "@/components/feature-screen";
+import { RecipeDetail } from "@/features/records/recipe-detail";
 
-export default function RecipeDetailPage() {
-  return <FeatureScreen page="recipe" />;
+export default async function RecipeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <RecipeDetail id={id} />;
 }

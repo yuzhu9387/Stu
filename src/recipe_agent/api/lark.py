@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from recipe_agent.domain.conversation.contracts import ConversationCommand
+from recipe_agent.infrastructure.lark.crypto import LarkCipher
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
 
 router = APIRouter(prefix="/webhooks/lark", tags=["lark"])
@@ -18,6 +19,12 @@ class _Header(BaseModel):
 
 class _Envelope(BaseModel):
     header: _Header
+
+
+class _URLVerification(BaseModel):
+    type: str
+    token: str
+    challenge: str
 
 
 class EventStore(Protocol):
@@ -33,16 +40,27 @@ class LarkWebhookHandler:
         self,
         *,
         verification_token: str,
+        cipher: LarkCipher | None = None,
         normalizer: LarkEventNormalizer,
         event_store: EventStore,
         publisher: CommandPublisher,
     ) -> None:
         self._verification_token = verification_token
+        self._cipher = cipher
         self._normalizer = normalizer
         self._event_store = event_store
         self._publisher = publisher
 
     async def handle(self, payload: object) -> dict[str, str]:
+        if isinstance(payload, dict) and isinstance(payload.get("encrypt"), str):
+            if self._cipher is None:
+                raise PermissionError("Encrypted Lark payload is not configured")
+            payload = self._cipher.decrypt(payload["encrypt"])
+        if isinstance(payload, dict) and payload.get("type") == "url_verification":
+            verification = _URLVerification.model_validate(payload)
+            if not secrets_equal(verification.token, self._verification_token):
+                raise PermissionError("Invalid Lark verification token")
+            return {"challenge": verification.challenge}
         envelope = _Envelope.model_validate(payload)
         if not secrets_equal(envelope.header.token, self._verification_token):
             raise PermissionError("Invalid Lark verification token")

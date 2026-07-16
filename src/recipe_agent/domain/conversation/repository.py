@@ -27,6 +27,7 @@ from recipe_agent.infrastructure.db.outbox import OutboxRepository
 
 AGENT_RUN_REQUESTED_TOPIC = "agent.run.requested"
 ACTION_EXECUTION_REQUESTED_TOPIC = "agent.action.requested"
+LARK_RUN_COMPLETED_TOPIC = "lark.run.completed"
 DEFAULT_ACTION_MAX_ATTEMPTS = 3
 
 
@@ -198,6 +199,12 @@ class AgentRunRepository:
                 .returning(AgentRun)
                 .execution_options(synchronize_session=False)
             )
+            if run is not None and run.transport == "lark":
+                await self._outbox.add(
+                    session,
+                    LARK_RUN_COMPLETED_TOPIC,
+                    {"run_id": str(run.id)},
+                )
             return None if run is None else _view(run)
 
     async def _find_idempotent(
@@ -638,6 +645,7 @@ def _request_json(command: ConversationCommand) -> str:
         {
             "locale": command.locale.value,
             "message": command.message,
+            "reply_target": command.reply_target,
         },
         ensure_ascii=False,
         separators=(",", ":"),

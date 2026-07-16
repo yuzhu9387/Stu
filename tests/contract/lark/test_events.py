@@ -6,22 +6,42 @@ import pytest
 
 from recipe_agent.api.lark import LarkWebhookHandler
 from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
-from recipe_agent.domain.identity.locale import Locale
+from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
-from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
+from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer, NormalizedLarkMessage
+from recipe_agent.infrastructure.lark.service import LarkInboundService
 
 
 def test_lark_v2_message_normalizes_without_transport_fields() -> None:
     fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
     payload = json.loads(fixture.read_text(encoding="utf-8"))
-    normalizer = LarkEventNormalizer(account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US)
+    normalizer = LarkEventNormalizer()
 
-    command = normalizer.normalize(payload)
+    event = normalizer.normalize(payload)
+    assert isinstance(event, NormalizedLarkMessage)
+    command = event.to_command(HouseholdScope(uuid4(), uuid4()))
 
     assert command.channel == "lark"
     assert command.idempotency_key == payload["header"]["event_id"]
     assert command.text == "Save this recipe"
     assert command.allow_conversation_creation is True
+
+
+def test_lark_v2_message_accepts_documented_transport_metadata() -> None:
+    fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    payload["header"].update({"app_id": "cli_app", "tenant_key": "tenant"})
+    payload["event"]["sender"].update(
+        {"sender_type": "user", "tenant_key": "tenant"}
+    )
+    payload["event"]["message"].update(
+        {"create_time": "1720000000000", "chat_type": "p2p"}
+    )
+
+    event = LarkEventNormalizer().normalize(payload)
+
+    assert isinstance(event, NormalizedLarkMessage)
+    assert event.open_id == "ou_family_cook"
 
 
 class MemoryEventStore:
@@ -34,6 +54,9 @@ class MemoryEventStore:
         self.ids.add(event_id)
         return True
 
+    async def is_claimed(self, event_id: str) -> bool:
+        return event_id in self.ids
+
 
 class RecordingSubmitter:
     def __init__(self) -> None:
@@ -44,22 +67,47 @@ class RecordingSubmitter:
         return AgentRunView.model_construct()
 
 
-@pytest.mark.asyncio
-async def test_valid_event_reaches_shared_submitter_once() -> None:
-    fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
-    payload = json.loads(fixture.read_text(encoding="utf-8"))
+class StaticIdentity:
+    def __init__(self, scope: HouseholdScope) -> None:
+        self.scope = scope
+
+    async def resolve_lark_identity(self, open_id: str) -> HouseholdScope | None:
+        return self.scope
+
+
+class UnusedDelivery:
+    async def publish_linking_instructions(self, chat_id, locale, event_id):
+        raise AssertionError("bound sender must not queue linking guidance")
+
+
+def handler_for(
+    submitter: RecordingSubmitter,
+    *,
+    cipher: LarkCipher | None = None,
+) -> LarkWebhookHandler:
     store = MemoryEventStore()
-    submitter = RecordingSubmitter()
-    handler = LarkWebhookHandler(
-        verification_token="verification-token",
-        normalizer=LarkEventNormalizer(
-            account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
-        ),
+    inbound = LarkInboundService(
+        identity=StaticIdentity(HouseholdScope(uuid4(), uuid4())),
+        hub=submitter,
+        delivery_queue=UnusedDelivery(),
         event_store=store,
-        submitter=submitter,
+        actions=None,
+    )
+    return LarkWebhookHandler(
+        verification_token="verification-token",
+        cipher=cipher,
+        normalizer=LarkEventNormalizer(),
+        inbound=inbound,
     )
 
-    assert await handler.handle(payload) == {"status": "accepted"}
+
+@pytest.mark.asyncio
+async def test_valid_event_reaches_shared_submitter() -> None:
+    fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    submitter = RecordingSubmitter()
+    handler = handler_for(submitter)
+
     assert await handler.handle(payload) == {"status": "accepted"}
     assert len(submitter.commands) == 1
 
@@ -76,15 +124,7 @@ async def test_encrypted_event_is_decrypted_before_verification_and_normalizatio
         "aKZQ4Ggv0Fn5aB0Ynkpm7lcZ/C7pUTfZQX0jjnXu7wC+GEs32n0iv52o0="
     )
     submitter = RecordingSubmitter()
-    handler = LarkWebhookHandler(
-        verification_token="verification-token",
-        cipher=LarkCipher("test-encrypt-key"),
-        normalizer=LarkEventNormalizer(
-            account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
-        ),
-        event_store=MemoryEventStore(),
-        submitter=submitter,
-    )
+    handler = handler_for(submitter, cipher=LarkCipher("test-encrypt-key"))
 
     assert await handler.handle({"encrypt": encrypted}) == {"status": "accepted"}
     assert len(submitter.commands) == 1
@@ -93,14 +133,7 @@ async def test_encrypted_event_is_decrypted_before_verification_and_normalizatio
 @pytest.mark.asyncio
 async def test_url_verification_returns_challenge_without_submitting() -> None:
     submitter = RecordingSubmitter()
-    handler = LarkWebhookHandler(
-        verification_token="verification-token",
-        normalizer=LarkEventNormalizer(
-            account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
-        ),
-        event_store=MemoryEventStore(),
-        submitter=submitter,
-    )
+    handler = handler_for(submitter)
 
     result = await handler.handle(
         {
@@ -120,14 +153,7 @@ async def test_invalid_verification_token_is_rejected_before_submitting() -> Non
     payload = json.loads(fixture.read_text(encoding="utf-8"))
     payload["header"]["token"] = "wrong-token"
     submitter = RecordingSubmitter()
-    handler = LarkWebhookHandler(
-        verification_token="verification-token",
-        normalizer=LarkEventNormalizer(
-            account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
-        ),
-        event_store=MemoryEventStore(),
-        submitter=submitter,
-    )
+    handler = handler_for(submitter)
 
     with pytest.raises(PermissionError):
         await handler.handle(payload)

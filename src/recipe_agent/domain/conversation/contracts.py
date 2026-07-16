@@ -48,6 +48,7 @@ class ConversationCommand(BaseModel):
     message: str = Field(min_length=1)
     transport: str = "web"
     idempotency_key: str = Field(default_factory=lambda: str(uuid4()))
+    reply_target: str | None = Field(default=None, max_length=256)
 
     @property
     def channel(self) -> str:

@@ -1,12 +1,15 @@
 import json
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import httpx
 import pytest
 
+from recipe_agent.domain.conversation.actions import IssuedSuggestedAction
 from recipe_agent.domain.conversation.contracts import AgentProgress, AgentStage
+from recipe_agent.domain.conversation.responses import FinalAgentResponse
 from recipe_agent.domain.identity.locale import Locale, Translator
-from recipe_agent.infrastructure.lark.client import LarkClient
+from recipe_agent.infrastructure.lark.client import LarkAPIError, LarkClient
 from recipe_agent.infrastructure.lark.renderer import LarkCardRenderer
 
 
@@ -45,3 +48,68 @@ async def test_client_sends_localized_progress_card_to_lark_international() -> N
     assert request.headers["Authorization"] == "Bearer tenant-token"
     assert body["receive_id"] == "oc_family_chat"
     assert card["elements"][0]["text"]["content"] == "Acting: running save_recipe."
+
+
+@pytest.mark.asyncio
+async def test_client_sends_one_final_card_with_signed_action_value() -> None:
+    requests: list[httpx.Request] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"code": 0, "data": {}})
+
+    response = FinalAgentResponse(
+        thinking="I understood your request.",
+        plan="I checked your recipes.",
+        act="I compared the choices.",
+        answer="Try soup.",
+        suggested_actions=(),
+    )
+    action = IssuedSuggestedAction(
+        id=uuid4(),
+        type="save_recipe",
+        token="opaque-signed-token",
+        expires_at=datetime.now(UTC) + timedelta(minutes=15),
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        client = LarkClient(
+            http=http,
+            token_provider=StaticTokenProvider(),
+            renderer=LarkCardRenderer(Translator.from_package()),
+        )
+        await client.send_final("oc_family_chat", response, (action,), Locale.EN_US)
+
+    assert len(requests) == 1
+    body = json.loads(requests[0].content)
+    card = json.loads(body["content"])
+    assert "opaque-signed-token" not in str(requests[0].url)
+    assert any(
+        element.get("actions", [{}])[0].get("value") == {"token": "opaque-signed-token"}
+        for element in card["elements"]
+        if element.get("tag") == "action"
+    )
+
+
+@pytest.mark.asyncio
+async def test_client_failure_does_not_expose_provider_body_or_tenant_token() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"code": 230001, "msg": "private provider payload tenant-token"},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        client = LarkClient(
+            http=http,
+            token_provider=StaticTokenProvider(),
+            renderer=LarkCardRenderer(Translator.from_package()),
+        )
+        with pytest.raises(LarkAPIError) as caught:
+            await client.send_linking_instructions(
+                "oc_family_chat",
+                Locale.EN_US,
+                idempotency_key=str(uuid4()),
+            )
+
+    assert str(caught.value) == "Lark message delivery failed"
+    assert "tenant-token" not in str(caught.value)

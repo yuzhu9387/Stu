@@ -6,8 +6,11 @@ import pytest
 from recipe_agent.domain.conversation.contracts import AgentRunView, RunStatus
 from recipe_agent.infrastructure.jobs.agent_runs import (
     AGENT_RUN_TASK_NAME,
+    LARK_DELIVERY_TASK_NAME,
+    CeleryLarkDeliveryPublisher,
     CeleryRunPublisher,
     run_agent_job,
+    run_lark_delivery_job,
 )
 from recipe_agent.worker import celery_app
 
@@ -32,6 +35,34 @@ async def test_outbox_publisher_enqueues_only_the_run_uuid() -> None:
     )
 
     assert celery.calls == [(AGENT_RUN_TASK_NAME, [str(run_id)])]
+
+
+async def test_lark_outbox_publisher_enqueues_only_kind_and_durable_identifier() -> None:
+    celery = RecordingCelery()
+    publisher = CeleryLarkDeliveryPublisher(celery)
+    run_id = uuid4()
+    run_event_id = uuid4()
+    linking_event_id = uuid4()
+
+    await publisher.publish(
+        event_id=run_event_id,
+        topic="lark.run.completed",
+        payload={"run_id": str(run_id)},
+    )
+    await publisher.publish(
+        event_id=linking_event_id,
+        topic="lark.linking_instructions.requested",
+        payload={
+            "chat_id": "oc_family_chat",
+            "locale": "en-US",
+            "source_event_id": "evt_1",
+        },
+    )
+
+    assert celery.calls == [
+        (LARK_DELIVERY_TASK_NAME, [str(run_event_id)]),
+        (LARK_DELIVERY_TASK_NAME, [str(linking_event_id)]),
+    ]
 
 
 class RecordingRepository:
@@ -114,7 +145,33 @@ async def test_executor_failure_marks_run_failed_without_exception_text() -> Non
     assert repository.failures == ["agent_execution_failed"]
 
 
+class RecordingLarkDelivery:
+    def __init__(self) -> None:
+        self.events: list[object] = []
+
+    async def deliver_outbox(self, event_id):
+        self.events.append(event_id)
+
+
+async def test_lark_delivery_job_routes_without_secret_or_message_payloads() -> None:
+    delivery = RecordingLarkDelivery()
+    event_id = uuid4()
+
+    assert await run_lark_delivery_job(delivery, event_id) is True
+
+    assert delivery.events == [event_id]
+
+
 def test_worker_registers_uuid_only_celery_task() -> None:
     task = celery_app.tasks[AGENT_RUN_TASK_NAME]
 
     assert tuple(inspect.signature(task.run).parameters) == ("run_id",)
+
+
+def test_worker_registers_outbox_uuid_only_lark_delivery_task() -> None:
+    task = celery_app.tasks[LARK_DELIVERY_TASK_NAME]
+
+    assert tuple(inspect.signature(task.run).parameters) == ("event_id",)
+    assert task.max_retries == 5
+    assert task.acks_late is True
+    assert task.reject_on_worker_lost is True

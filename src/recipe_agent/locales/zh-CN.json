@@ -22,5 +22,16 @@
   "share.created": "你的私密分享链接已生成。",
   "error.generic": "出现错误，请重试。",
   "error.not_found": "未找到该内容。",
-  "error.unauthorized": "请先登录再继续。"
+  "error.unauthorized": "请先登录再继续。",
+  "lark.section.thinking": "思考",
+  "lark.section.plan": "计划",
+  "lark.section.act": "执行",
+  "lark.section.answer": "回答",
+  "lark.action.save_recipe": "保存菜谱",
+  "lark.action.create_plan": "创建计划",
+  "lark.action.replace_plan_item": "替换计划餐食",
+  "lark.action.create_share": "创建分享",
+  "lark.link.instructions": "请先在网页设置中生成绑定码，然后发送：绑定 你的一次性绑定码",
+  "lark.link.succeeded": "Lark 账户已绑定，现在可以和菜谱助手对话了。",
+  "lark.run.failed": "暂时无法完成该请求，请重试。"
 }

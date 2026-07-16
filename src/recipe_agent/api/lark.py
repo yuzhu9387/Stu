@@ -1,55 +1,55 @@
-"""Fast acknowledgement boundary for Lark event callbacks."""
+"""Fast acknowledgement boundary for Lark events and card callbacks."""
 
-from typing import Annotated, Protocol
+import hmac
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError
 
-from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
+from recipe_agent.domain.conversation.actions import SuggestedActionNotFoundError
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
+from recipe_agent.infrastructure.lark.service import LarkInboundService
 
 router = APIRouter(prefix="/webhooks/lark", tags=["lark"])
 
 
 class _Header(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
     event_id: str
     token: str
 
 
 class _Envelope(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
     header: _Header
 
 
 class _URLVerification(BaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
     type: str
     token: str
     challenge: str
 
 
-class EventStore(Protocol):
-    async def claim(self, event_id: str) -> bool: ...
-
-
-class ConversationSubmitter(Protocol):
-    async def submit_message(self, command: ConversationCommand) -> AgentRunView: ...
-
-
 class LarkWebhookHandler:
+    """Verify, normalize, durably enqueue, and return without outbound I/O."""
+
     def __init__(
         self,
         *,
         verification_token: str,
-        cipher: LarkCipher | None = None,
         normalizer: LarkEventNormalizer,
-        event_store: EventStore,
-        submitter: ConversationSubmitter,
+        inbound: LarkInboundService,
+        cipher: LarkCipher | None = None,
     ) -> None:
         self._verification_token = verification_token
         self._cipher = cipher
         self._normalizer = normalizer
-        self._event_store = event_store
-        self._submitter = submitter
+        self._inbound = inbound
 
     async def handle(self, payload: object) -> dict[str, str]:
         if isinstance(payload, dict) and isinstance(payload.get("encrypt"), str):
@@ -64,15 +64,12 @@ class LarkWebhookHandler:
         envelope = _Envelope.model_validate(payload)
         if not secrets_equal(envelope.header.token, self._verification_token):
             raise PermissionError("Invalid Lark verification token")
-        if not await self._event_store.claim(envelope.header.event_id):
-            return {"status": "accepted"}
-        await self._submitter.submit_message(self._normalizer.normalize(payload))
+        event = self._normalizer.normalize(payload)
+        await self._inbound.receive(event)
         return {"status": "accepted"}
 
 
 def secrets_equal(received: str, expected: str) -> bool:
-    import hmac
-
     return hmac.compare_digest(received, expected)
 
 
@@ -92,3 +89,10 @@ async def receive_event(
         return await handler.handle(payload)
     except PermissionError as error:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from error
+    except (ValidationError, ValueError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported Lark callback",
+        ) from error
+    except SuggestedActionNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from error

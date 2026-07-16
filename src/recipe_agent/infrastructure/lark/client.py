@@ -5,7 +5,9 @@ from typing import Protocol
 
 import httpx
 
+from recipe_agent.domain.conversation.actions import IssuedSuggestedAction
 from recipe_agent.domain.conversation.contracts import AgentOutcome, AgentProgress
+from recipe_agent.domain.conversation.responses import FinalAgentResponse
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.infrastructure.lark.renderer import LarkCardRenderer
 
@@ -38,7 +40,67 @@ class LarkClient:
     async def send_outcome(self, chat_id: str, outcome: AgentOutcome, locale: Locale) -> None:
         await self._send_card(chat_id, self._renderer.outcome(outcome, locale))
 
-    async def _send_card(self, chat_id: str, card: object) -> None:
+    async def send_final(
+        self,
+        chat_id: str,
+        response: FinalAgentResponse,
+        actions: tuple[IssuedSuggestedAction, ...],
+        locale: Locale,
+        *,
+        idempotency_key: str = "",
+    ) -> None:
+        await self._send_card(
+            chat_id,
+            self._renderer.final(response, actions, locale),
+            idempotency_key=idempotency_key,
+        )
+
+    async def send_linking_instructions(
+        self,
+        chat_id: str,
+        locale: Locale,
+        *,
+        idempotency_key: str,
+    ) -> None:
+        await self._send_card(
+            chat_id,
+            self._renderer.linking_instructions(locale),
+            idempotency_key=idempotency_key,
+        )
+
+    async def send_linked(
+        self,
+        chat_id: str,
+        locale: Locale,
+        *,
+        idempotency_key: str,
+    ) -> None:
+        await self._send_card(
+            chat_id,
+            self._renderer.linked(locale),
+            idempotency_key=idempotency_key,
+        )
+
+    async def send_failure(
+        self,
+        chat_id: str,
+        locale: Locale,
+        *,
+        idempotency_key: str,
+    ) -> None:
+        await self._send_card(
+            chat_id,
+            self._renderer.failure(locale),
+            idempotency_key=idempotency_key,
+        )
+
+    async def _send_card(
+        self,
+        chat_id: str,
+        card: object,
+        *,
+        idempotency_key: str = "",
+    ) -> None:
         token = await self._token_provider.tenant_access_token()
         response = await self._http.post(
             f"{self._base_url}/open-apis/im/v1/messages",
@@ -48,9 +110,13 @@ class LarkClient:
                 "receive_id": chat_id,
                 "msg_type": "interactive",
                 "content": json.dumps(card, separators=(",", ":"), ensure_ascii=False),
+                **({"uuid": idempotency_key} if idempotency_key else {}),
             },
         )
-        response.raise_for_status()
-        payload = response.json()
-        if payload.get("code") != 0:
-            raise LarkAPIError(str(payload.get("msg", "Lark rejected the message")))
+        try:
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise LarkAPIError("Lark message delivery failed") from error
+        if not isinstance(payload, dict) or payload.get("code") != 0:
+            raise LarkAPIError("Lark message delivery failed")

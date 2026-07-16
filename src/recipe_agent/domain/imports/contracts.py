@@ -16,6 +16,7 @@ class InputKind(StrEnum):
 class ImportCommand(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    owner_account_id: UUID
     household_id: UUID
     kind: InputKind
     source: str = Field(min_length=1)

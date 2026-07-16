@@ -9,6 +9,7 @@ class FeedbackEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: UUID
+    owner_account_id: UUID
     household_id: UUID
     recipe_id: UUID
     raw_text: str

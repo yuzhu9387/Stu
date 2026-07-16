@@ -17,6 +17,10 @@ class MealPlanRecord(Base):
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="family")
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 

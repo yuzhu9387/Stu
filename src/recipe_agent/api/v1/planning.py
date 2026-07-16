@@ -35,6 +35,7 @@ async def create_week(
     service: Annotated[PlanningService, Depends(get_planning_service)],
 ) -> MealPlan:
     return await service.create_week(
+        scope.account_id,
         scope.household_id,
         payload.week_start,
         payload.slots,

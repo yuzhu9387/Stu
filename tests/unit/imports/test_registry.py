@@ -16,6 +16,7 @@ from recipe_agent.domain.recipes.contracts import RecipeCandidate, RecipeStepCan
 def test_xiaohongshu_adapter_wins_before_generic_url() -> None:
     registry = AdapterRegistry([GenericURLAdapter(), XiaohongshuURLAdapter()])
     command = ImportCommand(
+        owner_account_id=uuid4(),
         household_id=uuid4(),
         kind=InputKind.URL,
         source="https://www.xiaohongshu.com/explore/recipe",
@@ -56,7 +57,12 @@ class SuccessfulFallbackAdapter:
 @pytest.mark.asyncio
 async def test_registry_falls_back_after_external_platform_failure() -> None:
     registry = AdapterRegistry([SuccessfulFallbackAdapter(), FailingPrimaryAdapter()])
-    command = ImportCommand(household_id=uuid4(), kind=InputKind.URL, source="https://x.test")
+    command = ImportCommand(
+        owner_account_id=uuid4(),
+        household_id=uuid4(),
+        kind=InputKind.URL,
+        source="https://x.test",
+    )
 
     extracted = await registry.extract(uuid4(), command)
 

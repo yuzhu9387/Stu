@@ -16,6 +16,9 @@ class FeedbackEventRecord(Base):
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
     recipe_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("recipes.id", ondelete="CASCADE"), index=True, nullable=False
     )
@@ -42,6 +45,9 @@ class RatingRecord(Base):
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
     )
     recipe_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("recipes.id", ondelete="CASCADE"), index=True, nullable=False

@@ -39,6 +39,7 @@ class PlanningService:
 
     async def create_week(
         self,
+        owner_account_id: UUID,
         household_id: UUID,
         week_start: date,
         slots: tuple[PlanSlot, ...],
@@ -68,6 +69,7 @@ class PlanningService:
             )
         plan = MealPlan(
             id=uuid4(),
+            owner_account_id=owner_account_id,
             household_id=household_id,
             week_start=week_start,
             version=1,

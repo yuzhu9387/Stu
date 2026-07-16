@@ -32,4 +32,4 @@ async def record_feedback(
     scope: Annotated[HouseholdScope, Depends(get_household_scope)],
     service: Annotated[FeedbackService, Depends(get_feedback_service)],
 ) -> FeedbackOutcome:
-    return await service.record(scope.household_id, recipe_id, payload.text)
+    return await service.record(scope.account_id, scope.household_id, recipe_id, payload.text)

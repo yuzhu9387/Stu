@@ -17,11 +17,16 @@ from recipe_agent.domain.sharing.service import ShareDelivery
 
 class FixedFeedbackService:
     async def record(
-        self, household_id: object, recipe_id: object, raw_text: str
+        self,
+        owner_account_id: object,
+        household_id: object,
+        recipe_id: object,
+        raw_text: str,
     ) -> FeedbackOutcome:
         return FeedbackOutcome(
             feedback_event=FeedbackEvent(
                 id=uuid4(),
+                owner_account_id=owner_account_id,
                 household_id=household_id,
                 recipe_id=recipe_id,
                 raw_text=raw_text,
@@ -48,12 +53,13 @@ class RecordingShareService:
 def test_feedback_and_share_creation_use_authenticated_scope_and_public_schema() -> None:
     app = create_app(Settings(environment="test", database_url="sqlite+aiosqlite:///:memory:"))
     household_id = uuid4()
+    owner_account_id = uuid4()
     recipe_id = uuid4()
     shares = RecordingShareService()
     app.state.feedback_service = FixedFeedbackService()
     app.state.share_service = shares
     app.dependency_overrides[get_household_scope] = lambda: HouseholdScope(
-        account_id=uuid4(), household_id=household_id
+        account_id=owner_account_id, household_id=household_id
     )
     client = TestClient(app)
 
@@ -72,6 +78,7 @@ def test_feedback_and_share_creation_use_authenticated_scope_and_public_schema()
     )
 
     assert feedback.status_code == 201
+    assert feedback.json()["feedback_event"]["owner_account_id"] == str(owner_account_id)
     assert share.status_code == 201
     assert share.json() == {"token": "private-token"}
     assert shares.snapshots[0] == {

@@ -38,6 +38,7 @@ class MealPlan(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: UUID
+    owner_account_id: UUID
     household_id: UUID
     week_start: date
     version: int = Field(ge=1)

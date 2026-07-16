@@ -10,10 +10,17 @@ class RecordingFeedbackRepository:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    async def save_event(self, household_id: object, recipe_id: object, raw_text: str):
+    async def save_event(
+        self,
+        owner_account_id: object,
+        household_id: object,
+        recipe_id: object,
+        raw_text: str,
+    ):
         self.calls.append("event")
         return FeedbackEvent(
             id=uuid4(),
+            owner_account_id=owner_account_id,
             household_id=household_id,
             recipe_id=recipe_id,
             raw_text=raw_text,
@@ -35,10 +42,13 @@ class RecordingFeedbackRepository:
 async def test_structural_feedback_creates_event_before_new_version() -> None:
     repository = RecordingFeedbackRepository()
     service = FeedbackService(repository=repository)
+    owner_account_id = uuid4()
     household_id = uuid4()
     recipe_id = uuid4()
 
-    outcome = await service.record(household_id, recipe_id, "Cook five minutes longer")
+    outcome = await service.record(
+        owner_account_id, household_id, recipe_id, "Cook five minutes longer"
+    )
 
     assert outcome.feedback_event.raw_text == "Cook five minutes longer"
     assert outcome.recipe_version.parent_version_id is not None

@@ -35,6 +35,7 @@ class ImportService:
     async def process(self, raw_input_id: UUID) -> ImportOutcome:
         raw = await self._repository.get_unscoped(raw_input_id)
         command = ImportCommand(
+            owner_account_id=raw.owner_account_id,
             household_id=raw.household_id,
             kind=InputKind(raw.kind),
             source=raw.source_url or raw.raw_text or raw.object_key or "missing source",
@@ -48,7 +49,7 @@ class ImportService:
         if self._ai_provider is None or self._recipes is None:
             raise RuntimeError("Recipe extraction dependencies are not configured")
         candidate = await self._ai_provider.parse_structured(extracted.text, RecipeCandidate)
-        recipe = await self._recipes.create(raw.household_id, candidate)
+        recipe = await self._recipes.create(raw.owner_account_id, raw.household_id, candidate)
         await self._repository.mark_extracted(raw.id)
         return ImportOutcome(
             household_id=raw.household_id,

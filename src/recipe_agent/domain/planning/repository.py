@@ -43,6 +43,7 @@ class SqlPlanRepository:
             )
             return MealPlan(
                 id=record.id,
+                owner_account_id=record.owner_account_id,
                 household_id=record.household_id,
                 week_start=record.week_start,
                 version=record.version,
@@ -55,6 +56,7 @@ class SqlPlanRepository:
             if record is None:
                 record = MealPlanRecord(
                     id=plan.id,
+                    owner_account_id=plan.owner_account_id,
                     household_id=plan.household_id,
                     week_start=plan.week_start,
                     version=plan.version,

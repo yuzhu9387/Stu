@@ -24,6 +24,9 @@ class RawInput(Base):
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     source_url: Mapped[str | None] = mapped_column(Text)
     raw_text: Mapped[str | None] = mapped_column(Text)
@@ -44,6 +47,10 @@ class Recipe(Base):
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="family")
     active_version_id: Mapped[UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
@@ -133,6 +140,9 @@ class MediaObject(Base):
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
     )
     object_key: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
     content_type: Mapped[str] = mapped_column(String(128), nullable=False)

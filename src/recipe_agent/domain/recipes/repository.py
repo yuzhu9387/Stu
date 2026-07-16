@@ -47,6 +47,7 @@ class RawInputRepository:
 
     async def create(self, command: ImportCommand) -> RawInput:
         raw = RawInput(
+            owner_account_id=command.owner_account_id,
             household_id=command.household_id,
             kind=command.kind.value,
             source_url=command.source if command.kind is InputKind.URL else None,
@@ -106,9 +107,14 @@ class RecipeRepository:
         self._session_factory = session_factory
         self._outbox = outbox
 
-    async def create(self, household_id: UUID, candidate: RecipeCandidate) -> RecipeView:
+    async def create(
+        self, owner_account_id: UUID, household_id: UUID, candidate: RecipeCandidate
+    ) -> RecipeView:
         async with self._session_factory() as session:
-            recipe = Recipe(household_id=household_id)
+            recipe = Recipe(
+                owner_account_id=owner_account_id,
+                household_id=household_id,
+            )
             session.add(recipe)
             await session.flush()
             version = RecipeVersion(recipe_id=recipe.id, name=candidate.name)

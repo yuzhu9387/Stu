@@ -36,6 +36,7 @@ class RotatingRecommendations:
 async def test_weekly_plan_round_trips_through_database(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
+    owner_account_id = uuid4()
     household_id = uuid4()
     monday = date(2026, 7, 13)
     repository = SqlPlanRepository(session_factory)
@@ -45,6 +46,7 @@ async def test_weekly_plan_round_trips_through_database(
     )
 
     created = await service.create_week(
+        owner_account_id,
         household_id,
         monday,
         tuple(PlanSlot(day=monday + timedelta(days=offset), slot="dinner") for offset in range(7)),
@@ -52,5 +54,6 @@ async def test_weekly_plan_round_trips_through_database(
     loaded = await repository.get(household_id, created.id)
 
     assert loaded.version == 1
+    assert loaded.owner_account_id == owner_account_id
     assert len(loaded.items) == 7
     assert loaded.items[0].day == monday

@@ -62,6 +62,7 @@ async def test_replacing_one_item_preserves_other_plan_items() -> None:
     )
     saved_plan = MealPlan(
         id=uuid4(),
+        owner_account_id=uuid4(),
         household_id=household_id,
         week_start=monday,
         version=1,
@@ -78,6 +79,7 @@ async def test_replacing_one_item_preserves_other_plan_items() -> None:
     updated = await service.replace_item(household_id, saved_plan.id, target_day)
 
     assert original_ids <= {item.id for item in updated.items}
+    assert updated.owner_account_id == saved_plan.owner_account_id
     assert updated.version == 2
     assert next(item for item in updated.items if item.day == target_day).id not in {
         item.id for item in saved_plan.items
@@ -90,6 +92,7 @@ async def test_create_week_avoids_duplicate_recipe_ids() -> None:
     monday = date(2026, 7, 13)
     empty = MealPlan(
         id=uuid4(),
+        owner_account_id=uuid4(),
         household_id=household_id,
         week_start=monday,
         version=1,
@@ -102,6 +105,7 @@ async def test_create_week_avoids_duplicate_recipe_ids() -> None:
     )
 
     plan = await service.create_week(
+        uuid4(),
         household_id,
         monday,
         tuple(PlanSlot(day=monday + timedelta(days=offset), slot="dinner") for offset in range(3)),

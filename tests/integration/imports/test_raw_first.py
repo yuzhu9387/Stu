@@ -30,6 +30,7 @@ async def test_raw_input_survives_adapter_failure(
     repository = RawInputRepository(session_factory)
     service = ImportService(repository=repository, adapters=AdapterRegistry([FailingAdapter()]))
     command = ImportCommand(
+        owner_account_id=uuid4(),
         household_id=uuid4(),
         kind=InputKind.URL,
         source="https://example.invalid/recipe",
@@ -41,6 +42,7 @@ async def test_raw_input_survives_adapter_failure(
 
     saved = await repository.get(receipt.household_id, receipt.raw_input_id)
     assert saved.status is RawInputStatus.NEEDS_REVIEW
+    assert saved.owner_account_id == command.owner_account_id
     assert saved.source_url == "https://example.invalid/recipe"
 
 
@@ -69,6 +71,7 @@ async def test_successful_import_persists_structured_recipe(
         recipes=recipe_repository,
     )
     command = ImportCommand(
+        owner_account_id=uuid4(),
         household_id=uuid4(),
         kind=InputKind.TEXT,
         source="Family soup: boil one liter of water.",
@@ -80,4 +83,5 @@ async def test_successful_import_persists_structured_recipe(
     saved_raw = await raw_repository.get(command.household_id, receipt.raw_input_id)
 
     assert recipe.name == "Family Soup"
+    assert saved_raw.owner_account_id == command.owner_account_id
     assert saved_raw.status is RawInputStatus.EXTRACTED

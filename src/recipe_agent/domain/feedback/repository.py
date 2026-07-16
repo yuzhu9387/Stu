@@ -23,10 +23,17 @@ class SqlFeedbackRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
-    async def save_event(self, household_id: UUID, recipe_id: UUID, raw_text: str) -> FeedbackEvent:
+    async def save_event(
+        self,
+        owner_account_id: UUID,
+        household_id: UUID,
+        recipe_id: UUID,
+        raw_text: str,
+    ) -> FeedbackEvent:
         async with self._session_factory() as session:
             await self._scoped_recipe(session, household_id, recipe_id)
             record = FeedbackEventRecord(
+                owner_account_id=owner_account_id,
                 household_id=household_id,
                 recipe_id=recipe_id,
                 raw_text=raw_text,
@@ -35,6 +42,7 @@ class SqlFeedbackRepository:
             await session.commit()
             return FeedbackEvent(
                 id=record.id,
+                owner_account_id=record.owner_account_id,
                 household_id=record.household_id,
                 recipe_id=record.recipe_id,
                 raw_text=record.raw_text,

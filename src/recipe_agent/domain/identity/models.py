@@ -38,6 +38,41 @@ class Household(TimestampMixin, Base):
     )
 
 
+class FamilyMembership(TimestampMixin, Base):
+    __tablename__ = "family_memberships"
+    __table_args__ = (UniqueConstraint("account_id", "household_id", name="uq_family_membership"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    household_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class FamilyInvite(TimestampMixin, Base):
+    __tablename__ = "family_invites"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    household_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    created_by_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consumed_by_account_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="SET NULL")
+    )
+
+
 class MagicLink(TimestampMixin, Base):
     __tablename__ = "magic_links"
 
@@ -91,6 +126,9 @@ class Conversation(TimestampMixin, Base):
     household_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    owner_account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
     transport: Mapped[str] = mapped_column(String(32), nullable=False)
 
 
@@ -107,12 +145,56 @@ class ConversationMessage(TimestampMixin, Base):
 
 class AgentRun(TimestampMixin, Base):
     __tablename__ = "agent_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "account_id",
+            "transport",
+            "idempotency_key",
+            name="uq_agent_run_idempotency",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     conversation_id: Mapped[UUID] = mapped_column(
         Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    household_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    transport: Mapped[str] = mapped_column(String(32), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
+    request_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    response_json: Mapped[str | None] = mapped_column(Text)
+    error_code: Mapped[str | None] = mapped_column(String(160))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SuggestedActionRecord(TimestampMixin, Base):
+    __tablename__ = "suggested_actions"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    run_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    household_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    arguments_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consumed_by_account_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="SET NULL")
+    )
 
 
 class AgentRunStep(TimestampMixin, Base):

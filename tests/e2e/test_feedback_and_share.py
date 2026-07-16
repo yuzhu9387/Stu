@@ -21,9 +21,11 @@ from recipe_agent.domain.sharing.service import ShareService
 async def test_feedback_version_and_private_share_flow(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
+    owner_account_id = uuid4()
     household_id = uuid4()
     recipes = RecipeRepository(session_factory)
     recipe = await recipes.create(
+        owner_account_id,
         household_id,
         RecipeCandidate(
             name="Family Soup",
@@ -34,11 +36,13 @@ async def test_feedback_version_and_private_share_flow(
     feedback = FeedbackService(repository=SqlFeedbackRepository(session_factory))
 
     outcome = await feedback.record(
+        owner_account_id,
         household_id,
         recipe.id,
         "Cook five minutes longer",
     )
 
+    assert outcome.feedback_event.owner_account_id == owner_account_id
     assert outcome.recipe_version.parent_version_id is not None
     projected = ShareProjection().recipe(
         {

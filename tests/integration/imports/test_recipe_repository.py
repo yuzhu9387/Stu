@@ -8,6 +8,7 @@ from recipe_agent.domain.recipes.contracts import (
     RecipeIngredientCandidate,
     RecipeStepCandidate,
 )
+from recipe_agent.domain.recipes.models import Recipe
 from recipe_agent.domain.recipes.repository import RecipeNotFoundError, RecipeRepository
 
 
@@ -24,13 +25,18 @@ async def test_recipe_repository_persists_normalized_candidate_and_scopes_reads(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     household_id = uuid4()
+    owner_account_id = uuid4()
     other_household_id = uuid4()
     repository = RecipeRepository(session_factory)
 
-    created = await repository.create(household_id, soup_candidate())
+    created = await repository.create(owner_account_id, household_id, soup_candidate())
     loaded = await repository.get(household_id, created.id)
+    async with session_factory() as session:
+        stored = await session.get(Recipe, created.id)
 
     assert loaded.name == "Tomato Soup"
+    assert stored is not None
+    assert stored.owner_account_id == owner_account_id
     assert loaded.ingredients[0].name == "tomato"
     assert loaded.steps[0].number == 1
     with pytest.raises(RecipeNotFoundError):

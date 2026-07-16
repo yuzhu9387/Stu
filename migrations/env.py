@@ -13,13 +13,14 @@ from recipe_agent.domain.recipes import models as recipe_models  # noqa: F401
 from recipe_agent.domain.sharing import models as sharing_models  # noqa: F401
 from recipe_agent.infrastructure.db import outbox as outbox_models  # noqa: F401
 from recipe_agent.infrastructure.db.base import Base
+from recipe_agent.infrastructure.db.migrations import to_sync_database_url
 from recipe_agent.infrastructure.lark import events as lark_events  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-database_url = get_settings().database_url.replace("+asyncpg", "")
+database_url = to_sync_database_url(get_settings().database_url)
 config.set_main_option("sqlalchemy.url", database_url)
 target_metadata = Base.metadata
 

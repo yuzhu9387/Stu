@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class RecipeIngredientCandidate(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(min_length=1)
     quantity: Decimal | None = None
@@ -17,7 +17,7 @@ class RecipeIngredientCandidate(BaseModel):
 
 
 class RecipeStepCandidate(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     number: int = Field(ge=1)
     text: str = Field(min_length=1)

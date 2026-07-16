@@ -10,13 +10,15 @@ import pytest
 import pytest_asyncio
 from psycopg import sql
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from recipe_agent.domain.conversation.actions import (
     ActionArguments,
     ActionExecutionError,
     InvalidSuggestedActionError,
+    SaveRecipeArguments,
+    SaveRecipeMutationHandler,
     SuggestedActionConflictError,
     SuggestedActionNotFoundError,
     SuggestedActionRepository,
@@ -28,7 +30,15 @@ from recipe_agent.domain.conversation.responses import ActionArgument, Suggested
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.domain.identity.models import SuggestedActionRecord
 from recipe_agent.domain.identity.service import HouseholdScope, IdentityService
+from recipe_agent.domain.planning.contracts import PlanSlot
+from recipe_agent.domain.recipes.contracts import (
+    RecipeIngredientCandidate,
+    RecipeStepCandidate,
+)
+from recipe_agent.domain.recipes.models import Recipe
+from recipe_agent.domain.recipes.repository import RecipeRepository
 from recipe_agent.infrastructure.db.base import Base
+from recipe_agent.infrastructure.db.outbox import OutboxEvent
 from recipe_agent.infrastructure.lark.crypto import ActionContextSigner
 
 
@@ -189,6 +199,71 @@ async def test_tampered_and_expired_tokens_are_unauthorized_without_dispatch(
 
 
 @pytest.mark.asyncio
+async def test_click_only_queues_a_durable_action_without_dispatch(session_factory) -> None:
+    scope, run_id = await _identity_and_run(session_factory)
+    handler = RecordingHandler()
+    service = _service(session_factory, handler)
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+
+    result = await service.consume(issued.token, actor=scope)
+
+    assert result.status == "queued"
+    assert result.result is None
+    assert handler.calls == []
+    async with session_factory() as session:
+        record = await session.get(SuggestedActionRecord, issued.id)
+        events = (await session.scalars(select(OutboxEvent))).all()
+    assert record is not None
+    assert record.execution_status == "queued"
+    assert record.consumed_by_account_id == scope.account_id
+    assert [
+        (event.topic, event.payload) for event in events if event.topic == "agent.action.requested"
+    ] == [("agent.action.requested", {"action_id": str(issued.id)})]
+
+
+@pytest.mark.asyncio
+async def test_expired_worker_lease_is_durably_requeued_and_reclaimed(session_factory) -> None:
+    now = datetime(2026, 7, 16, tzinfo=UTC)
+    scope, run_id = await _identity_and_run(session_factory)
+    handler = RecordingHandler()
+    service = _service(session_factory, handler, now=lambda: now)
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+    repository = SuggestedActionRepository(session_factory)
+
+    first = await repository.claim_for_execution(
+        issued.id, now=now, lease_duration=timedelta(seconds=30)
+    )
+    duplicate = await repository.claim_for_execution(
+        issued.id, now=now, lease_duration=timedelta(seconds=30)
+    )
+    recovered = await repository.recover_expired(now=now + timedelta(seconds=31))
+    second = await repository.claim_for_execution(
+        issued.id,
+        now=now + timedelta(seconds=31),
+        lease_duration=timedelta(seconds=30),
+    )
+
+    assert first is not None
+    assert duplicate is None
+    assert recovered == 1
+    assert second is not None
+    assert second.attempt_count == 2
+    assert not await repository.complete(
+        issued.id,
+        scope.account_id,
+        '{"stale":true}',
+        attempt_count=first.attempt_count,
+    )
+    assert await repository.complete(
+        issued.id,
+        scope.account_id,
+        '{"saved":true}',
+        attempt_count=second.attempt_count,
+    )
+
+
+@pytest.mark.asyncio
 async def test_same_family_other_account_and_cross_family_actor_cannot_consume(
     session_factory,
 ) -> None:
@@ -204,7 +279,10 @@ async def test_same_family_other_account_and_cross_family_actor_cannot_consume(
     with pytest.raises(SuggestedActionNotFoundError):
         await service.consume(issued.token, actor=cross_family)
     assert handler.calls == []
-    assert (await service.consume(issued.token, actor=owner)).status == "succeeded"
+    assert (await service.consume(issued.token, actor=owner)).status == "queued"
+    assert (await service.execute_queued(issued.id)).status == "succeeded"
+    with pytest.raises(SuggestedActionNotFoundError):
+        await service.get_status(issued.id, actor=same_family_other_account)
 
 
 @pytest.mark.asyncio
@@ -227,6 +305,36 @@ async def test_claim_must_match_database_row_and_source_run(session_factory) -> 
 
 
 @pytest.mark.asyncio
+async def test_claim_requires_database_expiry_to_exactly_match_signed_expiry(
+    session_factory,
+) -> None:
+    scope, run_id = await _identity_and_run(session_factory)
+    handler = RecordingHandler()
+    service = _service(session_factory, handler)
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    async with session_factory() as session:
+        await session.execute(
+            update(SuggestedActionRecord)
+            .where(SuggestedActionRecord.id == issued.id)
+            .values(expires_at=issued.expires_at + timedelta(minutes=5))
+        )
+        await session.commit()
+
+    with pytest.raises(InvalidSuggestedActionError):
+        await service.consume(issued.token, actor=scope)
+    assert handler.calls == []
+
+
+def test_nested_action_argument_models_forbid_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        RecipeIngredientCandidate.model_validate({"name": "salt", "private": "secret"})
+    with pytest.raises(ValidationError):
+        RecipeStepCandidate.model_validate({"number": 1, "text": "Stir", "private": "secret"})
+    with pytest.raises(ValidationError):
+        PlanSlot.model_validate({"day": "2026-07-20", "slot": "dinner", "private": "secret"})
+
+
+@pytest.mark.asyncio
 async def test_tampered_persisted_arguments_are_failed_without_handler_dispatch(
     session_factory,
 ) -> None:
@@ -242,8 +350,9 @@ async def test_tampered_persisted_arguments_are_failed_without_handler_dispatch(
         )
         await session.commit()
 
+    assert (await service.consume(issued.token, actor=scope)).status == "queued"
     with pytest.raises(InvalidSuggestedActionError):
-        await service.consume(issued.token, actor=scope)
+        await service.execute_queued(issued.id)
 
     async with session_factory() as session:
         record = await session.get(SuggestedActionRecord, issued.id)
@@ -260,8 +369,10 @@ async def test_handler_failure_is_audited_consumed_and_not_replayed(session_fact
     service = _service(session_factory, handler)
     issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
 
-    with pytest.raises(ActionExecutionError):
-        await service.consume(issued.token, actor=scope)
+    assert (await service.consume(issued.token, actor=scope)).status == "queued"
+    for _ in range(3):
+        with pytest.raises(ActionExecutionError, match="execution failed"):
+            await service.execute_queued(issued.id)
     with pytest.raises(SuggestedActionConflictError):
         await service.consume(issued.token, actor=scope)
 
@@ -273,7 +384,7 @@ async def test_handler_failure_is_audited_consumed_and_not_replayed(session_fact
     assert record.execution_status == "failed"
     assert record.error_code == "handler_failed"
     assert "password" not in (record.error_code or "")
-    assert handler.calls == [issued.id]
+    assert handler.calls == [issued.id, issued.id, issued.id]
 
 
 TEST_DATABASE_URL_ENV = "RECIPE_AGENT_TEST_DATABASE_URL"
@@ -306,7 +417,7 @@ async def postgres_action_factory() -> AsyncIterator[async_sessionmaker[AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_postgres_simultaneous_clicks_dispatch_exactly_once(postgres_action_factory) -> None:
+async def test_postgres_simultaneous_clicks_queue_exactly_once(postgres_action_factory) -> None:
     scope, run_id = await _identity_and_run(postgres_action_factory, "race@example.com")
     handler = RecordingHandler()
     service = _service(postgres_action_factory, handler)
@@ -318,6 +429,29 @@ async def test_postgres_simultaneous_clicks_dispatch_exactly_once(postgres_actio
         return_exceptions=True,
     )
 
-    assert sum(getattr(result, "status", None) == "succeeded" for result in results) == 1
+    assert sum(getattr(result, "status", None) == "queued" for result in results) == 1
     assert sum(isinstance(result, SuggestedActionConflictError) for result in results) == 1
+    assert handler.calls == []
+    assert (await service.execute_queued(issued.id)).status == "succeeded"
     assert handler.calls == [issued.id]
+
+
+@pytest.mark.asyncio
+async def test_postgres_simultaneous_mutation_retries_return_one_receipt(
+    postgres_action_factory,
+) -> None:
+    scope, run_id = await _identity_and_run(postgres_action_factory, "mutation-race@example.com")
+    service = _service(postgres_action_factory, RecordingHandler())
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    handler = SaveRecipeMutationHandler(RecipeRepository(postgres_action_factory))
+    arguments = SaveRecipeArguments(name="Soup", ingredients=(), steps=())
+
+    first, second = await asyncio.gather(
+        handler.execute(actor=scope, arguments=arguments, action_id=issued.id),
+        handler.execute(actor=scope, arguments=arguments, action_id=issued.id),
+    )
+
+    async with postgres_action_factory() as session:
+        recipe_count = await session.scalar(select(func.count()).select_from(Recipe))
+    assert first == second
+    assert recipe_count == 1

@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from recipe_agent.infrastructure.db.base import Base
@@ -200,6 +200,22 @@ class SuggestedActionRecord(TimestampMixin, Base):
     )
     result_json: Mapped[str | None] = mapped_column(Text)
     error_code: Mapped[str | None] = mapped_column(String(64))
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ActionMutationReceipt(TimestampMixin, Base):
+    __tablename__ = "action_mutation_receipts"
+
+    action_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("suggested_actions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_json: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class AgentRunStep(TimestampMixin, Base):

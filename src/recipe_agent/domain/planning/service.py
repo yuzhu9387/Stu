@@ -14,7 +14,7 @@ from recipe_agent.domain.recommendations.contracts import (
 class PlanRepository(Protocol):
     async def get(self, household_id: UUID, plan_id: UUID) -> MealPlan: ...
 
-    async def save(self, plan: MealPlan) -> MealPlan: ...
+    async def save(self, plan: MealPlan, *, source_action_id: UUID | None = None) -> MealPlan: ...
 
 
 class RecommendationProvider(Protocol):
@@ -43,6 +43,8 @@ class PlanningService:
         household_id: UUID,
         week_start: date,
         slots: tuple[PlanSlot, ...],
+        *,
+        source_action_id: UUID | None = None,
     ) -> MealPlan:
         selected_recipe_ids: set[UUID] = set()
         items: list[PlanItem] = []
@@ -75,17 +77,23 @@ class PlanningService:
             version=1,
             items=tuple(items),
         )
-        return await self._repository.save(plan)
+        if source_action_id is None:
+            return await self._repository.save(plan)
+        return await self._repository.save(plan, source_action_id=source_action_id)
 
     async def replace_item(
         self,
         household_id: UUID,
         plan_id: UUID,
         day: date,
+        *,
+        source_action_id: UUID | None = None,
     ) -> MealPlan:
         plan = await self._repository.get(household_id, plan_id)
         updated = await self.preview_replace_item(plan, day)
-        return await self._repository.save(updated)
+        if source_action_id is None:
+            return await self._repository.save(updated)
+        return await self._repository.save(updated, source_action_id=source_action_id)
 
     async def preview_replace_item(
         self,

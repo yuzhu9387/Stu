@@ -5,8 +5,10 @@ from uuid import UUID
 
 from pydantic import TypeAdapter
 from sqlalchemy import delete, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from recipe_agent.domain.conversation.receipts import add_receipt, receipt_result
 from recipe_agent.domain.identity.models import Account
 from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.planning.contracts import (
@@ -64,8 +66,13 @@ class SqlPlanRepository:
                 items=tuple(self._item_from_record(item) for item in item_result.scalars()),
             )
 
-    async def save(self, plan: MealPlan) -> MealPlan:
+    async def save(self, plan: MealPlan, *, source_action_id: UUID | None = None) -> MealPlan:
         async with self._session_factory() as session:
+            if source_action_id is not None:
+                action_type = "create_plan" if plan.version == 1 else "replace_plan_item"
+                existing = await receipt_result(session, source_action_id, action_type)
+                if existing is not None:
+                    return MealPlan.model_validate(existing)
             record = await session.get(MealPlanRecord, plan.id)
             if record is None:
                 record = MealPlanRecord(
@@ -80,6 +87,10 @@ class SqlPlanRepository:
                 if record.household_id != plan.household_id:
                     raise PlanNotFoundError("Meal plan not found")
                 if plan.version != record.version + 1:
+                    if source_action_id is not None:
+                        completed = await receipt_result(session, source_action_id, action_type)
+                        if completed is not None:
+                            return MealPlan.model_validate(completed)
                     raise PlanVersionConflictError("Meal plan version conflict")
                 record.version = plan.version
                 record.week_start = plan.week_start
@@ -87,7 +98,18 @@ class SqlPlanRepository:
                     delete(PlanItemRecord).where(PlanItemRecord.plan_id == plan.id)
                 )
             session.add_all([self._record_from_item(plan.id, item) for item in plan.items])
-            await session.commit()
+            if source_action_id is not None:
+                add_receipt(session, source_action_id, action_type, plan)
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                if source_action_id is None:
+                    raise
+                completed = await receipt_result(session, source_action_id, action_type)
+                if completed is None:
+                    raise
+                return MealPlan.model_validate(completed)
         return plan
 
     async def list_for_scope(self, scope: HouseholdScope) -> tuple[MealPlanSummary, ...]:

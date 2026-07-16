@@ -28,7 +28,7 @@ class PlanItem(BaseModel):
 
 
 class PlanSlot(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     day: date
     slot: str = Field(min_length=1)

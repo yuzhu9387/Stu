@@ -26,3 +26,9 @@ class ShareSnapshotRecord(Base):
     snapshot_json: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_action_id: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("suggested_actions.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=True,
+    )

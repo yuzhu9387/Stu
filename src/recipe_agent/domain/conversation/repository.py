@@ -3,11 +3,11 @@
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast, overload
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -26,6 +26,7 @@ from recipe_agent.domain.identity.models import (
 from recipe_agent.infrastructure.db.outbox import OutboxRepository
 
 AGENT_RUN_REQUESTED_TOPIC = "agent.run.requested"
+ACTION_EXECUTION_REQUESTED_TOPIC = "agent.action.requested"
 
 
 class SuggestedActionRunNotFoundError(LookupError):
@@ -43,8 +44,22 @@ class SuggestedActionInvalidRecordError(ValueError):
 @dataclass(frozen=True)
 class ClaimedSuggestedAction:
     id: UUID
+    account_id: UUID
+    household_id: UUID
     action_type: str
     arguments_json: str
+    attempt_count: int
+
+
+@dataclass(frozen=True)
+class PersistedSuggestedAction:
+    id: UUID
+    account_id: UUID
+    household_id: UUID
+    action_type: str
+    execution_status: str
+    result_json: str | None
+    error_code: str | None
 
 
 class ConversationNotFoundError(LookupError):
@@ -258,8 +273,14 @@ class AgentRunRepository:
 class SuggestedActionRepository:
     """Persist and atomically claim signed suggested-action intents."""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        outbox: OutboxRepository | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._outbox = outbox or OutboxRepository()
 
     async def create(
         self,
@@ -297,7 +318,7 @@ class SuggestedActionRepository:
                 )
             )
 
-    async def claim_once(
+    async def queue_once(
         self,
         *,
         token_hash: str,
@@ -306,6 +327,7 @@ class SuggestedActionRepository:
         account_id: UUID,
         household_id: UUID,
         action_type: str,
+        claim_expires_at: datetime,
         now: datetime,
     ) -> ClaimedSuggestedAction:
         async with self._session_factory() as session, session.begin():
@@ -318,6 +340,7 @@ class SuggestedActionRepository:
                     SuggestedActionRecord.account_id == account_id,
                     SuggestedActionRecord.household_id == household_id,
                     SuggestedActionRecord.action_type == action_type,
+                    SuggestedActionRecord.expires_at == claim_expires_at,
                     SuggestedActionRecord.consumed_at.is_(None),
                     SuggestedActionRecord.execution_status == "pending",
                     SuggestedActionRecord.expires_at > now,
@@ -325,16 +348,24 @@ class SuggestedActionRepository:
                 .values(
                     consumed_at=now,
                     consumed_by_account_id=account_id,
-                    execution_status="executing",
+                    execution_status="queued",
                 )
                 .returning(SuggestedActionRecord)
                 .execution_options(synchronize_session=False)
             )
             if record is not None:
+                await self._outbox.add(
+                    session,
+                    ACTION_EXECUTION_REQUESTED_TOPIC,
+                    {"action_id": str(record.id)},
+                )
                 return ClaimedSuggestedAction(
                     id=record.id,
+                    account_id=record.account_id,
+                    household_id=record.household_id,
                     action_type=record.action_type,
                     arguments_json=record.arguments_json,
+                    attempt_count=record.attempt_count,
                 )
             existing = await session.scalar(
                 select(SuggestedActionRecord).where(SuggestedActionRecord.token_hash == token_hash)
@@ -347,11 +378,117 @@ class SuggestedActionRepository:
                 raise SuggestedActionInvalidRecordError("Suggested action is expired")
             raise SuggestedActionInvalidRecordError("Suggested action claims do not match")
 
+    async def claim_for_execution(
+        self,
+        action_id: UUID,
+        *,
+        now: datetime,
+        lease_duration: timedelta,
+    ) -> ClaimedSuggestedAction | None:
+        lease_expires_at = now + lease_duration
+        async with self._session_factory() as session, session.begin():
+            record = await session.scalar(
+                update(SuggestedActionRecord)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    or_(
+                        SuggestedActionRecord.execution_status == "queued",
+                        (
+                            (SuggestedActionRecord.execution_status == "executing")
+                            & (SuggestedActionRecord.lease_expires_at <= now)
+                        ),
+                    ),
+                )
+                .values(
+                    execution_status="executing",
+                    lease_expires_at=lease_expires_at,
+                    attempt_count=SuggestedActionRecord.attempt_count + 1,
+                    error_code=None,
+                )
+                .returning(SuggestedActionRecord)
+                .execution_options(synchronize_session=False)
+            )
+            if record is None:
+                return None
+            return ClaimedSuggestedAction(
+                id=record.id,
+                account_id=record.account_id,
+                household_id=record.household_id,
+                action_type=record.action_type,
+                arguments_json=record.arguments_json,
+                attempt_count=record.attempt_count,
+            )
+
+    async def recover_expired(self, *, now: datetime, limit: int = 100) -> int:
+        async with self._session_factory() as session, session.begin():
+            expired_ids = tuple(
+                await session.scalars(
+                    select(SuggestedActionRecord.id)
+                    .where(
+                        SuggestedActionRecord.execution_status == "executing",
+                        SuggestedActionRecord.lease_expires_at <= now,
+                    )
+                    .order_by(SuggestedActionRecord.lease_expires_at)
+                    .limit(limit)
+                )
+            )
+            recovered = 0
+            for action_id in expired_ids:
+                recovered_id = await session.scalar(
+                    update(SuggestedActionRecord)
+                    .where(
+                        SuggestedActionRecord.id == action_id,
+                        SuggestedActionRecord.execution_status == "executing",
+                        SuggestedActionRecord.lease_expires_at <= now,
+                    )
+                    .values(execution_status="queued", lease_expires_at=None)
+                    .returning(SuggestedActionRecord.id)
+                    .execution_options(synchronize_session=False)
+                )
+                if recovered_id is None:
+                    continue
+                await self._outbox.add(
+                    session,
+                    ACTION_EXECUTION_REQUESTED_TOPIC,
+                    {"action_id": str(recovered_id)},
+                )
+                recovered += 1
+            return recovered
+
+    async def get_for_actor(
+        self,
+        action_id: UUID,
+        *,
+        account_id: UUID,
+        household_id: UUID,
+    ) -> PersistedSuggestedAction | None:
+        async with self._session_factory() as session:
+            record = await session.scalar(
+                select(SuggestedActionRecord).where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.account_id == account_id,
+                    SuggestedActionRecord.household_id == household_id,
+                )
+            )
+            if record is None:
+                return None
+            return PersistedSuggestedAction(
+                id=record.id,
+                account_id=record.account_id,
+                household_id=record.household_id,
+                action_type=record.action_type,
+                execution_status=record.execution_status,
+                result_json=record.result_json,
+                error_code=record.error_code,
+            )
+
     async def complete(
         self,
         action_id: UUID,
         actor_account_id: UUID,
         result_json: str,
+        *,
+        attempt_count: int,
     ) -> bool:
         async with self._session_factory() as session, session.begin():
             completed_id = await session.scalar(
@@ -360,9 +497,11 @@ class SuggestedActionRepository:
                     SuggestedActionRecord.id == action_id,
                     SuggestedActionRecord.consumed_by_account_id == actor_account_id,
                     SuggestedActionRecord.execution_status == "executing",
+                    SuggestedActionRecord.attempt_count == attempt_count,
                 )
                 .values(
                     execution_status="succeeded",
+                    lease_expires_at=None,
                     result_json=result_json,
                     error_code=None,
                 )
@@ -371,11 +510,49 @@ class SuggestedActionRepository:
             )
             return completed_id is not None
 
+    async def retry_or_fail(
+        self,
+        action_id: UUID,
+        actor_account_id: UUID,
+        error_code: str,
+        *,
+        attempt_count: int,
+        max_attempts: int,
+    ) -> str:
+        async with self._session_factory() as session, session.begin():
+            record = await session.scalar(
+                select(SuggestedActionRecord).where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.consumed_by_account_id == actor_account_id,
+                    SuggestedActionRecord.execution_status == "executing",
+                    SuggestedActionRecord.attempt_count == attempt_count,
+                )
+            )
+            if record is None:
+                return "unchanged"
+            if record.attempt_count >= max_attempts:
+                record.execution_status = "failed"
+                record.lease_expires_at = None
+                record.result_json = None
+                record.error_code = error_code
+                return "failed"
+            record.execution_status = "queued"
+            record.lease_expires_at = None
+            record.error_code = error_code
+            await self._outbox.add(
+                session,
+                ACTION_EXECUTION_REQUESTED_TOPIC,
+                {"action_id": str(action_id)},
+            )
+            return "queued"
+
     async def fail(
         self,
         action_id: UUID,
         actor_account_id: UUID,
         error_code: str,
+        *,
+        attempt_count: int,
     ) -> bool:
         async with self._session_factory() as session, session.begin():
             failed_id = await session.scalar(
@@ -384,9 +561,11 @@ class SuggestedActionRepository:
                     SuggestedActionRecord.id == action_id,
                     SuggestedActionRecord.consumed_by_account_id == actor_account_id,
                     SuggestedActionRecord.execution_status == "executing",
+                    SuggestedActionRecord.attempt_count == attempt_count,
                 )
                 .values(
                     execution_status="failed",
+                    lease_expires_at=None,
                     result_json=None,
                     error_code=error_code,
                 )

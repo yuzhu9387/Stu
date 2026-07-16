@@ -5,8 +5,10 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from recipe_agent.domain.conversation.receipts import add_receipt, receipt_result
 from recipe_agent.domain.identity.models import Account
 from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.imports.contracts import ImportCommand, InputKind
@@ -194,9 +196,18 @@ class RecipeRepository:
         self._outbox = outbox
 
     async def create(
-        self, owner_account_id: UUID, household_id: UUID, candidate: RecipeCandidate
+        self,
+        owner_account_id: UUID,
+        household_id: UUID,
+        candidate: RecipeCandidate,
+        *,
+        source_action_id: UUID | None = None,
     ) -> RecipeView:
         async with self._session_factory() as session:
+            if source_action_id is not None:
+                existing = await receipt_result(session, source_action_id, "save_recipe")
+                if existing is not None:
+                    return RecipeView.model_validate(existing)
             recipe = Recipe(
                 owner_account_id=owner_account_id,
                 household_id=household_id,
@@ -231,14 +242,26 @@ class RecipeRepository:
                     "recipe.saved",
                     {"household_id": str(household_id), "recipe_id": str(recipe.id)},
                 )
-            await session.commit()
-            return RecipeView(
+            view = RecipeView(
                 id=recipe.id,
                 household_id=household_id,
                 name=candidate.name,
                 ingredients=candidate.ingredients,
                 steps=candidate.steps,
             )
+            if source_action_id is not None:
+                add_receipt(session, source_action_id, "save_recipe", view)
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                if source_action_id is None:
+                    raise
+                completed = await receipt_result(session, source_action_id, "save_recipe")
+                if completed is None:
+                    raise
+                return RecipeView.model_validate(completed)
+            return view
 
     async def get(self, household_id: UUID, recipe_id: UUID) -> RecipeView:
         async with self._session_factory() as session:

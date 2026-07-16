@@ -379,6 +379,7 @@ def test_suggested_actions_enforce_schema_and_allow_unconsumed_rows(
         "expires_at",
         "created_at",
         "execution_status",
+        "attempt_count",
     }
 
     with pytest.raises(psycopg.errors.UniqueViolation):
@@ -546,5 +547,50 @@ def test_action_execution_audit_migration_upgrades_and_downgrades(
         SELECT count(*) FROM information_schema.columns
         WHERE table_name = 'suggested_actions'
           AND column_name IN ('execution_status', 'result_json', 'error_code')
+        """
+    ) == (0,)
+
+
+def test_durable_action_execution_migration_upgrades_and_downgrades(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0009_suggested_action_execution")
+
+    postgres_database.upgrade("head")
+
+    columns = postgres_database.fetch_one(
+        """
+        SELECT string_agg(column_name, ',' ORDER BY column_name)
+        FROM information_schema.columns
+        WHERE table_name = 'suggested_actions'
+          AND column_name IN ('attempt_count', 'lease_expires_at')
+        """
+    )
+    assert columns == ("attempt_count,lease_expires_at",)
+    assert postgres_database.fetch_one(
+        """
+        SELECT table_name FROM information_schema.tables
+        WHERE table_name = 'action_mutation_receipts'
+        """
+    ) == ("action_mutation_receipts",)
+    assert postgres_database.fetch_one(
+        """
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'share_snapshots' AND column_name = 'source_action_id'
+        """
+    ) == ("source_action_id",)
+
+    postgres_database.downgrade("0009_suggested_action_execution")
+    assert postgres_database.fetch_one(
+        """
+        SELECT count(*) FROM information_schema.columns
+        WHERE table_name = 'suggested_actions'
+          AND column_name IN ('attempt_count', 'lease_expires_at')
+        """
+    ) == (0,)
+    assert postgres_database.fetch_one(
+        """
+        SELECT count(*) FROM information_schema.tables
+        WHERE table_name = 'action_mutation_receipts'
         """
     ) == (0,)

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from recipe_agent.api.lark import router as lark_router
 from recipe_agent.api.v1.auth import router as auth_router
+from recipe_agent.api.v1.recommendations import router as recommendations_router
 from recipe_agent.config import Settings, get_settings
 from recipe_agent.domain.identity.service import IdentityService
 from recipe_agent.infrastructure.db.session import create_session_factory
@@ -17,6 +18,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session_factory=create_session_factory(resolved_settings)
     )
     app.include_router(auth_router)
+    app.include_router(recommendations_router)
     app.include_router(lark_router)
 
     @app.get("/health/live", tags=["operations"])

@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -35,6 +37,7 @@ async def test_submit_is_transactional_and_deduplicates(
         account_id=account_id,
         household_id=household_id,
         conversation_id=None,
+        allow_conversation_creation=True,
         locale=Locale.EN_US,
         message="What can I cook tonight?",
         transport="web",
@@ -71,6 +74,7 @@ async def test_submit_rolls_back_message_and_run_when_outbox_write_fails(
         account_id=account_id,
         household_id=household_id,
         conversation_id=None,
+        allow_conversation_creation=True,
         locale=Locale.EN_US,
         message="Do not partly save this",
         idempotency_key="rollback-1",
@@ -98,6 +102,7 @@ async def test_account_cannot_continue_another_accounts_private_conversation(
             account_id=alice_account,
             household_id=alice_household,
             conversation_id=None,
+            allow_conversation_creation=True,
             locale=Locale.EN_US,
             message="Alice's private question",
             idempotency_key="alice-1",
@@ -121,6 +126,7 @@ async def test_account_cannot_continue_another_accounts_private_conversation(
             account_id=bob_account,
             household_id=bob_household,
             conversation_id=None,
+            allow_conversation_creation=True,
             locale=Locale.EN_US,
             message="Bob's own question",
             idempotency_key="bob-existing",
@@ -158,6 +164,7 @@ async def test_run_claim_transitions_queued_only_once(
             account_id=account_id,
             household_id=household_id,
             conversation_id=None,
+            allow_conversation_creation=True,
             locale=Locale.EN_US,
             message="Claim this once",
             idempotency_key="claim-1",
@@ -181,3 +188,45 @@ async def test_run_claim_transitions_queued_only_once(
     assert completed.response == {"answer": "Finished"}
     assert repeated_completion is None
     assert failed_after_completion is None
+
+
+async def test_lark_chat_uuid_creates_once_then_reuses_private_conversation(
+    session_factory: async_sessionmaker[AsyncSession],
+    identity_service: IdentityService,
+) -> None:
+    account_id, household_id = await _scope(identity_service, "lark@example.com")
+    hub = ConversationHub(AgentRunRepository(session_factory))
+    chat_id = uuid4()
+
+    first = await hub.submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            conversation_id=chat_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="First chat message",
+            transport="lark",
+            idempotency_key="lark-event-1",
+        )
+    )
+    second = await hub.submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            conversation_id=chat_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Second chat message",
+            transport="lark",
+            idempotency_key="lark-event-2",
+        )
+    )
+
+    assert first.conversation_id == chat_id
+    assert second.conversation_id == chat_id
+    async with session_factory() as session:
+        assert await session.scalar(select(func.count()).select_from(Conversation)) == 1
+        assert await session.scalar(select(func.count()).select_from(ConversationMessage)) == 2
+        assert await session.scalar(select(func.count()).select_from(AgentRun)) == 2
+        assert await session.scalar(select(func.count()).select_from(OutboxEvent)) == 2

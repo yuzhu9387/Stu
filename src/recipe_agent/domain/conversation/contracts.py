@@ -43,6 +43,7 @@ class ConversationCommand(BaseModel):
     account_id: UUID
     household_id: UUID
     conversation_id: UUID | None = None
+    allow_conversation_creation: bool = False
     locale: Locale
     message: str = Field(min_length=1)
     transport: str = "web"

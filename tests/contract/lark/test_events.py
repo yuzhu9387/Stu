@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from recipe_agent.api.lark import LarkWebhookHandler
+from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
@@ -20,6 +21,7 @@ def test_lark_v2_message_normalizes_without_transport_fields() -> None:
     assert command.channel == "lark"
     assert command.idempotency_key == payload["header"]["event_id"]
     assert command.text == "Save this recipe"
+    assert command.allow_conversation_creation is True
 
 
 class MemoryEventStore:
@@ -33,32 +35,33 @@ class MemoryEventStore:
         return True
 
 
-class RecordingPublisher:
+class RecordingSubmitter:
     def __init__(self) -> None:
-        self.commands: list[object] = []
+        self.commands: list[ConversationCommand] = []
 
-    async def publish(self, command: object) -> None:
+    async def submit_message(self, command: ConversationCommand) -> AgentRunView:
         self.commands.append(command)
+        return AgentRunView.model_construct()
 
 
 @pytest.mark.asyncio
-async def test_duplicate_event_is_acknowledged_and_published_once() -> None:
+async def test_valid_event_reaches_shared_submitter_once() -> None:
     fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
     payload = json.loads(fixture.read_text(encoding="utf-8"))
     store = MemoryEventStore()
-    publisher = RecordingPublisher()
+    submitter = RecordingSubmitter()
     handler = LarkWebhookHandler(
         verification_token="verification-token",
         normalizer=LarkEventNormalizer(
             account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
         ),
         event_store=store,
-        publisher=publisher,
+        submitter=submitter,
     )
 
     assert await handler.handle(payload) == {"status": "accepted"}
     assert await handler.handle(payload) == {"status": "accepted"}
-    assert len(publisher.commands) == 1
+    assert len(submitter.commands) == 1
 
 
 @pytest.mark.asyncio
@@ -72,7 +75,7 @@ async def test_encrypted_event_is_decrypted_before_verification_and_normalizatio
         "0kQWuGt8YnfDwuujzeLHc2f87jX8nHDvMRFL44ALIrBnQa/j6zF2+NviV1E8FhozCMSVFNfRbqJOv4I+fz1"
         "aKZQ4Ggv0Fn5aB0Ynkpm7lcZ/C7pUTfZQX0jjnXu7wC+GEs32n0iv52o0="
     )
-    publisher = RecordingPublisher()
+    submitter = RecordingSubmitter()
     handler = LarkWebhookHandler(
         verification_token="verification-token",
         cipher=LarkCipher("test-encrypt-key"),
@@ -80,23 +83,23 @@ async def test_encrypted_event_is_decrypted_before_verification_and_normalizatio
             account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
         ),
         event_store=MemoryEventStore(),
-        publisher=publisher,
+        submitter=submitter,
     )
 
     assert await handler.handle({"encrypt": encrypted}) == {"status": "accepted"}
-    assert len(publisher.commands) == 1
+    assert len(submitter.commands) == 1
 
 
 @pytest.mark.asyncio
-async def test_url_verification_returns_challenge_without_publishing() -> None:
-    publisher = RecordingPublisher()
+async def test_url_verification_returns_challenge_without_submitting() -> None:
+    submitter = RecordingSubmitter()
     handler = LarkWebhookHandler(
         verification_token="verification-token",
         normalizer=LarkEventNormalizer(
             account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
         ),
         event_store=MemoryEventStore(),
-        publisher=publisher,
+        submitter=submitter,
     )
 
     result = await handler.handle(
@@ -108,25 +111,25 @@ async def test_url_verification_returns_challenge_without_publishing() -> None:
     )
 
     assert result == {"challenge": "challenge-value"}
-    assert publisher.commands == []
+    assert submitter.commands == []
 
 
 @pytest.mark.asyncio
-async def test_invalid_verification_token_is_rejected_before_publishing() -> None:
+async def test_invalid_verification_token_is_rejected_before_submitting() -> None:
     fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
     payload = json.loads(fixture.read_text(encoding="utf-8"))
     payload["header"]["token"] = "wrong-token"
-    publisher = RecordingPublisher()
+    submitter = RecordingSubmitter()
     handler = LarkWebhookHandler(
         verification_token="verification-token",
         normalizer=LarkEventNormalizer(
             account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
         ),
         event_store=MemoryEventStore(),
-        publisher=publisher,
+        submitter=submitter,
     )
 
     with pytest.raises(PermissionError):
         await handler.handle(payload)
 
-    assert publisher.commands == []
+    assert submitter.commands == []

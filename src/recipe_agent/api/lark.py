@@ -5,7 +5,7 @@ from typing import Annotated, Protocol
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
-from recipe_agent.domain.conversation.contracts import ConversationCommand
+from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
 
@@ -31,8 +31,8 @@ class EventStore(Protocol):
     async def claim(self, event_id: str) -> bool: ...
 
 
-class CommandPublisher(Protocol):
-    async def publish(self, command: ConversationCommand) -> None: ...
+class ConversationSubmitter(Protocol):
+    async def submit_message(self, command: ConversationCommand) -> AgentRunView: ...
 
 
 class LarkWebhookHandler:
@@ -43,13 +43,13 @@ class LarkWebhookHandler:
         cipher: LarkCipher | None = None,
         normalizer: LarkEventNormalizer,
         event_store: EventStore,
-        publisher: CommandPublisher,
+        submitter: ConversationSubmitter,
     ) -> None:
         self._verification_token = verification_token
         self._cipher = cipher
         self._normalizer = normalizer
         self._event_store = event_store
-        self._publisher = publisher
+        self._submitter = submitter
 
     async def handle(self, payload: object) -> dict[str, str]:
         if isinstance(payload, dict) and isinstance(payload.get("encrypt"), str):
@@ -66,7 +66,7 @@ class LarkWebhookHandler:
             raise PermissionError("Invalid Lark verification token")
         if not await self._event_store.claim(envelope.header.event_id):
             return {"status": "accepted"}
-        await self._publisher.publish(self._normalizer.normalize(payload))
+        await self._submitter.submit_message(self._normalizer.normalize(payload))
         return {"status": "accepted"}
 
 

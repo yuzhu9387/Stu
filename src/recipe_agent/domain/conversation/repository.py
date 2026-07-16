@@ -40,15 +40,15 @@ class AgentRunRepository:
 
     async def create_idempotent(self, command: ConversationCommand) -> tuple[AgentRunView, bool]:
         async with self._session_factory() as session, session.begin():
-            if command.conversation_id is not None:
-                await self._require_owned_conversation(session, command)
+            conversation = await self._resolve_existing_conversation(session, command)
             existing = await self._find_idempotent(session, command)
             if existing is not None:
                 return _view(existing), False
 
             try:
                 async with session.begin_nested():
-                    conversation = await self._resolve_conversation(session, command)
+                    if conversation is None:
+                        conversation = await self._create_conversation(session, command)
                     session.add(
                         ConversationMessage(
                             conversation_id=conversation.id,
@@ -170,34 +170,39 @@ class AgentRunRepository:
             ),
         )
 
-    async def _resolve_conversation(
+    async def _resolve_existing_conversation(
         self, session: AsyncSession, command: ConversationCommand
-    ) -> Conversation:
+    ) -> Conversation | None:
         if command.conversation_id is None:
-            conversation = Conversation(
-                household_id=command.household_id,
-                owner_account_id=command.account_id,
-                transport=command.transport,
-            )
-            session.add(conversation)
-            await session.flush()
-            return conversation
+            if not command.allow_conversation_creation:
+                raise ConversationNotFoundError("Conversation not found")
+            return None
 
-        return await self._require_owned_conversation(session, command)
+        conversation = await session.get(Conversation, command.conversation_id)
+        if conversation is None:
+            if command.allow_conversation_creation:
+                return None
+            raise ConversationNotFoundError("Conversation not found")
+        if (
+            conversation.owner_account_id != command.account_id
+            or conversation.household_id != command.household_id
+        ):
+            raise ConversationNotFoundError("Conversation not found")
+        return conversation
 
-    async def _require_owned_conversation(
+    async def _create_conversation(
         self, session: AsyncSession, command: ConversationCommand
     ) -> Conversation:
-        existing_conversation = await session.scalar(
-            select(Conversation).where(
-                Conversation.id == command.conversation_id,
-                Conversation.owner_account_id == command.account_id,
-                Conversation.household_id == command.household_id,
-            )
+        conversation = Conversation(
+            household_id=command.household_id,
+            owner_account_id=command.account_id,
+            transport=command.transport,
         )
-        if existing_conversation is None:
-            raise ConversationNotFoundError("Conversation not found")
-        return existing_conversation
+        if command.conversation_id is not None:
+            conversation.id = command.conversation_id
+        session.add(conversation)
+        await session.flush()
+        return conversation
 
 
 def _request_json(command: ConversationCommand) -> str:

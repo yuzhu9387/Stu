@@ -58,6 +58,7 @@ class LarkEventNormalizer:
             account_id=self._account_id,
             household_id=self._household_id,
             conversation_id=uuid5(NAMESPACE_URL, envelope.event.message.chat_id),
+            allow_conversation_creation=True,
             locale=self._locale,
             message=content.text,
             transport="lark",

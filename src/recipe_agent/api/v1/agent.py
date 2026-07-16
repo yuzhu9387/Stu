@@ -29,6 +29,7 @@ class SubmitRun(BaseModel):
             account_id=scope.account_id,
             household_id=scope.household_id,
             conversation_id=self.conversation_id,
+            allow_conversation_creation=self.conversation_id is None,
             locale=self.locale,
             message=self.message,
             transport=transport,

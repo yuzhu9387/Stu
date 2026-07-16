@@ -108,3 +108,22 @@ def test_account_cannot_read_or_continue_another_accounts_private_run(tmp_path) 
 
     assert read.status_code == 404
     assert continued.status_code == 404
+
+
+def test_web_supplied_missing_conversation_is_not_created(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'agent-missing-conversation.db'}"
+    asyncio.run(_create_schema(database_url))
+    client = TestClient(create_app(_settings(database_url)))
+    _login(client, "continuation@example.com")
+
+    response = client.post(
+        "/api/v1/agent/runs",
+        json={
+            "conversation_id": str(UUID("11111111-1111-1111-1111-111111111111")),
+            "message": "Do not create this supplied conversation",
+            "locale": "en-US",
+            "idempotency_key": "missing-conversation-1",
+        },
+    )
+
+    assert response.status_code == 404

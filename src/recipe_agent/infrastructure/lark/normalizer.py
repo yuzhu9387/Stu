@@ -44,9 +44,7 @@ class _TextContent(BaseModel):
 
 
 class LarkEventNormalizer:
-    def __init__(
-        self, *, account_id: UUID, household_id: UUID, locale: Locale
-    ) -> None:
+    def __init__(self, *, account_id: UUID, household_id: UUID, locale: Locale) -> None:
         self._account_id = account_id
         self._household_id = household_id
         self._locale = locale

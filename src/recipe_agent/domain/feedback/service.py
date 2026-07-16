@@ -39,9 +39,7 @@ class FeedbackService:
             parent_version_id,
             raw_text,
         )
-        return FeedbackOutcome.model_validate(
-            {"feedback_event": event, "recipe_version": version}
-        )
+        return FeedbackOutcome.model_validate({"feedback_event": event, "recipe_version": version})
 
     @staticmethod
     def validate_rating(value: int) -> int:

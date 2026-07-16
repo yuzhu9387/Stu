@@ -13,9 +13,7 @@ from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
 def test_lark_v2_message_normalizes_without_transport_fields() -> None:
     fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
     payload = json.loads(fixture.read_text(encoding="utf-8"))
-    normalizer = LarkEventNormalizer(
-        account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US
-    )
+    normalizer = LarkEventNormalizer(account_id=uuid4(), household_id=uuid4(), locale=Locale.EN_US)
 
     command = normalizer.normalize(payload)
 

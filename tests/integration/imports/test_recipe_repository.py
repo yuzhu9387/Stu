@@ -14,9 +14,7 @@ from recipe_agent.domain.recipes.repository import RecipeNotFoundError, RecipeRe
 def soup_candidate() -> RecipeCandidate:
     return RecipeCandidate(
         name="Tomato Soup",
-        ingredients=(
-            RecipeIngredientCandidate(name="tomato", quantity="3", unit="piece"),
-        ),
+        ingredients=(RecipeIngredientCandidate(name="tomato", quantity="3", unit="piece"),),
         steps=(RecipeStepCandidate(number=1, text="Simmer the tomatoes."),),
     )
 

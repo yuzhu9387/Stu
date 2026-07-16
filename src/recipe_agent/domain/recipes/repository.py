@@ -1,5 +1,7 @@
 """Household-scoped raw input persistence."""
 
+from collections.abc import Mapping
+from typing import Any, Protocol
 from uuid import UUID
 
 from sqlalchemy import select
@@ -28,6 +30,15 @@ class RawInputNotFoundError(LookupError):
 
 class RecipeNotFoundError(LookupError):
     pass
+
+
+class EventOutbox(Protocol):
+    async def add(
+        self,
+        session: AsyncSession,
+        topic: str,
+        payload: Mapping[str, Any],
+    ) -> object: ...
 
 
 class RawInputRepository:
@@ -86,8 +97,14 @@ class RawInputRepository:
 
 
 class RecipeRepository:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        outbox: EventOutbox | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._outbox = outbox
 
     async def create(self, household_id: UUID, candidate: RecipeCandidate) -> RecipeView:
         async with self._session_factory() as session:
@@ -116,6 +133,12 @@ class RecipeRepository:
                     for step in candidate.steps
                 ]
             )
+            if self._outbox is not None:
+                await self._outbox.add(
+                    session,
+                    "recipe.saved",
+                    {"household_id": str(household_id), "recipe_id": str(recipe.id)},
+                )
             await session.commit()
             return RecipeView(
                 id=recipe.id,

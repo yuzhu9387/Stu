@@ -95,7 +95,9 @@ class GenericURLAdapter:
     priority = 10
 
     def supports(self, command: ImportCommand) -> bool:
-        return command.kind is InputKind.URL and command.source.casefold().startswith(("http://", "https://"))
+        return command.kind is InputKind.URL and command.source.casefold().startswith(
+            ("http://", "https://")
+        )
 
     async def extract(self, raw_input_id: UUID, command: ImportCommand) -> ExtractedInput:
         raise ExternalPlatformError("URL extraction requires a configured fetch worker")

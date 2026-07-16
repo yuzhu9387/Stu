@@ -29,9 +29,7 @@ class SqlShareRepository:
     async def find_by_hash(self, token_hash: str) -> ShareRecord | None:
         async with self._session_factory() as session:
             result = await session.execute(
-                select(ShareSnapshotRecord).where(
-                    ShareSnapshotRecord.token_hash == token_hash
-                )
+                select(ShareSnapshotRecord).where(ShareSnapshotRecord.token_hash == token_hash)
             )
             record = result.scalar_one_or_none()
             if record is None:
@@ -52,9 +50,7 @@ class SqlShareRepository:
     async def revoke(self, token_hash: str) -> None:
         async with self._session_factory() as session:
             result = await session.execute(
-                select(ShareSnapshotRecord).where(
-                    ShareSnapshotRecord.token_hash == token_hash
-                )
+                select(ShareSnapshotRecord).where(ShareSnapshotRecord.token_hash == token_hash)
             )
             record = result.scalar_one_or_none()
             if record is not None:

@@ -1,6 +1,75 @@
 name: family-recipe-agent
 
 services:
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      RECIPE_AGENT_DATABASE_URL: postgresql+asyncpg://recipe:recipe@postgres:5432/recipe
+      RECIPE_AGENT_ENVIRONMENT: development
+      RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
+      RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    environment:
+      RECIPE_AGENT_DATABASE_URL: postgresql+asyncpg://recipe:recipe@postgres:5432/recipe
+      RECIPE_AGENT_ENVIRONMENT: development
+      RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
+      RECIPE_AGENT_REDIS_URL: redis://redis:6379/0
+      RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    environment:
+      RECIPE_AGENT_DATABASE_URL: postgresql+asyncpg://recipe:recipe@postgres:5432/recipe
+      RECIPE_AGENT_ENVIRONMENT: development
+      RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
+      RECIPE_AGENT_REDIS_URL: redis://redis:6379/0
+      RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    environment:
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
   postgres:
     image: pgvector/pgvector:0.8.1-pg17
     environment:

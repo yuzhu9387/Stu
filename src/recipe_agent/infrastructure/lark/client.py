@@ -32,9 +32,7 @@ class LarkClient:
         self._renderer = renderer
         self._base_url = base_url.rstrip("/")
 
-    async def send_progress(
-        self, chat_id: str, progress: AgentProgress, locale: Locale
-    ) -> None:
+    async def send_progress(self, chat_id: str, progress: AgentProgress, locale: Locale) -> None:
         await self._send_card(chat_id, self._renderer.progress(progress, locale))
 
     async def send_outcome(self, chat_id: str, outcome: AgentOutcome, locale: Locale) -> None:

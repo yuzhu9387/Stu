@@ -23,9 +23,7 @@ class SqlFeedbackRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
-    async def save_event(
-        self, household_id: UUID, recipe_id: UUID, raw_text: str
-    ) -> FeedbackEvent:
+    async def save_event(self, household_id: UUID, recipe_id: UUID, raw_text: str) -> FeedbackEvent:
         async with self._session_factory() as session:
             await self._scoped_recipe(session, household_id, recipe_id)
             record = FeedbackEventRecord(
@@ -68,9 +66,7 @@ class SqlFeedbackRepository:
             session.add(version)
             await session.flush()
             await self._clone_content(session, parent_version_id, version.id)
-            session.add(
-                RecipeVersionDeltaRecord(version_id=version.id, instruction=instruction)
-            )
+            session.add(RecipeVersionDeltaRecord(version_id=version.id, instruction=instruction))
             recipe.active_version_id = version.id
             await session.commit()
             return RecipeVersionReference(
@@ -84,9 +80,7 @@ class SqlFeedbackRepository:
         session: AsyncSession, parent_version_id: UUID, version_id: UUID
     ) -> None:
         ingredient_result = await session.execute(
-            select(RecipeIngredient).where(
-                RecipeIngredient.version_id == parent_version_id
-            )
+            select(RecipeIngredient).where(RecipeIngredient.version_id == parent_version_id)
         )
         step_result = await session.execute(
             select(RecipeStep).where(RecipeStep.version_id == parent_version_id)
@@ -115,9 +109,7 @@ class SqlFeedbackRepository:
         )
 
     @staticmethod
-    async def _scoped_recipe(
-        session: AsyncSession, household_id: UUID, recipe_id: UUID
-    ) -> Recipe:
+    async def _scoped_recipe(session: AsyncSession, household_id: UUID, recipe_id: UUID) -> Recipe:
         result = await session.execute(
             select(Recipe).where(
                 Recipe.id == recipe_id,

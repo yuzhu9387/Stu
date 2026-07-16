@@ -20,8 +20,6 @@ class ShareProjection:
         return ShareRecipeSnapshot(
             id=TypeAdapter(UUID).validate_python(private_recipe["id"]),
             name=TypeAdapter(str).validate_python(private_recipe["name"]),
-            ingredients=TypeAdapter(tuple[str, ...]).validate_python(
-                private_recipe["ingredients"]
-            ),
+            ingredients=TypeAdapter(tuple[str, ...]).validate_python(private_recipe["ingredients"]),
             steps=TypeAdapter(tuple[str, ...]).validate_python(private_recipe["steps"]),
         )

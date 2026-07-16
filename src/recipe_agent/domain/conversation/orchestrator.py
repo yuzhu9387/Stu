@@ -39,9 +39,7 @@ class AgentOrchestrator:
             result = await self._tools[action.tool_name].execute(command=command, action=action)
             await self._publish(command, AgentStage.CHECKING)
             if action.mutates_state and not result.persisted:
-                raise ActionNotPersistedError(
-                    f"Tool {action.tool_name} did not verify persistence"
-                )
+                raise ActionNotPersistedError(f"Tool {action.tool_name} did not verify persistence")
         except Exception:
             await self._publish(command, AgentStage.FAILED)
             raise

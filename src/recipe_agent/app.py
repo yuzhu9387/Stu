@@ -1,6 +1,10 @@
-from fastapi import FastAPI
+import hmac
+
+from fastapi import FastAPI, Header, HTTPException, status
+from fastapi.responses import PlainTextResponse
 
 from recipe_agent.api.lark import router as lark_router
+from recipe_agent.api.security import RequestSecurityMiddleware
 from recipe_agent.api.v1.auth import router as auth_router
 from recipe_agent.api.v1.feedback import router as feedback_router
 from recipe_agent.api.v1.planning import router as planning_router
@@ -9,6 +13,7 @@ from recipe_agent.api.v1.shares import router as shares_router
 from recipe_agent.config import Settings, get_settings
 from recipe_agent.domain.identity.service import IdentityService
 from recipe_agent.infrastructure.db.session import create_session_factory
+from recipe_agent.infrastructure.observability.metrics import MetricsRegistry
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -17,6 +22,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
     app = FastAPI(title="Family Recipe Agent", version="0.1.0")
     app.state.settings = resolved_settings
+    metrics_registry = MetricsRegistry()
+    app.state.metrics = metrics_registry
+    app.add_middleware(
+        RequestSecurityMiddleware,
+        max_request_bytes=resolved_settings.max_request_bytes,
+        metrics=metrics_registry,
+    )
     app.state.identity_service = IdentityService(
         session_factory=create_session_factory(resolved_settings)
     )
@@ -34,6 +46,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health/ready", tags=["operations"])
     async def ready() -> dict[str, str]:
         return {"status": "ready"}
+
+    @app.get("/metrics", tags=["operations"], response_class=PlainTextResponse)
+    async def metrics(authorization: str | None = Header(default=None)) -> str:
+        expected = f"Bearer {resolved_settings.metrics_token}"
+        if authorization is None or not hmac.compare_digest(authorization, expected):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        return metrics_registry.render()
 
     return app
 

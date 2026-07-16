@@ -18,14 +18,17 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://recipe:recipe@localhost:5432/recipe"
     redis_url: str = "redis://localhost:6379/0"
     session_signing_key: str = "development-only-session-key"
+    metrics_token: str = "development-only-metrics-token"
+    max_request_bytes: int = 2 * 1024 * 1024
+    max_upload_bytes: int = 10 * 1024 * 1024
 
     @model_validator(mode="after")
     def reject_development_secret_in_production(self) -> Self:
-        if (
-            self.environment == "production"
-            and self.session_signing_key == "development-only-session-key"
-        ):
-            raise ValueError("A production session signing key is required")
+        if self.environment == "production":
+            if self.session_signing_key == "development-only-session-key":
+                raise ValueError("A production session signing key is required")
+            if self.metrics_token == "development-only-metrics-token":
+                raise ValueError("A production metrics token is required")
         return self
 
 

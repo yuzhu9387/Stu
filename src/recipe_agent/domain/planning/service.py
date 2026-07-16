@@ -88,9 +88,7 @@ class PlanningService:
         recommendations = await self._recommendations.recommend(
             RecommendationQuery(household_id=household_id)
         )
-        preserved_recipe_ids = {
-            item.recipe_id for item in plan.items if item.id != target.id
-        }
+        preserved_recipe_ids = {item.recipe_id for item in plan.items if item.id != target.id}
         replacement = next(
             (item for item in recommendations if item.id not in preserved_recipe_ids),
             None,
@@ -109,8 +107,7 @@ class PlanningService:
             update={
                 "version": plan.version + 1,
                 "items": tuple(
-                    replacement_item if item.id == target.id else item
-                    for item in plan.items
+                    replacement_item if item.id == target.id else item for item in plan.items
                 ),
             }
         )

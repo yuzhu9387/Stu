@@ -115,9 +115,7 @@ def _create_recipe_tables() -> None:
         sa.Column("unit", sa.String(64)),
         sa.UniqueConstraint("version_id", "position", name="uq_recipe_ingredient_position"),
     )
-    op.create_index(
-        "ix_recipe_ingredients_version_id", "recipe_ingredients", ["version_id"]
-    )
+    op.create_index("ix_recipe_ingredients_version_id", "recipe_ingredients", ["version_id"])
     op.create_table(
         "recipe_steps",
         _id(),

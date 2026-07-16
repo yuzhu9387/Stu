@@ -1,17 +1,24 @@
 FROM python:3.12.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore
 
 RUN useradd --create-home --uid 10001 appuser
 
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
+COPY alembic.ini ./
+COPY migrations ./migrations
 COPY src ./src
 
 RUN pip install --no-cache-dir .
 
 USER appuser
 
-CMD ["python", "-m", "recipe_agent"]
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+    CMD ["python", "-c", "import os; os.kill(1, 0)"]
+
+CMD ["python", "-m", "recipe_agent.worker"]

@@ -1,0 +1,41 @@
+FROM node:22.14-alpine AS dependencies
+
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
+WORKDIR /app
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY web/package.json ./web/package.json
+RUN pnpm install --frozen-lockfile --filter family-recipe-agent-web...
+
+FROM node:22.14-alpine AS builder
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
+WORKDIR /app
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=dependencies /app/web/node_modules ./web/node_modules
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY web ./web
+RUN pnpm --dir web build
+
+FROM node:22.14-alpine AS runtime
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
+
+RUN addgroup --system --gid 10001 appgroup && \
+    adduser --system --uid 10001 --ingroup appgroup appuser
+
+WORKDIR /app
+COPY --from=builder --chown=appuser:appgroup /app/web/.next/standalone ./
+COPY --from=builder --chown=appuser:appgroup /app/web/.next/static ./web/.next/static
+
+USER appuser
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+    CMD ["node", "-e", "fetch('http://127.0.0.1:3000/chat').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+CMD ["node", "web/server.js"]

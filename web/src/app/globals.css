@@ -31,7 +31,8 @@ body {
 }
 
 button,
-textarea {
+textarea,
+input {
   font: inherit;
 }
 
@@ -43,6 +44,11 @@ a {
 button:focus-visible,
 a:focus-visible,
 textarea:focus-visible {
+  outline: 3px solid rgba(230, 110, 80, 0.42);
+  outline-offset: 3px;
+}
+
+input:focus-visible {
   outline: 3px solid rgba(230, 110, 80, 0.42);
   outline-offset: 3px;
 }
@@ -376,6 +382,96 @@ textarea:focus-visible {
   background: rgba(255, 253, 248, 0.75);
   color: var(--coral-dark);
 }
+
+.chat-loading,
+.login-card {
+  width: min(620px, calc(100% - 36px));
+  margin: 12vh auto 0;
+}
+
+.login-card {
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--cream);
+  box-shadow: var(--shadow);
+}
+
+.login-card h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", "Songti SC", serif;
+  font-size: clamp(34px, 5vw, 52px);
+  font-weight: 500;
+}
+
+.login-card > p:not(.eyebrow) { color: var(--ink-soft); }
+.login-card form { display: grid; gap: 12px; margin-top: 28px; }
+.login-card label { font-size: 12px; font-weight: 800; }
+.login-card input {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+}
+.login-card .primary-button { justify-self: start; }
+
+.run-waiting,
+.chat-error,
+.chat-thread {
+  margin-top: 30px;
+}
+
+.run-waiting {
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 253, 248, 0.72);
+  color: var(--ink-soft);
+}
+
+.run-waiting strong { color: var(--coral-dark); }
+.chat-error { color: #9d3425; font-weight: 700; }
+
+.chat-thread {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 50px;
+}
+
+.agent-section {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--cream);
+}
+
+.agent-section h2 {
+  margin: 0 0 8px;
+  color: var(--coral-dark);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.agent-section p { margin: 0; color: var(--ink-soft); line-height: 1.65; white-space: pre-wrap; }
+.agent-answer { border-color: rgba(47, 101, 89, 0.3); }
+.agent-answer p { color: var(--ink); font-size: 16px; }
+
+.suggested-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.suggested-actions > div { display: flex; align-items: center; gap: 8px; }
+.suggested-actions button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pine);
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
+}
+.suggested-actions button:disabled { cursor: default; opacity: 0.62; }
+.suggested-actions small { color: var(--pine-bright); font-weight: 700; }
 
 .feature-screen {
   padding: 60px 0 96px;

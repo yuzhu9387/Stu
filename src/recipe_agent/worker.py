@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Callable, Mapping
+from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -42,7 +43,7 @@ from recipe_agent.infrastructure.observability.logging import render_log
 celery_app = Celery("recipe_agent")
 ExecutorFactory = Callable[[AgentRunRepository], AgentRunExecutor]
 ActionExecutorFactory = Callable[[SuggestedActionRepository], ActionExecutor]
-LarkDeliveryFactory = Callable[[], LarkDeliveryExecutor]
+LarkDeliveryFactory = Callable[[], AbstractAsyncContextManager[LarkDeliveryExecutor]]
 _executor_factory: ExecutorFactory | None = None
 _action_executor_factory: ActionExecutorFactory | None = None
 _lark_delivery_factory: LarkDeliveryFactory | None = None
@@ -193,7 +194,8 @@ def deliver_lark_outbox(event_id: str) -> bool:
 async def _deliver_lark_outbox(event_id: UUID) -> bool:
     if _lark_delivery_factory is None:
         raise RuntimeError("Lark delivery is not configured")
-    return await run_lark_delivery_job(_lark_delivery_factory(), event_id)
+    async with _lark_delivery_factory() as delivery:
+        return await run_lark_delivery_job(delivery, event_id)
 
 
 async def run() -> None:

@@ -1,6 +1,8 @@
 """Add Lark event, run, and delivery recovery leases."""
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from uuid import uuid4
 
 import sqlalchemy as sa
 from alembic import op
@@ -17,6 +19,16 @@ def upgrade() -> None:
             sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="0")
         )
         batch_op.add_column(sa.Column("lease_expires_at", sa.DateTime(timezone=True)))
+    agent_runs = sa.table(
+        "agent_runs",
+        sa.column("status", sa.String(32)),
+        sa.column("lease_expires_at", sa.DateTime(timezone=True)),
+    )
+    op.get_bind().execute(
+        sa.update(agent_runs)
+        .where(agent_runs.c.status == "running")
+        .values(lease_expires_at=datetime(1970, 1, 1, tzinfo=UTC))
+    )
 
     with op.batch_alter_table("lark_event_receipts") as batch_op:
         batch_op.add_column(sa.Column("fingerprint_hash", sa.String(64), nullable=True))
@@ -88,6 +100,36 @@ def upgrade() -> None:
             name="ck_lark_delivery_status",
         ),
     )
+    outbox_events = sa.table(
+        "outbox_events",
+        sa.column("id", sa.Uuid()),
+        sa.column("topic", sa.String(160)),
+    )
+    delivery_receipts = sa.table(
+        "lark_delivery_receipts",
+        sa.column("id", sa.Uuid()),
+        sa.column("outbox_event_id", sa.Uuid()),
+        sa.column("dedupe_key", sa.String(200)),
+        sa.column("status", sa.String(16)),
+        sa.column("attempt_count", sa.Integer()),
+    )
+    legacy_lark_events = tuple(op.get_bind().execute(
+        sa.select(outbox_events.c.id).where(outbox_events.c.topic.like("lark.%"))
+    ).scalars())
+    if legacy_lark_events:
+        op.get_bind().execute(
+            sa.insert(delivery_receipts),
+            [
+            {
+                "id": uuid4(),
+                "outbox_event_id": event_id,
+                "dedupe_key": f"legacy-outbox:{event_id}",
+                "status": "pending",
+                "attempt_count": 0,
+            }
+            for event_id in legacy_lark_events
+            ],
+        )
 
 
 def downgrade() -> None:

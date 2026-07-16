@@ -442,7 +442,7 @@ class SuggestedActionService:
                 action_id=claimed.id,
             )
             result = _handler_result(raw_result)
-        except Exception as error:
+        except Exception:
             await self._repository.retry_or_fail(
                 claimed.id,
                 actor.account_id,
@@ -450,7 +450,7 @@ class SuggestedActionService:
                 attempt_count=claimed.attempt_count,
                 max_attempts=self._max_attempts,
             )
-            raise ActionExecutionError("Suggested action execution failed") from error
+            raise ActionExecutionError("Suggested action execution failed") from None
         result_json = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
         if not await self._repository.complete(
             claimed.id,
@@ -496,8 +496,8 @@ class SuggestedActionService:
                 raise ActionExecutionError("Share delivery handler is unavailable")
             try:
                 delivery = await handler.delivery(actor=actor, action_id=action.id)
-            except Exception as error:
-                raise ActionExecutionError("Share delivery is unavailable") from error
+            except Exception:
+                raise ActionExecutionError("Share delivery is unavailable") from None
         return ActionResult(
             action_id=action.id,
             type=action.action_type,

@@ -260,6 +260,69 @@ def test_lark_recovery_migration_adds_event_run_and_delivery_leases(
     assert delivery_table == ("lark_delivery_receipts",)
 
 
+def test_lark_recovery_migration_backfills_live_runs_and_existing_outbox(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0010_durable_action_execution")
+    account_id = uuid4()
+    household_id = uuid4()
+    conversation_id = uuid4()
+    run_id = uuid4()
+    lark_event_id = uuid4()
+    other_event_id = uuid4()
+    with psycopg.connect(postgres_database.database_url) as connection:
+        connection.execute(
+            "INSERT INTO accounts (id, email) VALUES (%s, %s)",
+            (account_id, f"{account_id}@example.com"),
+        )
+        connection.execute(
+            "INSERT INTO households (id, owner_account_id) VALUES (%s, %s)",
+            (household_id, account_id),
+        )
+        connection.execute(
+            """
+            INSERT INTO conversations
+                (id, household_id, owner_account_id, transport)
+            VALUES (%s, %s, %s, 'lark')
+            """,
+            (conversation_id, household_id, account_id),
+        )
+        connection.execute(
+            """
+            INSERT INTO agent_runs
+                (id, conversation_id, account_id, household_id, transport,
+                 idempotency_key, status, request_json)
+            VALUES (%s, %s, %s, %s, 'lark', 'legacy-running', 'running', '{}')
+            """,
+            (run_id, conversation_id, account_id, household_id),
+        )
+        connection.execute(
+            """
+            INSERT INTO outbox_events (id, topic, payload_json)
+            VALUES (%s, 'lark.run.completed', '{}'), (%s, 'agent.run.requested', '{}')
+            """,
+            (lark_event_id, other_event_id),
+        )
+
+    postgres_database.upgrade("head")
+
+    run_recovery = postgres_database.fetch_one(
+        """
+        SELECT attempt_count, lease_expires_at IS NOT NULL
+        FROM agent_runs WHERE id = %(id)s
+        """,
+        {"id": run_id},
+    )
+    receipt = postgres_database.fetch_one(
+        """
+        SELECT outbox_event_id, status, attempt_count
+        FROM lark_delivery_receipts
+        """
+    )
+    assert run_recovery == (0, True)
+    assert receipt == (lark_event_id, "pending", 0)
+
+
 def test_downgrade_preserves_legacy_records(postgres_database: PostgresDatabase) -> None:
     postgres_database.upgrade("0006_operations")
     _, household_id, recipe_id = postgres_database.seed_legacy_family_recipe()

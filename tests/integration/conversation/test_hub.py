@@ -216,6 +216,11 @@ async def test_expired_run_lease_is_reclaimed_and_stale_attempt_cannot_complete(
 
     assert first is not None and first.attempt_count == 1
     assert second is not None and second.attempt_count == 2
+    assert await repository.retry_or_fail(
+        run.id,
+        "stale_failure",
+        attempt_count=first.attempt_count,
+    ) == "unchanged"
     assert await repository.complete(
         run.id, {"answer": "stale"}, attempt_count=first.attempt_count
     ) is None

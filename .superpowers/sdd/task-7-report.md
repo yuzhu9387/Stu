@@ -16,7 +16,9 @@ action service.
 - Persists the Lark reply target with the run so completion delivery is restart-safe.
 - Reserves every message and card callback before identity resolution or business side effects,
   using a privacy-safe content fingerprint, processing lease, and accepted outcome. Replays are
-  no-ops, stale work is recoverable, and reuse of an event ID with different content is rejected.
+  no-ops, stale work is recoverable, stale attempts cannot finalize after lease takeover, and
+  reuse of an event ID with different content is rejected. A live busy lease returns a retryable
+  response instead of acknowledging work that could be lost after a crash.
 - Queues unbound-user guidance through durable event and delivery receipts plus the transactional
   outbox, and performs no outbound Lark call on the webhook request path.
 - Supports one-time account binding through `link CODE` / `绑定 CODE`; linking never creates or
@@ -68,11 +70,11 @@ The feature tests were written and observed failing before the corresponding imp
 ## Verification
 
 - Focused Lark/worker tests: all pass.
-- Full local backend suite: `211 passed, 11 skipped` (skips require external database environment
+- Full local backend suite: `218 passed, 11 skipped` (skips require external database environment
   when the suite is run without its variables).
 - PostgreSQL-backed event, run, delivery, conversation, and suggested-action concurrency/security
-  tests: `23 passed` against the local test PostgreSQL service.
-- PostgreSQL migration verification: `9 passed` (21 existing Alembic deprecation warnings).
+  tests: `27 passed` against the local test PostgreSQL service.
+- PostgreSQL migration verification: `10 passed` (23 existing Alembic deprecation warnings).
 - Ruff: all source and test checks pass.
 - mypy strict: success across 100 source files.
 - `git diff --check`: clean.
@@ -82,7 +84,10 @@ The feature tests were written and observed failing before the corresponding imp
 - The FastAPI composition root must instantiate `LarkInboundService`, `LarkWebhookHandler`,
   `LarkTenantTokenProvider`, `LarkClient`, and `LarkDeliveryService`.
 - Assign the webhook handler to `app.state.lark_handler`.
-- Configure the worker with `configure_lark_delivery(lambda: delivery_service)`.
+- Configure the worker with `configure_lark_delivery()` using an async context-manager factory
+  that constructs and closes its HTTP client and delivery service inside the task's current event
+  loop. Do not reuse a singleton `httpx.AsyncClient` or token-provider lock across `asyncio.run()`
+  task loops.
 - Configure `LarkDeliveryService` with the same `SuggestedActionService`/signing key used for
   issuing actions. The run response may contain issued actions at the completion boundary, but
   `AgentRunRepository` strips raw tokens before persistence; delivery reconstructs and validates
@@ -94,4 +99,6 @@ The feature tests were written and observed failing before the corresponding imp
 
 - Migration `0011_lark_runtime_recovery` adds agent-run attempts/leases, event fingerprints and
   processing leases/outcomes, and durable Lark delivery receipts with attempts and send leases.
+  It also makes pre-existing running jobs immediately recoverable and backfills receipts for
+  pre-existing `lark.*` outbox events.
 - `web/next-env.d.ts` was not edited or staged.

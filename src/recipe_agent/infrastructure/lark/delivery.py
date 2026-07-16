@@ -126,7 +126,7 @@ class SqlLarkDeliveryQueue:
         return await self._publish_once(
             topic=LARK_LINKING_INSTRUCTIONS_TOPIC,
             payload={"chat_id": chat_id, "locale": locale.value, "source_event_id": event_id},
-            dedupe_key=f"event:{event_id}:linking",
+            dedupe_key=f"event:{event_id}:identity_response",
         )
 
     async def publish_linked(
@@ -138,7 +138,7 @@ class SqlLarkDeliveryQueue:
         return await self._publish_once(
             topic=LARK_LINKED_TOPIC,
             payload={"chat_id": chat_id, "locale": locale.value, "source_event_id": event_id},
-            dedupe_key=f"event:{event_id}:linked",
+            dedupe_key=f"event:{event_id}:identity_response",
         )
 
     async def _publish_once(

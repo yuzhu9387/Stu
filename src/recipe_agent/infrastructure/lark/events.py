@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, cast
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -90,7 +90,19 @@ class LarkEventSubstitutionError(ValueError):
     """An existing event ID was reused for different verified content."""
 
 
-type LarkEventReservation = Literal["acquired", "duplicate", "busy"]
+class LarkEventBusyError(RuntimeError):
+    """A live callback worker still owns the event lease."""
+
+
+DEFAULT_LARK_DELIVERY_MAX_ATTEMPTS = 6
+
+
+@dataclass(frozen=True)
+class LarkEventLease:
+    attempt_count: int
+
+
+type LarkEventReservation = LarkEventLease | Literal["duplicate", "busy"]
 
 
 class LarkDeliveryInProgressError(RuntimeError):
@@ -137,7 +149,7 @@ class SqlLarkDeliveryStore:
         *,
         now: datetime | None = None,
         lease_duration: timedelta = timedelta(minutes=2),
-        max_attempts: int = 6,
+        max_attempts: int = DEFAULT_LARK_DELIVERY_MAX_ATTEMPTS,
     ) -> ClaimedLarkDelivery | None:
         current_time = now or datetime.now(UTC)
         async with self._session_factory() as session, session.begin():
@@ -145,8 +157,14 @@ class SqlLarkDeliveryStore:
                 update(LarkDeliveryReceipt)
                 .where(
                     LarkDeliveryReceipt.outbox_event_id == event_id,
-                    LarkDeliveryReceipt.status.in_(("pending", "delivering")),
                     LarkDeliveryReceipt.attempt_count >= max_attempts,
+                    or_(
+                        LarkDeliveryReceipt.status == "pending",
+                        (
+                            (LarkDeliveryReceipt.status == "delivering")
+                            & (LarkDeliveryReceipt.lease_expires_at <= current_time)
+                        ),
+                    ),
                 )
                 .values(
                     status="failed",
@@ -240,7 +258,12 @@ class SqlLarkDeliveryStore:
             return delivered_id is not None
 
     async def mark_retry(
-        self, event_id: UUID, *, attempt_count: int, error_code: str
+        self,
+        event_id: UUID,
+        *,
+        attempt_count: int,
+        error_code: str,
+        max_attempts: int = DEFAULT_LARK_DELIVERY_MAX_ATTEMPTS,
     ) -> bool:
         async with self._session_factory() as session, session.begin():
             receipt_id = await session.scalar(
@@ -251,7 +274,9 @@ class SqlLarkDeliveryStore:
                     LarkDeliveryReceipt.attempt_count == attempt_count,
                 )
                 .values(
-                    status="pending",
+                    status=(
+                        "failed" if attempt_count >= max_attempts else "pending"
+                    ),
                     lease_expires_at=None,
                     error_code=error_code,
                     updated_at=datetime.now(UTC),
@@ -337,7 +362,7 @@ class SqlLarkEventStore:
             except IntegrityError:
                 pass
             if inserted:
-                return "acquired"
+                return LarkEventLease(attempt_count=1)
 
             receipt = await session.scalar(
                 select(LarkEventReceipt).where(LarkEventReceipt.event_id == event_id)
@@ -353,7 +378,7 @@ class SqlLarkEventStore:
             ) > _as_utc(current_time):
                 return "busy"
 
-            result = await session.execute(
+            attempt_count = await session.scalar(
                 update(LarkEventReceipt)
                 .where(
                     LarkEventReceipt.event_id == event_id,
@@ -369,8 +394,14 @@ class SqlLarkEventStore:
                     lease_expires_at=lease_expires_at,
                     updated_at=current_time,
                 )
+                .returning(LarkEventReceipt.attempt_count)
+                .execution_options(synchronize_session=False)
             )
-            return "acquired" if cast(Any, result).rowcount == 1 else "busy"
+            return (
+                LarkEventLease(attempt_count=attempt_count)
+                if attempt_count is not None
+                else "busy"
+            )
 
     async def accept(
         self,
@@ -378,8 +409,9 @@ class SqlLarkEventStore:
         fingerprint_hash: str,
         outcome: str,
         *,
+        attempt_count: int,
         now: datetime | None = None,
-    ) -> None:
+    ) -> bool:
         current_time = now or datetime.now(UTC)
         async with self._session_factory() as session, session.begin():
             receipt = await session.get(LarkEventReceipt, event_id)
@@ -388,11 +420,25 @@ class SqlLarkEventStore:
             if receipt.fingerprint_hash != fingerprint_hash:
                 raise LarkEventSubstitutionError("Lark event ID content mismatch")
             if receipt.processing_status == "accepted":
-                return
-            receipt.processing_status = "accepted"
-            receipt.outcome = outcome
-            receipt.lease_expires_at = None
-            receipt.updated_at = current_time
+                return receipt.attempt_count == attempt_count
+            accepted_id = await session.scalar(
+                update(LarkEventReceipt)
+                .where(
+                    LarkEventReceipt.event_id == event_id,
+                    LarkEventReceipt.fingerprint_hash == fingerprint_hash,
+                    LarkEventReceipt.processing_status == "processing",
+                    LarkEventReceipt.attempt_count == attempt_count,
+                )
+                .values(
+                    processing_status="accepted",
+                    outcome=outcome,
+                    lease_expires_at=None,
+                    updated_at=current_time,
+                )
+                .returning(LarkEventReceipt.event_id)
+                .execution_options(synchronize_session=False)
+            )
+            return accepted_id is not None
 
 def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
@@ -401,9 +447,12 @@ def _as_utc(value: datetime) -> datetime:
 
 
 __all__ = [
+    "DEFAULT_LARK_DELIVERY_MAX_ATTEMPTS",
     "LarkDeliveryAttemptsExhaustedError",
     "LarkDeliveryInProgressError",
     "LarkDeliveryReceipt",
+    "LarkEventBusyError",
+    "LarkEventLease",
     "LarkEventReceipt",
     "LarkEventReservation",
     "LarkEventSubstitutionError",

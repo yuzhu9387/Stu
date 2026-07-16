@@ -12,7 +12,10 @@ from recipe_agent.domain.conversation.actions import (
     SuggestedActionNotFoundError,
 )
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
-from recipe_agent.infrastructure.lark.events import LarkEventSubstitutionError
+from recipe_agent.infrastructure.lark.events import (
+    LarkEventBusyError,
+    LarkEventSubstitutionError,
+)
 from recipe_agent.infrastructure.lark.normalizer import (
     LarkEventNormalizer,
     NormalizedLarkAction,
@@ -109,6 +112,11 @@ async def receive_event(
         return await handler.handle(payload)
     except PermissionError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from None
+    except LarkEventBusyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lark event is still processing",
+        ) from None
     except (ValidationError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

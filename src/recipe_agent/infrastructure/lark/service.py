@@ -1,6 +1,6 @@
 """Identity-aware Lark inbound application service."""
 
-from typing import Literal, Protocol
+from typing import Protocol
 
 from recipe_agent.domain.conversation.actions import (
     ActionResult,
@@ -14,6 +14,11 @@ from recipe_agent.domain.identity.service import (
     HouseholdScope,
     IdentityConflictError,
     InvalidTokenError,
+)
+from recipe_agent.infrastructure.lark.events import (
+    LarkEventBusyError,
+    LarkEventLease,
+    LarkEventReservation,
 )
 from recipe_agent.infrastructure.lark.normalizer import (
     NormalizedLarkAction,
@@ -51,11 +56,16 @@ class LarkDeliveryQueue(Protocol):
 class LarkEventStore(Protocol):
     async def reserve(
         self, event_id: str, fingerprint_hash: str
-    ) -> Literal["acquired", "duplicate", "busy"]: ...
+    ) -> LarkEventReservation: ...
 
     async def accept(
-        self, event_id: str, fingerprint_hash: str, outcome: str
-    ) -> None: ...
+        self,
+        event_id: str,
+        fingerprint_hash: str,
+        outcome: str,
+        *,
+        attempt_count: int,
+    ) -> bool: ...
 
 
 class SuggestedActionConsumer(Protocol):
@@ -83,18 +93,23 @@ class LarkInboundService:
     async def receive(self, event: NormalizedLarkEvent) -> None:
         fingerprint_hash = event.fingerprint_hash()
         reservation = await self._event_store.reserve(event.event_id, fingerprint_hash)
-        if reservation != "acquired":
+        if reservation == "busy":
+            raise LarkEventBusyError("Lark event is already processing")
+        if not isinstance(reservation, LarkEventLease):
             return
         if isinstance(event, NormalizedLarkMessage):
-            await self._receive_message(event, fingerprint_hash)
+            await self._receive_message(event, fingerprint_hash, reservation.attempt_count)
             return
         if isinstance(event, NormalizedLarkAction):
-            await self._receive_action(event, fingerprint_hash)
+            await self._receive_action(event, fingerprint_hash, reservation.attempt_count)
             return
         raise TypeError("Unsupported normalized Lark event")
 
     async def _receive_message(
-        self, event: NormalizedLarkMessage, fingerprint_hash: str
+        self,
+        event: NormalizedLarkMessage,
+        fingerprint_hash: str,
+        attempt_count: int,
     ) -> None:
         scope = await self._identity.resolve_lark_identity(event.open_id)
         link_code = _link_code(event.text)
@@ -109,7 +124,10 @@ class LarkInboundService:
                         event.event_id,
                     )
                     await self._event_store.accept(
-                        event.event_id, fingerprint_hash, "link_rejected"
+                        event.event_id,
+                        fingerprint_hash,
+                        "link_rejected",
+                        attempt_count=attempt_count,
                     )
                     return
             await self._delivery_queue.publish_linked(
@@ -118,7 +136,10 @@ class LarkInboundService:
                 event.event_id,
             )
             await self._event_store.accept(
-                event.event_id, fingerprint_hash, "identity_linked"
+                event.event_id,
+                fingerprint_hash,
+                "identity_linked",
+                attempt_count=attempt_count,
             )
             return
         if scope is None:
@@ -128,16 +149,25 @@ class LarkInboundService:
                 event.event_id,
             )
             await self._event_store.accept(
-                event.event_id, fingerprint_hash, "linking_instructions_queued"
+                event.event_id,
+                fingerprint_hash,
+                "linking_instructions_queued",
+                attempt_count=attempt_count,
             )
             return
         await self._hub.submit_message(event.to_command(scope))
         await self._event_store.accept(
-            event.event_id, fingerprint_hash, "message_submitted"
+            event.event_id,
+            fingerprint_hash,
+            "message_submitted",
+            attempt_count=attempt_count,
         )
 
     async def _receive_action(
-        self, event: NormalizedLarkAction, fingerprint_hash: str
+        self,
+        event: NormalizedLarkAction,
+        fingerprint_hash: str,
+        attempt_count: int,
     ) -> None:
         try:
             if self._actions is None:
@@ -154,10 +184,18 @@ class LarkInboundService:
             SuggestedActionNotFoundError,
         ):
             await self._event_store.accept(
-                event.event_id, fingerprint_hash, "action_rejected"
+                event.event_id,
+                fingerprint_hash,
+                "action_rejected",
+                attempt_count=attempt_count,
             )
             raise
-        await self._event_store.accept(event.event_id, fingerprint_hash, "action_queued")
+        await self._event_store.accept(
+            event.event_id,
+            fingerprint_hash,
+            "action_queued",
+            attempt_count=attempt_count,
+        )
 
 
 def _link_code(text: str) -> str | None:

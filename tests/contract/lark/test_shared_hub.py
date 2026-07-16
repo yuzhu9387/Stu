@@ -18,7 +18,10 @@ from recipe_agent.domain.conversation.actions import (
 from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.domain.identity.service import HouseholdScope, InvalidTokenError
-from recipe_agent.infrastructure.lark.events import LarkEventSubstitutionError
+from recipe_agent.infrastructure.lark.events import (
+    LarkEventLease,
+    LarkEventSubstitutionError,
+)
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
 from recipe_agent.infrastructure.lark.service import LarkInboundService
 
@@ -104,20 +107,32 @@ class RecordingEventStore:
     def __init__(self) -> None:
         self.events: dict[str, tuple[str, str]] = {}
 
-    async def reserve(self, event_id: str, fingerprint_hash: str) -> str:
+    async def reserve(self, event_id: str, fingerprint_hash: str):
         existing = self.events.get(event_id)
         if existing is None:
             self.events[event_id] = (fingerprint_hash, "processing")
-            return "acquired"
+            return LarkEventLease(attempt_count=1)
         if existing[0] != fingerprint_hash:
             raise LarkEventSubstitutionError("Lark event ID content mismatch")
         return "duplicate" if existing[1] == "accepted" else "busy"
 
     async def accept(
-        self, event_id: str, fingerprint_hash: str, outcome: str
-    ) -> None:
-        del outcome
+        self,
+        event_id: str,
+        fingerprint_hash: str,
+        outcome: str,
+        *,
+        attempt_count: int,
+    ) -> bool:
+        del outcome, attempt_count
         self.events[event_id] = (fingerprint_hash, "accepted")
+        return True
+
+
+class BusyEventStore(RecordingEventStore):
+    async def reserve(self, event_id: str, fingerprint_hash: str):
+        del event_id, fingerprint_hash
+        return "busy"
 
 
 class RecordingActions:
@@ -322,6 +337,27 @@ def test_card_callback_route_returns_lark_200_without_leaking_action_error(
     assert response.json() in ({}, {"toast": response.json().get("toast")})
     assert "private-token" not in response.text
     assert actions.calls == []
+
+
+def test_live_event_lease_returns_retryable_response_instead_of_acknowledging() -> None:
+    inbound = LarkInboundService(
+        identity=IdentityResolver({}),
+        hub=RecordingHub(),
+        delivery_queue=RecordingDeliveryQueue(),
+        event_store=BusyEventStore(),
+        actions=RecordingActions(),
+    )
+    app = FastAPI()
+    app.state.lark_handler = LarkWebhookHandler(
+        verification_token="verification-token",
+        normalizer=LarkEventNormalizer(),
+        inbound=inbound,
+    )
+    app.include_router(lark_router)
+
+    response = TestClient(app).post("/webhooks/lark/events", json=_message_payload())
+
+    assert response.status_code == 503
 
 
 @pytest.mark.asyncio

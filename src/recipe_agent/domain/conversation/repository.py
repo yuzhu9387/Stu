@@ -260,24 +260,44 @@ class AgentRunRepository:
         max_attempts: int = DEFAULT_RUN_MAX_ATTEMPTS,
     ) -> str:
         async with self._session_factory() as session, session.begin():
-            run = await session.scalar(
-                select(AgentRun).where(
-                    AgentRun.id == run_id,
-                    AgentRun.status == RunStatus.RUNNING.value,
-                    AgentRun.attempt_count == attempt_count,
-                )
+            conditions = (
+                AgentRun.id == run_id,
+                AgentRun.status == RunStatus.RUNNING.value,
+                AgentRun.attempt_count == attempt_count,
             )
-            if run is None:
-                return "unchanged"
-            run.lease_expires_at = None
-            run.error_code = error_code
-            if run.attempt_count >= max_attempts:
-                run.status = RunStatus.FAILED.value
-                run.completed_at = datetime.now(UTC)
+            if attempt_count >= max_attempts:
+                run = await session.scalar(
+                    update(AgentRun)
+                    .where(*conditions)
+                    .values(
+                        status=RunStatus.FAILED.value,
+                        lease_expires_at=None,
+                        error_code=error_code,
+                        completed_at=datetime.now(UTC),
+                    )
+                    .returning(AgentRun)
+                    .execution_options(synchronize_session=False)
+                )
+                if run is None:
+                    return "unchanged"
                 await self._queue_lark_terminal(session, run)
                 return "failed"
-            run.status = RunStatus.QUEUED.value
-            await self._outbox.add(session, AGENT_RUN_REQUESTED_TOPIC, {"run_id": str(run.id)})
+            queued_id = await session.scalar(
+                update(AgentRun)
+                .where(*conditions)
+                .values(
+                    status=RunStatus.QUEUED.value,
+                    lease_expires_at=None,
+                    error_code=error_code,
+                )
+                .returning(AgentRun.id)
+                .execution_options(synchronize_session=False)
+            )
+            if queued_id is None:
+                return "unchanged"
+            await self._outbox.add(
+                session, AGENT_RUN_REQUESTED_TOPIC, {"run_id": str(queued_id)}
+            )
             return "queued"
 
     async def recover_expired(

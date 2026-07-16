@@ -1,8 +1,10 @@
 import inspect
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 import pytest
 
+import recipe_agent.worker as worker
 from recipe_agent.domain.conversation.contracts import AgentRunView, RunStatus
 from recipe_agent.infrastructure.jobs.agent_runs import (
     AGENT_RUN_TASK_NAME,
@@ -163,6 +165,28 @@ async def test_lark_delivery_job_routes_without_secret_or_message_payloads() -> 
     assert await run_lark_delivery_job(delivery, event_id) is True
 
     assert delivery.events == [event_id]
+
+
+async def test_worker_builds_and_closes_lark_delivery_inside_current_event_loop(
+    monkeypatch,
+) -> None:
+    delivery = RecordingLarkDelivery()
+    closed = False
+
+    @asynccontextmanager
+    async def factory():
+        nonlocal closed
+        try:
+            yield delivery
+        finally:
+            closed = True
+
+    monkeypatch.setattr(worker, "_lark_delivery_factory", factory)
+    event_id = uuid4()
+
+    assert await worker._deliver_lark_outbox(event_id) is True
+    assert delivery.events == [event_id]
+    assert closed is True
 
 
 def test_worker_registers_uuid_only_celery_task() -> None:

@@ -8,6 +8,7 @@ from recipe_agent.api.lark import LarkWebhookHandler
 from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
 from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
+from recipe_agent.infrastructure.lark.events import LarkEventLease
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer, NormalizedLarkMessage
 from recipe_agent.infrastructure.lark.service import LarkInboundService
 
@@ -48,20 +49,26 @@ class MemoryEventStore:
     def __init__(self) -> None:
         self.events: dict[str, tuple[str, str]] = {}
 
-    async def reserve(self, event_id: str, fingerprint_hash: str) -> str:
+    async def reserve(self, event_id: str, fingerprint_hash: str):
         existing = self.events.get(event_id)
         if existing is None:
             self.events[event_id] = (fingerprint_hash, "processing")
-            return "acquired"
+            return LarkEventLease(attempt_count=1)
         if existing[0] != fingerprint_hash:
             raise ValueError("Lark event ID content mismatch")
         return "duplicate" if existing[1] == "accepted" else "busy"
 
     async def accept(
-        self, event_id: str, fingerprint_hash: str, outcome: str
-    ) -> None:
-        del outcome
+        self,
+        event_id: str,
+        fingerprint_hash: str,
+        outcome: str,
+        *,
+        attempt_count: int,
+    ) -> bool:
+        del outcome, attempt_count
         self.events[event_id] = (fingerprint_hash, "accepted")
+        return True
 
 
 class RecordingSubmitter:

@@ -555,6 +555,92 @@ def test_durable_action_execution_migration_upgrades_and_downgrades(
     postgres_database: PostgresDatabase,
 ) -> None:
     postgres_database.upgrade("0009_suggested_action_execution")
+    account_id = uuid4()
+    household_id = uuid4()
+    conversation_id = uuid4()
+    run_id = uuid4()
+    executing_id = uuid4()
+    share_id = uuid4()
+    pending_id = uuid4()
+    expires_at = datetime.now(UTC) + timedelta(minutes=10)
+    assert postgres_database.fetch_one(
+        "INSERT INTO accounts (id, email) VALUES (%(id)s, %(email)s) RETURNING id",
+        {"id": account_id, "email": f"{account_id}@example.com"},
+    ) == (account_id,)
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO households (id, owner_account_id)
+        VALUES (%(id)s, %(account_id)s) RETURNING id
+        """,
+        {"id": household_id, "account_id": account_id},
+    ) == (household_id,)
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO conversations
+            (id, household_id, owner_account_id, transport)
+        VALUES (%(id)s, %(household_id)s, %(account_id)s, 'web')
+        RETURNING id
+        """,
+        {
+            "id": conversation_id,
+            "household_id": household_id,
+            "account_id": account_id,
+        },
+    ) == (conversation_id,)
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO agent_runs
+            (id, conversation_id, account_id, household_id, transport,
+             idempotency_key, status, request_json)
+        VALUES
+            (%(id)s, %(conversation_id)s, %(account_id)s, %(household_id)s,
+             'web', 'migration-populated-0009', 'completed', '{}')
+        RETURNING id
+        """,
+        {
+            "id": run_id,
+            "conversation_id": conversation_id,
+            "account_id": account_id,
+            "household_id": household_id,
+        },
+    ) == (run_id,)
+    for action_id, token_hash, action_type, execution_status, result_json in (
+        (executing_id, "x" * 64, "save_recipe", "executing", None),
+        (
+            share_id,
+            "y" * 64,
+            "create_share",
+            "succeeded",
+            '{"token":"legacy-plaintext-share-secret"}',
+        ),
+        (pending_id, "z" * 64, "save_recipe", "pending", None),
+    ):
+        assert postgres_database.fetch_one(
+            """
+            INSERT INTO suggested_actions
+                (id, token_hash, run_id, account_id, household_id, action_type,
+                 arguments_json, expires_at, consumed_at, consumed_by_account_id,
+                 execution_status, result_json)
+            VALUES
+                (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+                 %(household_id)s, %(action_type)s, '{}', %(expires_at)s,
+                 CASE WHEN %(execution_status)s = 'executing' THEN now() ELSE NULL END,
+                 CASE WHEN %(execution_status)s = 'executing' THEN %(account_id)s ELSE NULL END,
+                 %(execution_status)s, %(result_json)s)
+            RETURNING id
+            """,
+            {
+                "id": action_id,
+                "token_hash": token_hash,
+                "run_id": run_id,
+                "account_id": account_id,
+                "household_id": household_id,
+                "action_type": action_type,
+                "expires_at": expires_at,
+                "execution_status": execution_status,
+                "result_json": result_json,
+            },
+        ) == (action_id,)
 
     postgres_database.upgrade("head")
 
@@ -579,6 +665,47 @@ def test_durable_action_execution_migration_upgrades_and_downgrades(
         WHERE table_name = 'share_snapshots' AND column_name = 'source_action_id'
         """
     ) == ("source_action_id",)
+    assert postgres_database.fetch_one(
+        """
+        SELECT execution_status, lease_expires_at, attempt_count,
+               consumed_by_account_id, error_code
+        FROM suggested_actions WHERE id = %(id)s
+        """,
+        {"id": executing_id},
+    ) == ("failed", None, 0, account_id, "legacy_execution_unrecoverable")
+    assert postgres_database.fetch_one(
+        """
+        SELECT count(*) FROM outbox_events
+        WHERE topic = 'agent.action.requested'
+        """
+    ) == (0,)
+    assert postgres_database.fetch_one(
+        """
+        SELECT execution_status, result_json, error_code
+        FROM suggested_actions WHERE id = %(id)s
+        """,
+        {"id": share_id},
+    ) == ("failed", None, "legacy_share_result_scrubbed")
+
+    assert postgres_database.fetch_one(
+        """
+        UPDATE suggested_actions
+        SET execution_status = 'queued'
+        WHERE id = %(id)s
+        RETURNING execution_status
+        """,
+        {"id": pending_id},
+    ) == ("queued",)
+    assert postgres_database.fetch_one(
+        """
+        UPDATE suggested_actions
+        SET execution_status = 'executing', attempt_count = 1,
+            lease_expires_at = now() + interval '1 minute'
+        WHERE id = %(id)s
+        RETURNING execution_status
+        """,
+        {"id": executing_id},
+    ) == ("executing",)
 
     postgres_database.downgrade("0009_suggested_action_execution")
     assert postgres_database.fetch_one(
@@ -588,6 +715,24 @@ def test_durable_action_execution_migration_upgrades_and_downgrades(
           AND column_name IN ('attempt_count', 'lease_expires_at')
         """
     ) == (0,)
+    assert postgres_database.fetch_one(
+        """
+        SELECT execution_status, result_json, error_code
+        FROM suggested_actions WHERE id = %(id)s
+        """,
+        {"id": pending_id},
+    ) == ("failed", None, "downgrade_incomplete_action")
+    assert postgres_database.fetch_one(
+        """
+        SELECT execution_status, result_json, error_code
+        FROM suggested_actions WHERE id = %(id)s
+        """,
+        {"id": executing_id},
+    ) == ("failed", None, "downgrade_incomplete_action")
+    assert postgres_database.fetch_one(
+        "SELECT result_json FROM suggested_actions WHERE id = %(id)s",
+        {"id": share_id},
+    ) == (None,)
     assert postgres_database.fetch_one(
         """
         SELECT count(*) FROM information_schema.tables

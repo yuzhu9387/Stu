@@ -23,6 +23,8 @@ def upgrade() -> None:
             "execution_status IN ('pending', 'queued', 'executing', 'succeeded', 'failed')",
         )
 
+    _recover_and_scrub_legacy_actions()
+
     op.create_table(
         "action_mutation_receipts",
         sa.Column(
@@ -56,6 +58,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    _normalize_actions_for_downgrade()
     with op.batch_alter_table("share_snapshots") as batch_op:
         batch_op.drop_constraint("uq_share_snapshots_source_action_id", type_="unique")
         batch_op.drop_constraint(
@@ -71,3 +74,77 @@ def downgrade() -> None:
             "ck_suggested_actions_execution_status",
             "execution_status IN ('pending', 'executing', 'succeeded', 'failed')",
         )
+
+
+def _recover_and_scrub_legacy_actions() -> None:
+    actions = sa.table(
+        "suggested_actions",
+        sa.column("id", sa.Uuid()),
+        sa.column("account_id", sa.Uuid()),
+        sa.column("action_type", sa.String()),
+        sa.column("execution_status", sa.String()),
+        sa.column("result_json", sa.Text()),
+        sa.column("error_code", sa.String()),
+        sa.column("attempt_count", sa.Integer()),
+        sa.column("lease_expires_at", sa.DateTime(timezone=True)),
+        sa.column("consumed_at", sa.DateTime(timezone=True)),
+        sa.column("consumed_by_account_id", sa.Uuid()),
+        sa.column("created_at", sa.DateTime(timezone=True)),
+    )
+    connection = op.get_bind()
+    connection.execute(
+        sa.update(actions)
+        .where(actions.c.action_type == "create_share", actions.c.result_json.is_not(None))
+        .values(
+            execution_status="failed",
+            result_json=None,
+            error_code="legacy_share_result_scrubbed",
+            lease_expires_at=None,
+        )
+    )
+    connection.execute(
+        sa.update(actions)
+        .where(actions.c.execution_status == "executing")
+        .values(
+            execution_status="failed",
+            lease_expires_at=None,
+            result_json=None,
+            error_code="legacy_execution_unrecoverable",
+            consumed_at=sa.func.coalesce(actions.c.consumed_at, actions.c.created_at),
+            consumed_by_account_id=sa.func.coalesce(
+                actions.c.consumed_by_account_id, actions.c.account_id
+            ),
+        )
+    )
+
+
+def _normalize_actions_for_downgrade() -> None:
+    actions = sa.table(
+        "suggested_actions",
+        sa.column("action_type", sa.String()),
+        sa.column("execution_status", sa.String()),
+        sa.column("result_json", sa.Text()),
+        sa.column("error_code", sa.String()),
+        sa.column("lease_expires_at", sa.DateTime(timezone=True)),
+    )
+    connection = op.get_bind()
+    connection.execute(
+        sa.update(actions)
+        .where(actions.c.action_type == "create_share", actions.c.result_json.is_not(None))
+        .values(
+            execution_status="failed",
+            result_json=None,
+            error_code="legacy_share_result_scrubbed",
+            lease_expires_at=None,
+        )
+    )
+    connection.execute(
+        sa.update(actions)
+        .where(actions.c.execution_status.in_(("queued", "executing")))
+        .values(
+            execution_status="failed",
+            result_json=None,
+            error_code="downgrade_incomplete_action",
+            lease_expires_at=None,
+        )
+    )

@@ -16,6 +16,8 @@ class PlanRepository(Protocol):
 
     async def save(self, plan: MealPlan, *, source_action_id: UUID | None = None) -> MealPlan: ...
 
+    async def get_action_result(self, action_id: UUID, action_type: str) -> MealPlan | None: ...
+
 
 class RecommendationProvider(Protocol):
     async def recommend(
@@ -46,6 +48,10 @@ class PlanningService:
         *,
         source_action_id: UUID | None = None,
     ) -> MealPlan:
+        if source_action_id is not None:
+            completed = await self._repository.get_action_result(source_action_id, "create_plan")
+            if completed is not None:
+                return completed
         selected_recipe_ids: set[UUID] = set()
         items: list[PlanItem] = []
         for slot in slots:
@@ -89,6 +95,12 @@ class PlanningService:
         *,
         source_action_id: UUID | None = None,
     ) -> MealPlan:
+        if source_action_id is not None:
+            completed = await self._repository.get_action_result(
+                source_action_id, "replace_plan_item"
+            )
+            if completed is not None:
+                return completed
         plan = await self._repository.get(household_id, plan_id)
         updated = await self.preview_replace_item(plan, day)
         if source_action_id is None:

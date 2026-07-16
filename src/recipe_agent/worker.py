@@ -12,6 +12,7 @@ from recipe_agent.config import get_settings
 from recipe_agent.domain.conversation.repository import (
     ACTION_EXECUTION_REQUESTED_TOPIC,
     AGENT_RUN_REQUESTED_TOPIC,
+    DEFAULT_ACTION_MAX_ATTEMPTS,
     AgentRunRepository,
     SuggestedActionRepository,
 )
@@ -156,7 +157,10 @@ async def run() -> None:
         CeleryActionPublisher(celery_app),
     )
     while True:
-        await action_repository.recover_expired(now=datetime.now(UTC))
+        await action_repository.recover_expired(
+            now=datetime.now(UTC),
+            max_attempts=DEFAULT_ACTION_MAX_ATTEMPTS,
+        )
         published = await publish_pending(repository, publisher, session_factory)
         await asyncio.sleep(1 if published else 3)
 

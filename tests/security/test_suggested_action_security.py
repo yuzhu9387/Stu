@@ -264,6 +264,91 @@ async def test_expired_worker_lease_is_durably_requeued_and_reclaimed(session_fa
 
 
 @pytest.mark.asyncio
+async def test_repeated_worker_death_fails_at_attempt_ceiling_without_new_outbox(
+    session_factory,
+) -> None:
+    now = datetime(2026, 7, 16, tzinfo=UTC)
+    scope, run_id = await _identity_and_run(session_factory)
+    service = _service(session_factory, RecordingHandler(), now=lambda: now)
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+    repository = SuggestedActionRepository(session_factory)
+
+    first = await repository.claim_for_execution(
+        issued.id,
+        now=now,
+        lease_duration=timedelta(seconds=30),
+        max_attempts=2,
+    )
+    assert first is not None
+    assert await repository.recover_expired(now=now + timedelta(seconds=31), max_attempts=2) == 1
+    second = await repository.claim_for_execution(
+        issued.id,
+        now=now + timedelta(seconds=31),
+        lease_duration=timedelta(seconds=30),
+        max_attempts=2,
+    )
+    assert second is not None
+
+    assert await repository.recover_expired(now=now + timedelta(seconds=62), max_attempts=2) == 0
+    assert (
+        await repository.claim_for_execution(
+            issued.id,
+            now=now + timedelta(seconds=62),
+            lease_duration=timedelta(seconds=30),
+            max_attempts=2,
+        )
+        is None
+    )
+    async with session_factory() as session:
+        record = await session.get(SuggestedActionRecord, issued.id)
+        action_events = tuple(
+            await session.scalars(
+                select(OutboxEvent).where(OutboxEvent.topic == "agent.action.requested")
+            )
+        )
+    assert record is not None
+    assert record.execution_status == "failed"
+    assert record.error_code == "worker_lease_expired"
+    assert record.attempt_count == 2
+    assert len(action_events) == 2
+
+
+@pytest.mark.asyncio
+async def test_claim_defensively_fails_queued_action_already_at_attempt_ceiling(
+    session_factory,
+) -> None:
+    now = datetime(2026, 7, 16, tzinfo=UTC)
+    scope, run_id = await _identity_and_run(session_factory)
+    service = _service(session_factory, RecordingHandler(), now=lambda: now)
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    await service.consume(issued.token, actor=scope)
+    async with session_factory() as session:
+        await session.execute(
+            update(SuggestedActionRecord)
+            .where(SuggestedActionRecord.id == issued.id)
+            .values(attempt_count=2)
+        )
+        await session.commit()
+    repository = SuggestedActionRepository(session_factory)
+
+    assert (
+        await repository.claim_for_execution(
+            issued.id,
+            now=now,
+            lease_duration=timedelta(seconds=30),
+            max_attempts=2,
+        )
+        is None
+    )
+    async with session_factory() as session:
+        record = await session.get(SuggestedActionRecord, issued.id)
+    assert record is not None
+    assert record.execution_status == "failed"
+    assert record.error_code == "attempts_exhausted"
+
+
+@pytest.mark.asyncio
 async def test_same_family_other_account_and_cross_family_actor_cannot_consume(
     session_factory,
 ) -> None:
@@ -360,6 +445,26 @@ async def test_tampered_persisted_arguments_are_failed_without_handler_dispatch(
     assert record.execution_status == "failed"
     assert record.error_code == "arguments_invalid"
     assert handler.calls == []
+
+
+@pytest.mark.asyncio
+async def test_status_rejects_arbitrary_legacy_result_shape(session_factory) -> None:
+    scope, run_id = await _identity_and_run(session_factory)
+    service = _service(session_factory, RecordingHandler())
+    issued = await service.issue(_draft(), actor=scope, source_run_id=run_id)
+    async with session_factory() as session:
+        await session.execute(
+            update(SuggestedActionRecord)
+            .where(SuggestedActionRecord.id == issued.id)
+            .values(
+                execution_status="succeeded",
+                result_json='{"token":"legacy-secret","arbitrary":true}',
+            )
+        )
+        await session.commit()
+
+    with pytest.raises(InvalidSuggestedActionError, match="result is invalid"):
+        await service.get_status(issued.id, actor=scope)
 
 
 @pytest.mark.asyncio

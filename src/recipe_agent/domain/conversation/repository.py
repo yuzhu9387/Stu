@@ -27,6 +27,7 @@ from recipe_agent.infrastructure.db.outbox import OutboxRepository
 
 AGENT_RUN_REQUESTED_TOPIC = "agent.run.requested"
 ACTION_EXECUTION_REQUESTED_TOPIC = "agent.action.requested"
+DEFAULT_ACTION_MAX_ATTEMPTS = 3
 
 
 class SuggestedActionRunNotFoundError(LookupError):
@@ -384,13 +385,38 @@ class SuggestedActionRepository:
         *,
         now: datetime,
         lease_duration: timedelta,
+        max_attempts: int = DEFAULT_ACTION_MAX_ATTEMPTS,
     ) -> ClaimedSuggestedAction | None:
+        if max_attempts < 1:
+            raise ValueError("Suggested action max attempts must be positive")
         lease_expires_at = now + lease_duration
         async with self._session_factory() as session, session.begin():
+            await session.execute(
+                update(SuggestedActionRecord)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.attempt_count >= max_attempts,
+                    or_(
+                        SuggestedActionRecord.execution_status == "queued",
+                        (
+                            (SuggestedActionRecord.execution_status == "executing")
+                            & (SuggestedActionRecord.lease_expires_at <= now)
+                        ),
+                    ),
+                )
+                .values(
+                    execution_status="failed",
+                    lease_expires_at=None,
+                    result_json=None,
+                    error_code="attempts_exhausted",
+                )
+                .execution_options(synchronize_session=False)
+            )
             record = await session.scalar(
                 update(SuggestedActionRecord)
                 .where(
                     SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.attempt_count < max_attempts,
                     or_(
                         SuggestedActionRecord.execution_status == "queued",
                         (
@@ -419,27 +445,59 @@ class SuggestedActionRepository:
                 attempt_count=record.attempt_count,
             )
 
-    async def recover_expired(self, *, now: datetime, limit: int = 100) -> int:
+    async def recover_expired(
+        self,
+        *,
+        now: datetime,
+        max_attempts: int = DEFAULT_ACTION_MAX_ATTEMPTS,
+        limit: int = 100,
+    ) -> int:
+        if max_attempts < 1:
+            raise ValueError("Suggested action max attempts must be positive")
         async with self._session_factory() as session, session.begin():
-            expired_ids = tuple(
-                await session.scalars(
-                    select(SuggestedActionRecord.id)
-                    .where(
-                        SuggestedActionRecord.execution_status == "executing",
-                        SuggestedActionRecord.lease_expires_at <= now,
+            expired_rows = tuple(
+                (
+                    await session.execute(
+                        select(
+                            SuggestedActionRecord.id,
+                            SuggestedActionRecord.attempt_count,
+                        )
+                        .where(
+                            SuggestedActionRecord.execution_status == "executing",
+                            SuggestedActionRecord.lease_expires_at <= now,
+                        )
+                        .order_by(SuggestedActionRecord.lease_expires_at)
+                        .limit(limit)
                     )
-                    .order_by(SuggestedActionRecord.lease_expires_at)
-                    .limit(limit)
-                )
+                ).all()
             )
             recovered = 0
-            for action_id in expired_ids:
+            for action_id, attempt_count in expired_rows:
+                if attempt_count >= max_attempts:
+                    await session.execute(
+                        update(SuggestedActionRecord)
+                        .where(
+                            SuggestedActionRecord.id == action_id,
+                            SuggestedActionRecord.execution_status == "executing",
+                            SuggestedActionRecord.lease_expires_at <= now,
+                            SuggestedActionRecord.attempt_count >= max_attempts,
+                        )
+                        .values(
+                            execution_status="failed",
+                            lease_expires_at=None,
+                            result_json=None,
+                            error_code="worker_lease_expired",
+                        )
+                        .execution_options(synchronize_session=False)
+                    )
+                    continue
                 recovered_id = await session.scalar(
                     update(SuggestedActionRecord)
                     .where(
                         SuggestedActionRecord.id == action_id,
                         SuggestedActionRecord.execution_status == "executing",
                         SuggestedActionRecord.lease_expires_at <= now,
+                        SuggestedActionRecord.attempt_count < max_attempts,
                     )
                     .values(execution_status="queued", lease_expires_at=None)
                     .returning(SuggestedActionRecord.id)

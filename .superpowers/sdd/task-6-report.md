@@ -19,20 +19,33 @@ receipt, snapshot, or outbox payloads.
   plus a transactional `agent.action.requested` outbox event containing only the action UUID.
 - Added worker leases, attempt counts, expired-lease recovery, bounded retry/failure, duplicate-job
   no-op behavior, and attempt-number fencing so stale workers cannot complete or fail a newer
-  lease.
+  lease. Re-review added the attempt ceiling directly to claim and expired-lease recovery:
+  exhausted deaths become durable `worker_lease_expired` failures without another outbox event,
+  and an already-exhausted queued row is defensively failed as `attempts_exhausted`.
 - Added migration `0010_durable_action_execution` for queued state, leases, attempts, unique
   action mutation receipts, and share source-action linkage. PostgreSQL upgrade/downgrade and
   SQLite upgrade-to-head both pass.
 - Added transaction-local mutation receipts keyed by `action_id`. Recipe saves, plan creation,
   plan replacement, and share creation store the receipt in the same transaction as the domain
   write. Retries and concurrent workers return the original typed result; a PostgreSQL race test
-  confirms one recipe and one shared result.
+  confirms one recipe and one shared result. Planning now reads its typed receipt before calling
+  the recommender or loading the current plan, so recovery still succeeds if recommendations fail
+  or the source plan was subsequently removed.
 - Made share action audit results token-free (`share_id`, `expires_at`). The raw share token is
   deterministically derived with HMAC from a server secret and action ID, and is returned only by
   the authenticated owner-scoped status delivery path. Persistence retains only its hash.
 - Added four-action E2E coverage, including retry after the mutation transaction committed before
   action completion, safe share delivery, and a database-field regression proving both raw consent
   and raw share tokens are absent.
+- Hardened migration 0010 for populated 0009 databases. Legacy executing rows predate mutation
+  receipts and are therefore failed as `legacy_execution_unrecoverable` rather than replayed;
+  legacy create-share result JSON is nulled and marked `legacy_share_result_scrubbed`. Downgrade
+  maps queued/executing 0010 rows to `downgrade_incomplete_action` failures before restoring the
+  old status constraint.
+- Share delivery now rejects revoked and expired snapshots. Missing records, hash mismatch, key
+  rotation, and malformed persisted snapshots are normalized to a bounded action error and stable
+  API 502 response. Persisted successful result JSON is validated and projected through a closed
+  schema for its fixed action type, preventing arbitrary legacy fields from being returned.
 
 ## TDD and Review Evidence
 
@@ -48,6 +61,10 @@ receipt, snapshot, or outbox payloads.
   regression proving stale completion is rejected.
 - Concurrent PostgreSQL mutation execution exercises the receipt uniqueness race and confirms the
   losing transaction rolls back its duplicate domain write and returns the winner's receipt.
+- Re-review RED tests reproduced indefinite lease requeueing, planning retries failing before
+  receipt lookup, populated migration state remaining unsafe, revoked delivery remaining live,
+  and arbitrary persisted result JSON being returned. Each focused test passed after its bounded
+  production fix.
 
 ## Security and Correctness Audit
 
@@ -59,7 +76,8 @@ receipt, snapshot, or outbox payloads.
   Status and share delivery require the same owning authenticated account and household.
 - **Recoverability:** committed clicks always have a committed outbox intent. Workers lease by
   UUID, the poller requeues expired leases, handler failures create retry intents up to the bounded
-  attempt limit, and duplicate Celery deliveries are acknowledged as no-ops.
+  attempt limit, exhausted leases fail without another event, defensive claims enforce the same
+  ceiling, and duplicate Celery deliveries are acknowledged as no-ops.
 - **Exactly-once domain effects:** every fixed mutation writes a unique action receipt atomically
   with its domain changes. A crash after the domain commit but before action completion therefore
   reuses the receipt instead of repeating the mutation.
@@ -81,8 +99,10 @@ Result: exit 0.
 - Ruff format: 158 files already formatted.
 - Ruff lint: all checks passed.
 - Strict mypy: 97 source files passed.
-- Pytest: 180 passed, including PostgreSQL migrations, simultaneous clicks, concurrent mutation
-  receipts, all four action E2E cases, lease fencing, retry, ownership, and token persistence.
+- Pytest: 185 passed, including populated PostgreSQL upgrade/downgrade, simultaneous clicks,
+  concurrent mutation receipts, all four action E2E cases, bounded worker-death recovery,
+  receipt-first planning retries, safe share-delivery failures, result schemas, ownership, and
+  token persistence.
 - SQLite migration gate: upgraded through `0010_durable_action_execution`.
 - Warnings: 20 pre-existing Alembic `path_separator` deprecation warnings only.
 

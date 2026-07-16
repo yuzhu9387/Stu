@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -6,7 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from recipe_agent.app import create_app
@@ -74,6 +75,12 @@ class FixedRecommendations:
     ) -> tuple[RecommendationResult, RecommendationResult, RecommendationResult]:
         del query
         return self.results
+
+
+class FailingRecommendations:
+    async def recommend(self, query: RecommendationQuery):
+        del query
+        raise RuntimeError("recommendations unavailable")
 
 
 def _settings(database_url: str) -> Settings:
@@ -444,6 +451,122 @@ def test_create_and_replace_plan_mutations_are_idempotent_by_action_id(tmp_path)
     assert asyncio.run(plan_count()) == 1
 
 
+def test_create_plan_retry_reads_receipt_before_recommender(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'create-plan-receipt-first.db'}"
+    asyncio.run(_create_schema(database_url))
+    app = create_app(_settings(database_url))
+    client = TestClient(app)
+    identity = _login(client, "create-receipt-first@example.com")
+    submitted = client.post(
+        "/api/v1/agent/runs",
+        json={
+            "message": "Plan once",
+            "locale": "en-US",
+            "idempotency_key": "create-plan-receipt-first",
+        },
+    ).json()
+    scope = HouseholdScope(UUID(identity["account_id"]), UUID(identity["household_id"]))
+    monday = date(2026, 7, 20)
+    repository = SqlPlanRepository(app.state.session_factory)
+    consent = SuggestedActionService(
+        repository=SuggestedActionRepository(app.state.session_factory),
+        signer=ActionContextSigner("action-consent-signing-key"),
+        handlers={},
+    )
+    issued = asyncio.run(
+        consent.issue(
+            _create_plan_draft(monday),
+            actor=scope,
+            source_run_id=UUID(submitted["id"]),
+        )
+    )
+    arguments = CreatePlanArguments(
+        week_start=monday,
+        slots=(PlanSlot(day=monday, slot="dinner"),),
+    )
+    first_handler = CreatePlanMutationHandler(
+        PlanningService(repository=repository, recommendations=FixedRecommendations())
+    )
+    first = asyncio.run(
+        first_handler.execute(actor=scope, arguments=arguments, action_id=issued.id)
+    )
+    retry_handler = CreatePlanMutationHandler(
+        PlanningService(repository=repository, recommendations=FailingRecommendations())
+    )
+
+    retry = asyncio.run(
+        retry_handler.execute(actor=scope, arguments=arguments, action_id=issued.id)
+    )
+
+    assert retry == first
+
+
+def test_replace_plan_retry_reads_receipt_before_missing_plan(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'replace-plan-receipt-first.db'}"
+    asyncio.run(_create_schema(database_url))
+    app = create_app(_settings(database_url))
+    client = TestClient(app)
+    identity = _login(client, "replace-receipt-first@example.com")
+    submitted = client.post(
+        "/api/v1/agent/runs",
+        json={
+            "message": "Replace once",
+            "locale": "en-US",
+            "idempotency_key": "replace-plan-receipt-first",
+        },
+    ).json()
+    scope = HouseholdScope(UUID(identity["account_id"]), UUID(identity["household_id"]))
+    monday = date(2026, 7, 20)
+    repository = SqlPlanRepository(app.state.session_factory)
+    planning = PlanningService(repository=repository, recommendations=FixedRecommendations())
+    consent = SuggestedActionService(
+        repository=SuggestedActionRepository(app.state.session_factory),
+        signer=ActionContextSigner("action-consent-signing-key"),
+        handlers={},
+    )
+    create_issued = asyncio.run(
+        consent.issue(
+            _create_plan_draft(monday),
+            actor=scope,
+            source_run_id=UUID(submitted["id"]),
+        )
+    )
+    created = asyncio.run(
+        CreatePlanMutationHandler(planning).execute(
+            actor=scope,
+            arguments=CreatePlanArguments(
+                week_start=monday,
+                slots=(PlanSlot(day=monday, slot="dinner"),),
+            ),
+            action_id=create_issued.id,
+        )
+    )
+    replace_issued = asyncio.run(
+        consent.issue(
+            _replace_plan_draft(created.id, monday),
+            actor=scope,
+            source_run_id=UUID(submitted["id"]),
+        )
+    )
+    arguments = ReplacePlanItemArguments(plan_id=created.id, day=monday)
+    handler = ReplacePlanItemMutationHandler(planning)
+    first = asyncio.run(
+        handler.execute(actor=scope, arguments=arguments, action_id=replace_issued.id)
+    )
+
+    async def delete_plan() -> None:
+        async with app.state.session_factory() as session:
+            await session.execute(delete(MealPlanRecord).where(MealPlanRecord.id == created.id))
+            await session.commit()
+
+    asyncio.run(delete_plan())
+    retry = asyncio.run(
+        handler.execute(actor=scope, arguments=arguments, action_id=replace_issued.id)
+    )
+
+    assert retry == first
+
+
 def test_create_share_is_idempotent_and_never_persists_plaintext_delivery(tmp_path) -> None:
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'share-receipt.db'}"
     asyncio.run(_create_schema(database_url))
@@ -529,6 +652,66 @@ def test_create_share_is_idempotent_and_never_persists_plaintext_delivery(tmp_pa
     assert share_count == 1
     assert delivery.token not in persisted_text
     assert issued.token not in persisted_text
+
+    def assert_delivery_unavailable() -> None:
+        response = client.get(
+            f"/api/v1/agent/actions/{issued.id}",
+            params={"include_delivery": "true"},
+        )
+        assert response.status_code == 502
+        assert response.json() == {"detail": "Suggested action status is unavailable"}
+
+    async def mutate_share(**values: object) -> None:
+        async with app.state.session_factory() as session:
+            await session.execute(
+                update(ShareSnapshotRecord)
+                .where(ShareSnapshotRecord.source_action_id == issued.id)
+                .values(**values)
+            )
+            await session.commit()
+
+    asyncio.run(mutate_share(revoked_at=datetime.now(UTC)))
+    assert_delivery_unavailable()
+    asyncio.run(
+        mutate_share(
+            revoked_at=None,
+            expires_at=datetime.now(UTC) - timedelta(seconds=1),
+        )
+    )
+    assert_delivery_unavailable()
+    asyncio.run(
+        mutate_share(
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            token_hash="a" * 64,
+        )
+    )
+    assert_delivery_unavailable()
+
+    rotated_shares = ShareService(
+        repository=SqlShareRepository(app.state.session_factory),
+        action_token_key="rotated-share-delivery-key",
+    )
+    asyncio.run(mutate_share(token_hash=hashlib.sha256(delivery.token.encode("utf-8")).hexdigest()))
+    app.state.suggested_action_service = SuggestedActionService(
+        repository=SuggestedActionRepository(app.state.session_factory),
+        signer=ActionContextSigner("action-consent-signing-key"),
+        handlers={"create_share": CreateShareMutationHandler(rotated_shares)},
+    )
+    assert_delivery_unavailable()
+    app.state.suggested_action_service = consent
+
+    asyncio.run(mutate_share(snapshot_json="not-json"))
+    assert_delivery_unavailable()
+
+    async def delete_share() -> None:
+        async with app.state.session_factory() as session:
+            await session.execute(
+                delete(ShareSnapshotRecord).where(ShareSnapshotRecord.source_action_id == issued.id)
+            )
+            await session.commit()
+
+    asyncio.run(delete_share())
+    assert_delivery_unavailable()
 
 
 def test_action_endpoint_accepts_only_a_body_token_and_never_places_it_in_path(tmp_path) -> None:

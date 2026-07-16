@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from recipe_agent.domain.common.types import JsonValue
 from recipe_agent.domain.conversation.repository import (
+    DEFAULT_ACTION_MAX_ATTEMPTS,
     SuggestedActionAlreadyClaimedError,
     SuggestedActionInvalidRecordError,
     SuggestedActionRepository,
@@ -21,9 +22,9 @@ from recipe_agent.domain.conversation.responses import (
     SuggestedActionType,
 )
 from recipe_agent.domain.identity.service import HouseholdScope
-from recipe_agent.domain.planning.contracts import PlanSlot
+from recipe_agent.domain.planning.contracts import MealPlan, PlanSlot
 from recipe_agent.domain.planning.service import PlanningService
-from recipe_agent.domain.recipes.contracts import RecipeCandidate
+from recipe_agent.domain.recipes.contracts import RecipeCandidate, RecipeView
 from recipe_agent.domain.recipes.repository import RecipeRepository
 from recipe_agent.domain.sharing.service import ShareDelivery, ShareService
 from recipe_agent.infrastructure.lark.crypto import ActionContextSigner, LarkDecryptionError
@@ -71,6 +72,21 @@ class CreateShareArguments(BaseModel):
     ingredients: tuple[str, ...]
     steps: tuple[str, ...]
     expires_in_hours: int = Field(ge=1, le=24 * 30)
+
+
+class SaveRecipeResult(RecipeView):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class PlanMutationResult(MealPlan):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class CreateShareResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    share_id: UUID
+    expires_at: datetime
 
 
 type ActionArguments = (
@@ -242,6 +258,12 @@ _ARGUMENT_MODELS: dict[SuggestedActionType, type[BaseModel]] = {
     "replace_plan_item": ReplacePlanItemArguments,
     "create_share": CreateShareArguments,
 }
+_RESULT_MODELS: dict[SuggestedActionType, type[BaseModel]] = {
+    "save_recipe": SaveRecipeResult,
+    "create_plan": PlanMutationResult,
+    "replace_plan_item": PlanMutationResult,
+    "create_share": CreateShareResult,
+}
 _json_object_adapter = TypeAdapter(dict[str, JsonValue])
 
 
@@ -256,7 +278,7 @@ class SuggestedActionService:
         handlers: Mapping[SuggestedActionType, SuggestedActionHandler],
         lifetime: timedelta = timedelta(minutes=15),
         lease_duration: timedelta = timedelta(minutes=2),
-        max_attempts: int = 3,
+        max_attempts: int = DEFAULT_ACTION_MAX_ATTEMPTS,
         now: Callable[[], datetime] | None = None,
     ) -> None:
         if lifetime <= timedelta(0):
@@ -351,6 +373,7 @@ class SuggestedActionService:
             action_id,
             now=_aware(self._now()),
             lease_duration=self._lease_duration,
+            max_attempts=self._max_attempts,
         )
         if claimed is None:
             raise SuggestedActionConflictError("Suggested action is not runnable")
@@ -423,12 +446,8 @@ class SuggestedActionService:
         if action.action_type not in _ARGUMENT_MODELS:
             raise InvalidSuggestedActionError("Suggested action type is invalid")
         result = None
-        if action.result_json is not None:
-            try:
-                decoded = json.loads(action.result_json)
-                result = _json_object_adapter.validate_python(decoded)
-            except (json.JSONDecodeError, ValidationError) as error:
-                raise InvalidSuggestedActionError("Suggested action result is invalid") from error
+        if action.execution_status == "succeeded":
+            result = _decode_action_result(action.action_type, action.result_json)
         delivery = None
         if (
             include_delivery
@@ -438,7 +457,10 @@ class SuggestedActionService:
             handler = self._handlers.get("create_share")
             if not isinstance(handler, CreateShareMutationHandler):
                 raise ActionExecutionError("Share delivery handler is unavailable")
-            delivery = await handler.delivery(actor=actor, action_id=action.id)
+            try:
+                delivery = await handler.delivery(actor=actor, action_id=action.id)
+            except Exception as error:
+                raise ActionExecutionError("Share delivery is unavailable") from error
         return ActionResult(
             action_id=action.id,
             type=action.action_type,
@@ -494,6 +516,17 @@ def _decode_stored_arguments(action_type: str, arguments_json: str) -> ActionArg
 def _handler_result(result: Mapping[str, JsonValue] | BaseModel) -> dict[str, JsonValue]:
     payload = result.model_dump(mode="json") if isinstance(result, BaseModel) else dict(result)
     return _json_object_adapter.validate_python(payload)
+
+
+def _decode_action_result(action_type: str, result_json: str | None) -> dict[str, JsonValue]:
+    if result_json is None or action_type not in _RESULT_MODELS:
+        raise InvalidSuggestedActionError("Suggested action result is invalid")
+    try:
+        decoded = json.loads(result_json)
+        validated = _RESULT_MODELS[action_type].model_validate(decoded)
+        return _json_object_adapter.validate_python(validated.model_dump(mode="json"))
+    except (json.JSONDecodeError, ValidationError) as error:
+        raise InvalidSuggestedActionError("Suggested action result is invalid") from error
 
 
 def _hash_token(token: str) -> str:

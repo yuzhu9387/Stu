@@ -113,6 +113,8 @@ class ShareService:
             record is None
             or record.owner_account_id != owner_account_id
             or record.household_id != household_id
+            or record.revoked_at is not None
+            or _aware(record.expires_at) <= datetime.now(UTC)
         ):
             raise InvalidShareTokenError("Share delivery not found")
         token = self._action_token(action_id)
@@ -149,3 +151,7 @@ class ShareService:
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)

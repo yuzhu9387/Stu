@@ -41,6 +41,11 @@ class SqlPlanRepository:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
+    async def get_action_result(self, action_id: UUID, action_type: str) -> MealPlan | None:
+        async with self._session_factory() as session:
+            completed = await receipt_result(session, action_id, action_type)
+            return None if completed is None else MealPlan.model_validate(completed)
+
     async def get(self, household_id: UUID, plan_id: UUID) -> MealPlan:
         async with self._session_factory() as session:
             result = await session.execute(

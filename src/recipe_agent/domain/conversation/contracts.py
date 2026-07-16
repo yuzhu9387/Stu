@@ -1,6 +1,7 @@
 """Typed boundaries for hub-and-spoke agent execution."""
 
 from collections.abc import Mapping
+from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -24,6 +25,15 @@ class AgentStage(StrEnum):
     COMPLETED = "completed"
 
 
+class RunStatus(StrEnum):
+    """Durable lifecycle state for one agent execution."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class ConversationCommand(BaseModel):
     """Normalized message received from any transport spoke."""
 
@@ -32,7 +42,7 @@ class ConversationCommand(BaseModel):
     run_id: UUID = Field(default_factory=uuid4)
     account_id: UUID
     household_id: UUID
-    conversation_id: UUID
+    conversation_id: UUID | None = None
     locale: Locale
     message: str = Field(min_length=1)
     transport: str = "web"
@@ -49,6 +59,24 @@ class ConversationCommand(BaseModel):
         """Normalized human message text."""
 
         return self.message
+
+
+class AgentRunView(BaseModel):
+    """Transport-neutral public view of a durable agent run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID
+    conversation_id: UUID
+    account_id: UUID
+    household_id: UUID
+    transport: str
+    status: RunStatus
+    response: dict[str, JsonValue] | None = None
+    error_code: str | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class PlannedAction(BaseModel):

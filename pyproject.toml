@@ -11,6 +11,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "alembic>=1.18,<2",
   "asyncpg>=0.31,<1",
+  "celery>=5.6,<6",
   "cryptography>=46,<47",
   "email-validator>=2.3,<3",
   "fastapi>=0.139,<0.140",
@@ -19,6 +20,7 @@ dependencies = [
   "pydantic>=2.13,<2.14",
   "pydantic-settings>=2.10,<3",
   "psycopg[binary]>=3.2,<4",
+  "redis>=6,<7",
   "sqlalchemy[asyncio]>=2.0.51,<2.1",
   "uvicorn[standard]>=0.35,<1",
 ]
@@ -58,5 +60,5 @@ strict = true
 packages = ["recipe_agent"]
 
 [[tool.mypy.overrides]]
-module = "uvicorn.*"
+module = ["celery.*", "uvicorn.*"]
 ignore_missing_imports = true

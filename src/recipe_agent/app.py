@@ -6,6 +6,7 @@ from fastapi.responses import PlainTextResponse
 from recipe_agent.api.lark import router as lark_router
 from recipe_agent.api.security import RequestSecurityMiddleware
 from recipe_agent.api.session import SessionScopeMiddleware
+from recipe_agent.api.v1.agent import router as agent_router
 from recipe_agent.api.v1.auth import router as auth_router
 from recipe_agent.api.v1.families import router as families_router
 from recipe_agent.api.v1.feedback import router as feedback_router
@@ -13,6 +14,8 @@ from recipe_agent.api.v1.planning import router as planning_router
 from recipe_agent.api.v1.recommendations import router as recommendations_router
 from recipe_agent.api.v1.shares import router as shares_router
 from recipe_agent.config import Settings, get_settings
+from recipe_agent.domain.conversation.hub import ConversationHub
+from recipe_agent.domain.conversation.repository import AgentRunRepository
 from recipe_agent.domain.identity.service import IdentityService
 from recipe_agent.infrastructure.db.session import create_session_factory
 from recipe_agent.infrastructure.observability.metrics import MetricsRegistry
@@ -26,10 +29,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = resolved_settings
     metrics_registry = MetricsRegistry()
     app.state.metrics = metrics_registry
-    identity_service = IdentityService(
-        session_factory=create_session_factory(resolved_settings)
-    )
+    session_factory = create_session_factory(resolved_settings)
+    identity_service = IdentityService(session_factory=session_factory)
     app.state.identity_service = identity_service
+    app.state.conversation_hub = ConversationHub(AgentRunRepository(session_factory))
     app.add_middleware(
         RequestSecurityMiddleware,
         max_request_bytes=resolved_settings.max_request_bytes,
@@ -37,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(SessionScopeMiddleware, identity=identity_service)
     app.include_router(auth_router)
+    app.include_router(agent_router)
     app.include_router(families_router)
     app.include_router(feedback_router)
     app.include_router(planning_router)

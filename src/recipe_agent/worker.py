@@ -13,6 +13,7 @@ from recipe_agent.domain.conversation.repository import (
     ACTION_EXECUTION_REQUESTED_TOPIC,
     AGENT_RUN_REQUESTED_TOPIC,
     DEFAULT_ACTION_MAX_ATTEMPTS,
+    DEFAULT_RUN_MAX_ATTEMPTS,
     AgentRunRepository,
     SuggestedActionRepository,
 )
@@ -35,6 +36,7 @@ from recipe_agent.infrastructure.jobs.agent_runs import (
     run_lark_delivery_job,
 )
 from recipe_agent.infrastructure.jobs.outbox import publish_pending
+from recipe_agent.infrastructure.lark.events import SqlLarkDeliveryStore
 from recipe_agent.infrastructure.observability.logging import render_log
 
 celery_app = Celery("recipe_agent")
@@ -135,7 +137,15 @@ def configure_lark_delivery(factory: LarkDeliveryFactory) -> None:
     _lark_delivery_factory = factory
 
 
-@celery_app.task(name=AGENT_RUN_TASK_NAME)  # type: ignore[untyped-decorator]
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name=AGENT_RUN_TASK_NAME,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": DEFAULT_RUN_MAX_ATTEMPTS - 1},
+    max_retries=DEFAULT_RUN_MAX_ATTEMPTS - 1,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
 def execute_agent_run(run_id: str) -> bool:
     """Celery boundary carrying only the durable run UUID."""
 
@@ -195,6 +205,8 @@ async def run() -> None:
     session_factory = create_session_factory(settings)
     repository = OutboxRepository()
     action_repository = SuggestedActionRepository(session_factory)
+    run_repository = AgentRunRepository(session_factory)
+    delivery_store = SqlLarkDeliveryStore(session_factory)
     publisher = RoutingPublisher(
         CeleryRunPublisher(celery_app),
         CeleryActionPublisher(celery_app),
@@ -205,6 +217,16 @@ async def run() -> None:
             now=datetime.now(UTC),
             max_attempts=DEFAULT_ACTION_MAX_ATTEMPTS,
         )
+        await run_repository.recover_expired(
+            now=datetime.now(UTC),
+            max_attempts=DEFAULT_RUN_MAX_ATTEMPTS,
+        )
+        for delivery_event_id in await delivery_store.recover_expired(
+            now=datetime.now(UTC)
+        ):
+            celery_app.send_task(
+                LARK_DELIVERY_TASK_NAME, args=[str(delivery_event_id)]
+            )
         published = await publish_pending(repository, publisher, session_factory)
         await asyncio.sleep(1 if published else 3)
 

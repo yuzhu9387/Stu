@@ -1,5 +1,7 @@
 """Normalize verified Lark callbacks before identity resolution."""
 
+import hashlib
+import json
 from typing import Literal
 from uuid import NAMESPACE_URL, uuid5
 
@@ -56,7 +58,7 @@ class _TextContent(_StrictModel):
 
 
 class _Operator(_TransportModel):
-    operator_id: _SenderId
+    open_id: str = Field(min_length=1, max_length=128)
 
 
 class _ActionValue(_StrictModel):
@@ -87,6 +89,17 @@ class NormalizedLarkMessage(_StrictModel):
     text: str
     locale: Locale
 
+    def fingerprint_hash(self) -> str:
+        return _fingerprint(
+            {
+                "kind": self.kind,
+                "open_id": self.open_id,
+                "chat_id": self.chat_id,
+                "message_id": self.message_id,
+                "text_hash": hashlib.sha256(self.text.encode()).hexdigest(),
+            }
+        )
+
     def to_command(self, scope: HouseholdScope) -> ConversationCommand:
         return ConversationCommand(
             account_id=scope.account_id,
@@ -106,6 +119,15 @@ class NormalizedLarkAction(_StrictModel):
     event_id: str
     open_id: str
     token: str
+
+    def fingerprint_hash(self) -> str:
+        return _fingerprint(
+            {
+                "kind": self.kind,
+                "open_id": self.open_id,
+                "token_hash": hashlib.sha256(self.token.encode()).hexdigest(),
+            }
+        )
 
 
 type NormalizedLarkEvent = NormalizedLarkMessage | NormalizedLarkAction
@@ -142,7 +164,7 @@ class LarkEventNormalizer:
             ):
                 return NormalizedLarkAction(
                     event_id=envelope_action.header.event_id,
-                    open_id=envelope_action.event.operator.operator_id.open_id,
+                    open_id=envelope_action.event.operator.open_id,
                     token=envelope_action.event.action.value.token,
                 )
         except ValidationError:
@@ -153,6 +175,11 @@ class LarkEventNormalizer:
 def _infer_locale(text: str) -> Locale:
     has_chinese = any("\u4e00" <= character <= "\u9fff" for character in text)
     return Locale.ZH_CN if has_chinese else Locale.EN_US
+
+
+def _fingerprint(value: dict[str, str]) -> str:
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 __all__ = [

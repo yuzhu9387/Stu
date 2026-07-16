@@ -223,6 +223,43 @@ def test_migration_backfills_all_private_owners_and_agent_run_context(
     )
 
 
+def test_lark_recovery_migration_adds_event_run_and_delivery_leases(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("head")
+
+    run_columns = postgres_database.fetch_one(
+        """
+        SELECT string_agg(column_name, ',' ORDER BY column_name)
+        FROM information_schema.columns
+        WHERE table_name = 'agent_runs'
+          AND column_name IN ('attempt_count', 'lease_expires_at')
+        """
+    )
+    event_columns = postgres_database.fetch_one(
+        """
+        SELECT string_agg(column_name, ',' ORDER BY column_name)
+        FROM information_schema.columns
+        WHERE table_name = 'lark_event_receipts'
+          AND column_name IN
+              ('fingerprint_hash', 'processing_status', 'attempt_count',
+               'lease_expires_at', 'outcome', 'updated_at')
+        """
+    )
+    delivery_table = postgres_database.fetch_one(
+        """
+        SELECT table_name FROM information_schema.tables
+        WHERE table_name = 'lark_delivery_receipts'
+        """
+    )
+
+    assert run_columns == ("attempt_count,lease_expires_at",)
+    assert event_columns == (
+        "attempt_count,fingerprint_hash,lease_expires_at,outcome,processing_status,updated_at",
+    )
+    assert delivery_table == ("lark_delivery_receipts",)
+
+
 def test_downgrade_preserves_legacy_records(postgres_database: PostgresDatabase) -> None:
     postgres_database.upgrade("0006_operations")
     _, household_id, recipe_id = postgres_database.seed_legacy_family_recipe()

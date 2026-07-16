@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import secrets
 from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal, Protocol, cast
@@ -328,8 +329,8 @@ class SuggestedActionService:
                 arguments_json=arguments.model_dump_json(),
                 expires_at=expires_at,
             )
-        except SuggestedActionRunNotFoundError as error:
-            raise SuggestedActionNotFoundError("Source run not found") from error
+        except SuggestedActionRunNotFoundError:
+            raise SuggestedActionNotFoundError("Source run not found") from None
         return IssuedSuggestedAction(
             id=action_id,
             type=draft.type,
@@ -355,18 +356,54 @@ class SuggestedActionService:
                 claim_expires_at=claims.expires_at,
                 now=now,
             )
-        except SuggestedActionAlreadyClaimedError as error:
-            raise SuggestedActionConflictError("Suggested action was already consumed") from error
-        except SuggestedActionInvalidRecordError as error:
+        except SuggestedActionAlreadyClaimedError:
+            raise SuggestedActionConflictError("Suggested action was already consumed") from None
+        except SuggestedActionInvalidRecordError:
             raise InvalidSuggestedActionError(
                 "Suggested action token is invalid or expired"
-            ) from error
+            ) from None
 
         return ActionResult(
             action_id=claimed.id,
             type=claims.action_type,
             status="queued",
         )
+
+    async def reissue_for_delivery(
+        self,
+        action_ids: tuple[UUID, ...],
+        *,
+        actor: HouseholdScope,
+        source_run_id: UUID,
+    ) -> tuple[IssuedSuggestedAction, ...]:
+        records = await self._repository.get_delivery_claims(
+            action_ids,
+            source_run_id=source_run_id,
+            account_id=actor.account_id,
+            household_id=actor.household_id,
+        )
+        issued: list[IssuedSuggestedAction] = []
+        for record in records:
+            claims = SuggestedActionClaims(
+                action_id=record.id,
+                account_id=record.account_id,
+                household_id=record.household_id,
+                source_run_id=record.source_run_id,
+                action_type=cast(SuggestedActionType, record.action_type),
+                expires_at=record.expires_at,
+            )
+            token = self._signer.dumps(claims.model_dump(mode="json"))
+            if not secrets.compare_digest(_hash_token(token), record.token_hash):
+                raise InvalidSuggestedActionError("Suggested action token is invalid")
+            issued.append(
+                IssuedSuggestedAction(
+                    id=record.id,
+                    type=cast(SuggestedActionType, record.action_type),
+                    token=token,
+                    expires_at=record.expires_at,
+                )
+            )
+        return tuple(issued)
 
     async def execute_queued(self, action_id: UUID) -> ActionResult:
         claimed = await self._repository.claim_for_execution(
@@ -476,10 +513,10 @@ class SuggestedActionService:
         try:
             payload = self._signer.loads(token)
             return SuggestedActionClaims.model_validate(payload)
-        except (LarkDecryptionError, ValidationError) as error:
+        except (LarkDecryptionError, ValidationError):
             raise InvalidSuggestedActionError(
                 "Suggested action token is invalid or expired"
-            ) from error
+            ) from None
 
 
 def _decode_draft_arguments(draft: SuggestedActionDraft) -> ActionArguments:
@@ -489,14 +526,14 @@ def _decode_draft_arguments(draft: SuggestedActionDraft) -> ActionArguments:
             raise InvalidSuggestedActionError("Suggested action contains duplicate arguments")
         try:
             decoded[argument.name] = json.loads(argument.value_json)
-        except json.JSONDecodeError as error:
+        except json.JSONDecodeError:
             raise InvalidSuggestedActionError(
                 "Suggested action argument is not valid JSON"
-            ) from error
+            ) from None
     try:
         model = _ARGUMENT_MODELS[draft.type].model_validate(decoded)
-    except ValidationError as error:
-        raise InvalidSuggestedActionError("Suggested action arguments are invalid") from error
+    except ValidationError:
+        raise InvalidSuggestedActionError("Suggested action arguments are invalid") from None
     return cast(ActionArguments, model)
 
 
@@ -506,10 +543,10 @@ def _decode_stored_arguments(action_type: str, arguments_json: str) -> ActionArg
     try:
         decoded = json.loads(arguments_json)
         model = _ARGUMENT_MODELS[action_type].model_validate(decoded)
-    except (json.JSONDecodeError, ValidationError) as error:
+    except (json.JSONDecodeError, ValidationError):
         raise InvalidSuggestedActionError(
             "Stored suggested action arguments are invalid"
-        ) from error
+        ) from None
     return cast(ActionArguments, model)
 
 
@@ -525,8 +562,8 @@ def _decode_action_result(action_type: str, result_json: str | None) -> dict[str
         decoded = json.loads(result_json)
         validated = _RESULT_MODELS[action_type].model_validate(decoded)
         return _json_object_adapter.validate_python(validated.model_dump(mode="json"))
-    except (json.JSONDecodeError, ValidationError) as error:
-        raise InvalidSuggestedActionError("Suggested action result is invalid") from error
+    except (json.JSONDecodeError, ValidationError):
+        raise InvalidSuggestedActionError("Suggested action result is invalid") from None
 
 
 def _hash_token(token: str) -> str:

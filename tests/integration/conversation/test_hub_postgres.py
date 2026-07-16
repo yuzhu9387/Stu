@@ -143,3 +143,31 @@ async def test_simultaneous_first_lark_events_share_deterministic_conversation(
         assert await session.scalar(select(func.count()).select_from(ConversationMessage)) == 2
         assert await session.scalar(select(func.count()).select_from(AgentRun)) == 2
         assert await session.scalar(select(func.count()).select_from(OutboxEvent)) == 2
+
+
+async def test_postgres_concurrent_run_claim_has_one_worker_lease(
+    postgres_conversation_runtime: tuple[IdentityService, async_sessionmaker[AsyncSession]],
+) -> None:
+    identity, session_factory = postgres_conversation_runtime
+    authenticated = await identity.consume_magic_link(
+        (await identity.request_magic_link("run-claim-race@example.com")).token
+    )
+    run = await ConversationHub(AgentRunRepository(session_factory)).submit_message(
+        ConversationCommand(
+            account_id=authenticated.account.id,
+            household_id=authenticated.household.id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Only one worker",
+            idempotency_key="run-claim-race",
+        )
+    )
+
+    first, second = await asyncio.gather(
+        AgentRunRepository(session_factory).claim(run.id),
+        AgentRunRepository(session_factory).claim(run.id),
+    )
+
+    assert sum(claim is not None for claim in (first, second)) == 1
+    claimed = first or second
+    assert claimed is not None and claimed.attempt_count == 1

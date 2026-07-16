@@ -54,6 +54,14 @@ class LarkTenantTokenProvider:
             self._refresh_at = now + max(1, expires_in - 60)
             return token
 
+    async def invalidate(self, token: str) -> None:
+        """Invalidate only the rejected generation, preserving newer refreshes."""
+
+        async with self._lock:
+            if self._token == token:
+                self._token = None
+                self._refresh_at = 0.0
+
     async def _refresh(self) -> tuple[str, int]:
         try:
             response = await self._http.post(
@@ -62,8 +70,8 @@ class LarkTenantTokenProvider:
             )
             response.raise_for_status()
             payload = _TenantTokenResponse.model_validate(response.json())
-        except (httpx.HTTPError, ValueError, ValidationError) as error:
-            raise LarkTokenError("Unable to acquire Lark tenant token") from error
+        except (httpx.HTTPError, ValueError, ValidationError):
+            raise LarkTokenError("Unable to acquire Lark tenant token") from None
         if payload.code != 0 or not payload.tenant_access_token or payload.expire <= 0:
             raise LarkTokenError("Unable to acquire Lark tenant token")
         return payload.tenant_access_token, payload.expire

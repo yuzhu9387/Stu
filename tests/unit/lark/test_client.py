@@ -17,6 +17,9 @@ class StaticTokenProvider:
     async def tenant_access_token(self) -> str:
         return "tenant-token"
 
+    async def invalidate(self, token: str) -> None:
+        del token
+
 
 @pytest.mark.asyncio
 async def test_client_sends_localized_progress_card_to_lark_international() -> None:
@@ -113,3 +116,48 @@ async def test_client_failure_does_not_expose_provider_body_or_tenant_token() ->
 
     assert str(caught.value) == "Lark message delivery failed"
     assert "tenant-token" not in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_client_refreshes_rejected_tenant_token_once() -> None:
+    requests: list[httpx.Request] = []
+
+    class RotatingTokenProvider:
+        def __init__(self) -> None:
+            self.token = "expired-token"
+            self.invalidated: list[str] = []
+
+        async def tenant_access_token(self) -> str:
+            return self.token
+
+        async def invalidate(self, token: str) -> None:
+            self.invalidated.append(token)
+            if self.token == token:
+                self.token = "fresh-token"
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.headers["Authorization"] == "Bearer expired-token":
+            return httpx.Response(401, json={"code": 99991663})
+        return httpx.Response(200, json={"code": 0, "data": {}})
+
+    provider = RotatingTokenProvider()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as http:
+        client = LarkClient(
+            http=http,
+            token_provider=provider,
+            renderer=LarkCardRenderer(Translator.from_package()),
+        )
+        await client.send_linking_instructions(
+            "oc_family_chat", Locale.EN_US, idempotency_key="stable-delivery-id"
+        )
+
+    assert provider.invalidated == ["expired-token"]
+    assert [request.headers["Authorization"] for request in requests] == [
+        "Bearer expired-token",
+        "Bearer fresh-token",
+    ]
+    assert [json.loads(request.content)["uuid"] for request in requests] == [
+        "stable-delivery-id",
+        "stable-delivery-id",
+    ]

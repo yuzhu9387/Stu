@@ -46,16 +46,22 @@ def test_lark_v2_message_accepts_documented_transport_metadata() -> None:
 
 class MemoryEventStore:
     def __init__(self) -> None:
-        self.ids: set[str] = set()
+        self.events: dict[str, tuple[str, str]] = {}
 
-    async def claim(self, event_id: str) -> bool:
-        if event_id in self.ids:
-            return False
-        self.ids.add(event_id)
-        return True
+    async def reserve(self, event_id: str, fingerprint_hash: str) -> str:
+        existing = self.events.get(event_id)
+        if existing is None:
+            self.events[event_id] = (fingerprint_hash, "processing")
+            return "acquired"
+        if existing[0] != fingerprint_hash:
+            raise ValueError("Lark event ID content mismatch")
+        return "duplicate" if existing[1] == "accepted" else "busy"
 
-    async def is_claimed(self, event_id: str) -> bool:
-        return event_id in self.ids
+    async def accept(
+        self, event_id: str, fingerprint_hash: str, outcome: str
+    ) -> None:
+        del outcome
+        self.events[event_id] = (fingerprint_hash, "accepted")
 
 
 class RecordingSubmitter:

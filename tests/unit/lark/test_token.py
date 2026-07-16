@@ -86,3 +86,4 @@ async def test_token_failure_is_bounded_and_does_not_expose_credentials() -> Non
     assert "very-private-secret" not in rendered
     assert "bad app-secret" not in rendered
     assert len(rendered) < 120
+    assert caught.value.__cause__ is None

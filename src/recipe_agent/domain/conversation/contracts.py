@@ -79,6 +79,8 @@ class AgentRunView(BaseModel):
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    attempt_count: int = 0
+    lease_expires_at: datetime | None = None
 
 
 class PlannedAction(BaseModel):

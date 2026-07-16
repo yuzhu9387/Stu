@@ -78,13 +78,16 @@ class RecordingRepository:
             return None
         return self.run
 
-    async def complete(self, run_id, response):
+    async def complete(self, run_id, response, *, attempt_count=None):
         self.responses.append(dict(response))
         return self.run
 
-    async def fail(self, run_id, error_code):
+    async def retry_or_fail(
+        self, run_id, error_code, *, attempt_count, max_attempts
+    ):
+        del run_id, attempt_count, max_attempts
         self.failures.append(error_code)
-        return self.run
+        return "queued"
 
 
 class RecordingExecutor:
@@ -166,6 +169,9 @@ def test_worker_registers_uuid_only_celery_task() -> None:
     task = celery_app.tasks[AGENT_RUN_TASK_NAME]
 
     assert tuple(inspect.signature(task.run).parameters) == ("run_id",)
+    assert task.max_retries == 2
+    assert task.acks_late is True
+    assert task.reject_on_worker_lost is True
 
 
 def test_worker_registers_outbox_uuid_only_lark_delivery_task() -> None:

@@ -172,6 +172,10 @@ class AgentRun(TimestampMixin, Base):
     error_code: Mapped[str | None] = mapped_column(String(160))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SuggestedActionRecord(TimestampMixin, Base):

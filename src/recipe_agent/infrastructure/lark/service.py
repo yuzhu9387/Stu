@@ -1,10 +1,10 @@
 """Identity-aware Lark inbound application service."""
 
-from contextlib import suppress
-from typing import Protocol
+from typing import Literal, Protocol
 
 from recipe_agent.domain.conversation.actions import (
     ActionResult,
+    InvalidSuggestedActionError,
     SuggestedActionConflictError,
     SuggestedActionNotFoundError,
 )
@@ -49,9 +49,13 @@ class LarkDeliveryQueue(Protocol):
 
 
 class LarkEventStore(Protocol):
-    async def claim(self, event_id: str) -> bool: ...
+    async def reserve(
+        self, event_id: str, fingerprint_hash: str
+    ) -> Literal["acquired", "duplicate", "busy"]: ...
 
-    async def is_claimed(self, event_id: str) -> bool: ...
+    async def accept(
+        self, event_id: str, fingerprint_hash: str, outcome: str
+    ) -> None: ...
 
 
 class SuggestedActionConsumer(Protocol):
@@ -77,15 +81,21 @@ class LarkInboundService:
         self._actions = actions
 
     async def receive(self, event: NormalizedLarkEvent) -> None:
+        fingerprint_hash = event.fingerprint_hash()
+        reservation = await self._event_store.reserve(event.event_id, fingerprint_hash)
+        if reservation != "acquired":
+            return
         if isinstance(event, NormalizedLarkMessage):
-            await self._receive_message(event)
+            await self._receive_message(event, fingerprint_hash)
             return
         if isinstance(event, NormalizedLarkAction):
-            await self._receive_action(event)
+            await self._receive_action(event, fingerprint_hash)
             return
         raise TypeError("Unsupported normalized Lark event")
 
-    async def _receive_message(self, event: NormalizedLarkMessage) -> None:
+    async def _receive_message(
+        self, event: NormalizedLarkMessage, fingerprint_hash: str
+    ) -> None:
         scope = await self._identity.resolve_lark_identity(event.open_id)
         link_code = _link_code(event.text)
         if link_code is not None:
@@ -98,11 +108,17 @@ class LarkInboundService:
                         event.locale,
                         event.event_id,
                     )
+                    await self._event_store.accept(
+                        event.event_id, fingerprint_hash, "link_rejected"
+                    )
                     return
             await self._delivery_queue.publish_linked(
                 event.chat_id,
                 event.locale,
                 event.event_id,
+            )
+            await self._event_store.accept(
+                event.event_id, fingerprint_hash, "identity_linked"
             )
             return
         if scope is None:
@@ -111,23 +127,37 @@ class LarkInboundService:
                 event.locale,
                 event.event_id,
             )
+            await self._event_store.accept(
+                event.event_id, fingerprint_hash, "linking_instructions_queued"
+            )
             return
-        # ConversationHub's persisted transport/idempotency key is the durable replay guard.
         await self._hub.submit_message(event.to_command(scope))
-        await self._event_store.claim(event.event_id)
+        await self._event_store.accept(
+            event.event_id, fingerprint_hash, "message_submitted"
+        )
 
-    async def _receive_action(self, event: NormalizedLarkAction) -> None:
-        if self._actions is None:
-            raise SuggestedActionNotFoundError("Suggested action service is unavailable")
-        if await self._event_store.is_claimed(event.event_id):
-            return
-        scope = await self._identity.resolve_lark_identity(event.open_id)
-        if scope is None:
-            raise SuggestedActionNotFoundError("Suggested action not found")
-        # The consent token itself is the durable single-use replay guard.
-        with suppress(SuggestedActionConflictError):
+    async def _receive_action(
+        self, event: NormalizedLarkAction, fingerprint_hash: str
+    ) -> None:
+        try:
+            if self._actions is None:
+                raise SuggestedActionNotFoundError(
+                    "Suggested action service is unavailable"
+                )
+            scope = await self._identity.resolve_lark_identity(event.open_id)
+            if scope is None:
+                raise SuggestedActionNotFoundError("Suggested action not found")
             await self._actions.consume(event.token, actor=scope)
-        await self._event_store.claim(event.event_id)
+        except (
+            InvalidSuggestedActionError,
+            SuggestedActionConflictError,
+            SuggestedActionNotFoundError,
+        ):
+            await self._event_store.accept(
+                event.event_id, fingerprint_hash, "action_rejected"
+            )
+            raise
+        await self._event_store.accept(event.event_id, fingerprint_hash, "action_queued")
 
 
 def _link_code(text: str) -> str | None:

@@ -8,6 +8,7 @@ from recipe_agent.domain.common.types import JsonValue
 from recipe_agent.domain.conversation.contracts import AgentRunView
 from recipe_agent.domain.conversation.repository import (
     AGENT_RUN_REQUESTED_TOPIC,
+    DEFAULT_RUN_MAX_ATTEMPTS,
     LARK_RUN_COMPLETED_TOPIC,
 )
 from recipe_agent.infrastructure.lark.delivery import (
@@ -27,10 +28,21 @@ class RunLifecycle(Protocol):
     async def claim(self, run_id: UUID) -> AgentRunView | None: ...
 
     async def complete(
-        self, run_id: UUID, response: Mapping[str, JsonValue]
+        self,
+        run_id: UUID,
+        response: Mapping[str, JsonValue],
+        *,
+        attempt_count: int | None = None,
     ) -> AgentRunView | None: ...
 
-    async def fail(self, run_id: UUID, error_code: str) -> AgentRunView | None: ...
+    async def retry_or_fail(
+        self,
+        run_id: UUID,
+        error_code: str,
+        *,
+        attempt_count: int,
+        max_attempts: int,
+    ) -> str: ...
 
 
 class AgentRunExecutor(Protocol):
@@ -97,9 +109,16 @@ async def run_agent_job(
     try:
         response = await executor.execute(run_id)
     except Exception:
-        await repository.fail(run_id, "agent_execution_failed")
+        await repository.retry_or_fail(
+            run_id,
+            "agent_execution_failed",
+            attempt_count=claimed.attempt_count,
+            max_attempts=DEFAULT_RUN_MAX_ATTEMPTS,
+        )
         raise
-    await repository.complete(run_id, response)
+    await repository.complete(
+        run_id, response, attempt_count=claimed.attempt_count
+    )
     return True
 
 

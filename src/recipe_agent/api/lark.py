@@ -6,9 +6,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from recipe_agent.domain.conversation.actions import SuggestedActionNotFoundError
+from recipe_agent.domain.conversation.actions import (
+    InvalidSuggestedActionError,
+    SuggestedActionConflictError,
+    SuggestedActionNotFoundError,
+)
 from recipe_agent.infrastructure.lark.crypto import LarkCipher
-from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
+from recipe_agent.infrastructure.lark.events import LarkEventSubstitutionError
+from recipe_agent.infrastructure.lark.normalizer import (
+    LarkEventNormalizer,
+    NormalizedLarkAction,
+)
 from recipe_agent.infrastructure.lark.service import LarkInboundService
 
 router = APIRouter(prefix="/webhooks/lark", tags=["lark"])
@@ -65,7 +73,19 @@ class LarkWebhookHandler:
         if not secrets_equal(envelope.header.token, self._verification_token):
             raise PermissionError("Invalid Lark verification token")
         event = self._normalizer.normalize(payload)
-        await self._inbound.receive(event)
+        try:
+            await self._inbound.receive(event)
+        except (
+            InvalidSuggestedActionError,
+            LarkEventSubstitutionError,
+            SuggestedActionConflictError,
+            SuggestedActionNotFoundError,
+        ):
+            if isinstance(event, NormalizedLarkAction):
+                return {}
+            raise
+        if isinstance(event, NormalizedLarkAction):
+            return {}
         return {"status": "accepted"}
 
 
@@ -87,12 +107,12 @@ async def receive_event(
 ) -> dict[str, str]:
     try:
         return await handler.handle(payload)
-    except PermissionError as error:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from error
-    except (ValidationError, ValueError) as error:
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from None
+    except (ValidationError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported Lark callback",
-        ) from error
-    except SuggestedActionNotFoundError as error:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from error
+        ) from None
+    except SuggestedActionNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from None

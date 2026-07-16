@@ -4,16 +4,21 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from recipe_agent.api.lark import LarkWebhookHandler
+from recipe_agent.api.lark import router as lark_router
 from recipe_agent.domain.conversation.actions import (
     ActionResult,
+    InvalidSuggestedActionError,
     SuggestedActionConflictError,
     SuggestedActionNotFoundError,
 )
 from recipe_agent.domain.conversation.contracts import AgentRunView, ConversationCommand
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.domain.identity.service import HouseholdScope, InvalidTokenError
+from recipe_agent.infrastructure.lark.events import LarkEventSubstitutionError
 from recipe_agent.infrastructure.lark.normalizer import LarkEventNormalizer
 from recipe_agent.infrastructure.lark.service import LarkInboundService
 
@@ -35,7 +40,7 @@ def _callback_payload(
         },
         "event": {
             "operator": {
-                "operator_id": {"open_id": open_id},
+                "open_id": open_id,
                 "tenant_key": "tenant",
             },
             "action": {"tag": "button", "value": {"token": token}},
@@ -97,16 +102,22 @@ class RecordingDeliveryQueue:
 
 class RecordingEventStore:
     def __init__(self) -> None:
-        self.ids: set[str] = set()
+        self.events: dict[str, tuple[str, str]] = {}
 
-    async def claim(self, event_id: str) -> bool:
-        if event_id in self.ids:
-            return False
-        self.ids.add(event_id)
-        return True
+    async def reserve(self, event_id: str, fingerprint_hash: str) -> str:
+        existing = self.events.get(event_id)
+        if existing is None:
+            self.events[event_id] = (fingerprint_hash, "processing")
+            return "acquired"
+        if existing[0] != fingerprint_hash:
+            raise LarkEventSubstitutionError("Lark event ID content mismatch")
+        return "duplicate" if existing[1] == "accepted" else "busy"
 
-    async def is_claimed(self, event_id: str) -> bool:
-        return event_id in self.ids
+    async def accept(
+        self, event_id: str, fingerprint_hash: str, outcome: str
+    ) -> None:
+        del outcome
+        self.events[event_id] = (fingerprint_hash, "accepted")
 
 
 class RecordingActions:
@@ -227,7 +238,7 @@ async def test_card_callback_uses_clicking_open_id_and_same_action_service() -> 
 
     result = await handler.handle(_callback_payload(open_id="ou_clicker", token="signed-consent"))
 
-    assert result == {"status": "accepted"}
+    assert result == {}
     assert actions.calls == [("signed-consent", actor)]
 
 
@@ -243,8 +254,8 @@ async def test_card_callback_replay_is_acknowledged_without_second_mutation() ->
     )
     payload = _callback_payload(open_id="ou_clicker", token="single-use")
 
-    assert await handler.handle(payload) == {"status": "accepted"}
-    assert await handler.handle(payload) == {"status": "accepted"}
+    assert await handler.handle(payload) == {}
+    assert await handler.handle(payload) == {}
     assert actions.calls == [("single-use", actor)]
 
 
@@ -261,12 +272,56 @@ async def test_callback_event_id_cannot_be_reused_with_another_token() -> None:
 
     assert await handler.handle(
         _callback_payload(open_id="ou_clicker", token="first", event_id="evt_same")
-    ) == {"status": "accepted"}
+    ) == {}
     assert await handler.handle(
         _callback_payload(open_id="ou_clicker", token="second", event_id="evt_same")
-    ) == {"status": "accepted"}
+    ) == {}
 
     assert actions.calls == [("first", actor)]
+
+
+class RejectingActions(RecordingActions):
+    def __init__(self, error: Exception) -> None:
+        super().__init__()
+        self.error = error
+
+    async def consume(self, token: str, *, actor: HouseholdScope) -> ActionResult:
+        del token, actor
+        raise self.error
+
+
+@pytest.mark.parametrize(
+    "error",
+    (
+        InvalidSuggestedActionError("expired private-token"),
+        SuggestedActionNotFoundError("cross-account private-token"),
+        SuggestedActionConflictError("replayed private-token"),
+    ),
+)
+def test_card_callback_route_returns_lark_200_without_leaking_action_error(
+    error: Exception,
+) -> None:
+    actor = HouseholdScope(uuid4(), uuid4())
+    actions = RejectingActions(error)
+    handler = _handler(
+        scopes={"ou_clicker": actor},
+        hub=RecordingHub(),
+        delivery=RecordingDeliveryQueue(),
+        actions=actions,
+    )
+    app = FastAPI()
+    app.state.lark_handler = handler
+    app.include_router(lark_router)
+
+    response = TestClient(app).post(
+        "/webhooks/lark/events",
+        json=_callback_payload(open_id="ou_clicker", token="private-token"),
+    )
+
+    assert response.status_code == 200
+    assert response.json() in ({}, {"toast": response.json().get("toast")})
+    assert "private-token" not in response.text
+    assert actions.calls == []
 
 
 @pytest.mark.asyncio
@@ -279,8 +334,9 @@ async def test_unbound_callback_cannot_queue_an_action() -> None:
         actions=actions,
     )
 
-    with pytest.raises(SuggestedActionNotFoundError):
-        await handler.handle(_callback_payload(open_id="ou_unknown", token="private-token"))
+    assert await handler.handle(
+        _callback_payload(open_id="ou_unknown", token="private-token")
+    ) == {}
 
     assert actions.calls == []
 

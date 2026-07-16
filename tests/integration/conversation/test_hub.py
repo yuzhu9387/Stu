@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -188,6 +189,70 @@ async def test_run_claim_transitions_queued_only_once(
     assert completed.response == {"answer": "Finished"}
     assert repeated_completion is None
     assert failed_after_completion is None
+
+
+async def test_expired_run_lease_is_reclaimed_and_stale_attempt_cannot_complete(
+    session_factory: async_sessionmaker[AsyncSession],
+    identity_service: IdentityService,
+) -> None:
+    account_id, household_id = await _scope(identity_service, "run-lease@example.com")
+    repository = AgentRunRepository(session_factory)
+    run = await ConversationHub(repository).submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Recover me",
+            idempotency_key="run-lease-1",
+        )
+    )
+    start = datetime(2026, 7, 15, tzinfo=UTC)
+
+    first = await repository.claim(run.id, now=start, lease_duration=timedelta(seconds=5))
+    second = await repository.claim(
+        run.id, now=start + timedelta(seconds=6), lease_duration=timedelta(seconds=5)
+    )
+
+    assert first is not None and first.attempt_count == 1
+    assert second is not None and second.attempt_count == 2
+    assert await repository.complete(
+        run.id, {"answer": "stale"}, attempt_count=first.attempt_count
+    ) is None
+    completed = await repository.complete(
+        run.id, {"answer": "fresh"}, attempt_count=second.attempt_count
+    )
+    assert completed is not None
+    assert completed.response == {"answer": "fresh"}
+
+
+async def test_expired_run_recovery_requeues_before_attempt_limit(
+    session_factory: async_sessionmaker[AsyncSession],
+    identity_service: IdentityService,
+) -> None:
+    account_id, household_id = await _scope(identity_service, "run-recover@example.com")
+    repository = AgentRunRepository(session_factory)
+    run = await ConversationHub(repository).submit_message(
+        ConversationCommand(
+            account_id=account_id,
+            household_id=household_id,
+            allow_conversation_creation=True,
+            locale=Locale.EN_US,
+            message="Recover the worker",
+            idempotency_key="run-recover-1",
+        )
+    )
+    start = datetime(2026, 7, 15, tzinfo=UTC)
+    assert await repository.claim(
+        run.id, now=start, lease_duration=timedelta(seconds=5)
+    ) is not None
+
+    assert await repository.recover_expired(now=start + timedelta(seconds=6)) == 1
+    reclaimed = await repository.claim(
+        run.id, now=start + timedelta(seconds=7), lease_duration=timedelta(seconds=5)
+    )
+    assert reclaimed is not None
+    assert reclaimed.attempt_count == 2
 
 
 async def test_lark_chat_uuid_creates_once_then_reuses_private_conversation(

@@ -15,6 +15,8 @@ from recipe_agent.infrastructure.lark.renderer import LarkCardRenderer
 class TenantTokenProvider(Protocol):
     async def tenant_access_token(self) -> str: ...
 
+    async def invalidate(self, token: str) -> None: ...
+
 
 class LarkAPIError(RuntimeError):
     """The Lark API rejected a message."""
@@ -101,22 +103,36 @@ class LarkClient:
         *,
         idempotency_key: str = "",
     ) -> None:
-        token = await self._token_provider.tenant_access_token()
-        response = await self._http.post(
-            f"{self._base_url}/open-apis/im/v1/messages",
-            params={"receive_id_type": "chat_id"},
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "receive_id": chat_id,
-                "msg_type": "interactive",
-                "content": json.dumps(card, separators=(",", ":"), ensure_ascii=False),
-                **({"uuid": idempotency_key} if idempotency_key else {}),
-            },
-        )
-        try:
-            response.raise_for_status()
-            payload = response.json()
-        except (httpx.HTTPError, ValueError) as error:
-            raise LarkAPIError("Lark message delivery failed") from error
-        if not isinstance(payload, dict) or payload.get("code") != 0:
-            raise LarkAPIError("Lark message delivery failed")
+        body = {
+            "receive_id": chat_id,
+            "msg_type": "interactive",
+            "content": json.dumps(card, separators=(",", ":"), ensure_ascii=False),
+            **({"uuid": idempotency_key} if idempotency_key else {}),
+        }
+        for attempt in range(2):
+            token = await self._token_provider.tenant_access_token()
+            try:
+                response = await self._http.post(
+                    f"{self._base_url}/open-apis/im/v1/messages",
+                    params={"receive_id_type": "chat_id"},
+                    headers={"Authorization": f"Bearer {token}"},
+                    json=body,
+                )
+                payload = response.json()
+            except (httpx.HTTPError, ValueError):
+                raise LarkAPIError("Lark message delivery failed") from None
+            auth_rejected = response.status_code == 401 or (
+                isinstance(payload, dict)
+                and payload.get("code") in {99991663, 99991664, 99991668, 99991671}
+            )
+            if auth_rejected and attempt == 0:
+                await self._token_provider.invalidate(token)
+                continue
+            try:
+                response.raise_for_status()
+            except httpx.HTTPError:
+                raise LarkAPIError("Lark message delivery failed") from None
+            if not isinstance(payload, dict) or payload.get("code") != 0:
+                raise LarkAPIError("Lark message delivery failed")
+            return
+        raise LarkAPIError("Lark message delivery failed")

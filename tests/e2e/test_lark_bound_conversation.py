@@ -1,20 +1,29 @@
 import json
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import httpx
 import pytest
+from fastapi import FastAPI
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from recipe_agent.api.lark import LarkWebhookHandler
+from recipe_agent.api.lark import router as lark_router
+from recipe_agent.domain.conversation.actions import (
+    SuggestedActionRepository,
+    SuggestedActionService,
+)
 from recipe_agent.domain.conversation.hub import ConversationHub
 from recipe_agent.domain.conversation.repository import (
+    ACTION_EXECUTION_REQUESTED_TOPIC,
     LARK_RUN_COMPLETED_TOPIC,
     AgentRunRepository,
 )
-from recipe_agent.domain.identity.models import AgentRun
-from recipe_agent.domain.identity.service import IdentityService
+from recipe_agent.domain.conversation.responses import ActionArgument, SuggestedActionDraft
+from recipe_agent.domain.identity.models import AgentRun, SuggestedActionRecord
+from recipe_agent.domain.identity.service import HouseholdScope, IdentityService
 from recipe_agent.infrastructure.db.outbox import OutboxEvent
+from recipe_agent.infrastructure.lark.crypto import ActionContextSigner
 from recipe_agent.infrastructure.lark.delivery import (
     LARK_LINKED_TOPIC,
     LARK_LINKING_INSTRUCTIONS_TOPIC,
@@ -37,6 +46,7 @@ def _payload(*, event_id: str = "evt_recipe_001", open_id: str = "ou_family_cook
 def _handler(
     session_factory: async_sessionmaker[AsyncSession],
     identity: IdentityService,
+    actions: SuggestedActionService | None = None,
 ) -> LarkWebhookHandler:
     event_store = SqlLarkEventStore(session_factory)
     inbound = LarkInboundService(
@@ -44,7 +54,7 @@ def _handler(
         hub=ConversationHub(AgentRunRepository(session_factory)),
         delivery_queue=SqlLarkDeliveryQueue(session_factory),
         event_store=event_store,
-        actions=None,
+        actions=actions,
     )
     return LarkWebhookHandler(
         verification_token="verification-token",
@@ -63,6 +73,9 @@ class RecordingDeliveryClient:
         self.finals.append((chat_id, response, actions, locale, idempotency_key))
 
     async def send_linking_instructions(self, chat_id, locale, *, idempotency_key):
+        self.links.append((chat_id, locale, idempotency_key))
+
+    async def send_linked(self, chat_id, locale, *, idempotency_key):
         self.links.append((chat_id, locale, idempotency_key))
 
     async def send_failure(self, chat_id, locale, *, idempotency_key):
@@ -181,6 +194,23 @@ async def test_completing_lark_run_commits_delivery_intent_with_response(
         run_id = await session.scalar(select(AgentRun.id))
     assert run_id is not None
     assert await repository.claim(run_id) is not None
+    actions = SuggestedActionService(
+        repository=SuggestedActionRepository(session_factory),
+        signer=ActionContextSigner("delivery-signing-key"),
+        handlers={},
+    )
+    issued = await actions.issue(
+        SuggestedActionDraft(
+            type="save_recipe",
+            arguments=(
+                ActionArgument(name="name", value_json='"Tomato soup"'),
+                ActionArgument(name="ingredients", value_json="[]"),
+                ActionArgument(name="steps", value_json="[]"),
+            ),
+        ),
+        actor=HouseholdScope(authenticated.account.id, authenticated.household.id),
+        source_run_id=run_id,
+    )
     assert await repository.complete(
         run_id,
         {
@@ -188,14 +218,7 @@ async def test_completing_lark_run_commits_delivery_intent_with_response(
             "plan": "I checked your recipes.",
             "act": "I compared eligible options.",
             "answer": "Try tomato soup.",
-            "suggested_actions": [
-                {
-                    "id": str(run_id),
-                    "type": "save_recipe",
-                    "token": "opaque-signed-consent",
-                    "expires_at": (datetime.now(UTC) + timedelta(minutes=15)).isoformat(),
-                }
-            ],
+            "suggested_actions": [issued.model_dump(mode="json")],
         },
     ) is not None
 
@@ -207,19 +230,100 @@ async def test_completing_lark_run_commits_delivery_intent_with_response(
                 )
             ).all()
         )
+        stored_run = await session.get(AgentRun, run_id)
     assert len(events) == 1
     assert events[0].payload == {"run_id": str(run_id)}
+    assert stored_run is not None
+    assert issued.token not in (stored_run.response_json or "")
 
     client = RecordingDeliveryClient()
     await LarkDeliveryService(
         session_factory=session_factory,
         client=client,
+        actions=actions,
     ).deliver_outbox(events[0].id)
     assert len(client.finals) == 1
-    chat_id, response, actions, locale, key = client.finals[0]
+    chat_id, response, delivered_actions, locale, key = client.finals[0]
     assert chat_id == "oc_family_chat"
     assert response.answer == "Try tomato soup."
-    assert len(actions) == 1
-    assert actions[0].token == "opaque-signed-consent"
+    assert len(delivered_actions) == 1
+    assert delivered_actions[0].token == issued.token
     assert locale == "en-US"
     assert key == str(events[0].id)
+
+    await LarkDeliveryService(
+        session_factory=session_factory,
+        client=client,
+        actions=actions,
+    ).deliver_outbox(events[0].id)
+    assert len(client.finals) == 1
+
+
+@pytest.mark.asyncio
+async def test_documented_callback_route_queues_real_suggested_action_once(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    identity = IdentityService(session_factory=session_factory)
+    authenticated = await identity.consume_magic_link(
+        (await identity.request_magic_link("callback@example.com")).token
+    )
+    link = await identity.create_lark_link_code(authenticated.account.id)
+    await identity.link_lark_identity(link.code, "ou_callback_user")
+    await _handler(session_factory, identity).handle(
+        _payload(open_id="ou_callback_user", event_id="evt_source_run")
+    )
+    async with session_factory() as session:
+        run_id = await session.scalar(select(AgentRun.id))
+    assert run_id is not None
+    actions = SuggestedActionService(
+        repository=SuggestedActionRepository(session_factory),
+        signer=ActionContextSigner("callback-signing-key"),
+        handlers={},
+    )
+    issued = await actions.issue(
+        SuggestedActionDraft(
+            type="save_recipe",
+            arguments=(
+                ActionArgument(name="name", value_json='"Soup"'),
+                ActionArgument(name="ingredients", value_json="[]"),
+                ActionArgument(name="steps", value_json="[]"),
+            ),
+        ),
+        actor=HouseholdScope(authenticated.account.id, authenticated.household.id),
+        source_run_id=run_id,
+    )
+    app = FastAPI()
+    app.state.lark_handler = _handler(session_factory, identity, actions)
+    app.include_router(lark_router)
+    callback = {
+        "schema": "2.0",
+        "header": {
+            "event_id": "evt_real_callback",
+            "event_type": "card.action.trigger",
+            "token": "verification-token",
+        },
+        "event": {
+            "operator": {"open_id": "ou_callback_user"},
+            "action": {"tag": "button", "value": {"token": issued.token}},
+        },
+    }
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        first = await client.post("/webhooks/lark/events", json=callback)
+        second = await client.post("/webhooks/lark/events", json=callback)
+
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json() == {}
+    async with session_factory() as session:
+        action = await session.get(SuggestedActionRecord, issued.id)
+        queued_events = tuple(
+            await session.scalars(
+                select(OutboxEvent).where(
+                    OutboxEvent.topic == ACTION_EXECUTION_REQUESTED_TOPIC
+                )
+            )
+        )
+    assert action is not None and action.execution_status == "queued"
+    assert len(queued_events) == 1

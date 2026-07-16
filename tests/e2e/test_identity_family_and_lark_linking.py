@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from recipe_agent.domain.feedback.models import FeedbackEventRecord, RatingRecord
 from recipe_agent.domain.identity.models import (
@@ -287,6 +287,7 @@ async def test_invite_membership_race_maps_integrity_error_to_domain_conflict(
     invite = await identity_service.create_family_invite(
         HouseholdScope(owner.account.id, owner.household.id)
     )
+    original_move = IdentityRepository.move_membership_to_family
 
     async def raise_integrity_error(*args, **kwargs):
         raise IntegrityError("UPDATE membership", {}, Exception("unique race"))
@@ -301,6 +302,105 @@ async def test_invite_membership_race_maps_integrity_error_to_domain_conflict(
     with pytest.raises(
         IdentityConflictError, match="Family invite could not be accepted"
     ):
+        await identity_service.accept_family_invite(
+            HouseholdScope(actor.account.id, actor.household.id), invite.code
+        )
+    monkeypatch.setattr(
+        IdentityRepository, "move_membership_to_family", original_move
+    )
+    retried = await identity_service.accept_family_invite(
+        HouseholdScope(actor.account.id, actor.household.id), invite.code
+    )
+    assert retried.household_id == owner.household.id
+
+
+@pytest.mark.asyncio
+async def test_invite_acceptance_requests_both_household_locks(
+    identity_service, monkeypatch
+) -> None:
+    owner_delivery = await identity_service.request_magic_link("owner@example.com")
+    owner = await identity_service.consume_magic_link(owner_delivery.token)
+    actor_delivery = await identity_service.request_magic_link("actor@example.com")
+    actor = await identity_service.consume_magic_link(actor_delivery.token)
+    invite = await identity_service.create_family_invite(
+        HouseholdScope(owner.account.id, owner.household.id)
+    )
+    lock_requests = []
+
+    async def record_lock_request(repository, household_ids):
+        lock_requests.append(tuple(household_ids))
+        households = []
+        for household_id in sorted(set(household_ids), key=str):
+            household = await repository.lock_household(household_id)
+            if household is not None:
+                households.append(household)
+        return tuple(households)
+
+    monkeypatch.setattr(
+        IdentityRepository, "lock_households", record_lock_request, raising=False
+    )
+
+    await identity_service.accept_family_invite(
+        HouseholdScope(actor.account.id, actor.household.id), invite.code
+    )
+
+    assert len(lock_requests) == 1
+    assert set(lock_requests[0]) == {actor.household.id, owner.household.id}
+
+
+class _SqlStateError(Exception):
+    def __init__(self, sqlstate: str) -> None:
+        self.sqlstate = sqlstate
+
+
+@pytest.mark.parametrize("sqlstate", ("40P01", "40001"))
+@pytest.mark.asyncio
+async def test_retryable_postgres_transaction_error_maps_to_domain_conflict(
+    identity_service, monkeypatch, sqlstate
+) -> None:
+    owner_delivery = await identity_service.request_magic_link("owner@example.com")
+    owner = await identity_service.consume_magic_link(owner_delivery.token)
+    actor_delivery = await identity_service.request_magic_link("actor@example.com")
+    actor = await identity_service.consume_magic_link(actor_delivery.token)
+    invite = await identity_service.create_family_invite(
+        HouseholdScope(owner.account.id, owner.household.id)
+    )
+
+    async def raise_retryable_error(*args, **kwargs):
+        raise OperationalError("lock households", {}, _SqlStateError(sqlstate))
+
+    monkeypatch.setattr(
+        IdentityRepository, "lock_households", raise_retryable_error, raising=False
+    )
+
+    with pytest.raises(
+        IdentityConflictError, match="Family invite could not be accepted"
+    ):
+        await identity_service.accept_family_invite(
+            HouseholdScope(actor.account.id, actor.household.id), invite.code
+        )
+
+
+@pytest.mark.asyncio
+async def test_unrelated_database_error_is_not_swallowed(
+    identity_service, monkeypatch
+) -> None:
+    owner_delivery = await identity_service.request_magic_link("owner@example.com")
+    owner = await identity_service.consume_magic_link(owner_delivery.token)
+    actor_delivery = await identity_service.request_magic_link("actor@example.com")
+    actor = await identity_service.consume_magic_link(actor_delivery.token)
+    invite = await identity_service.create_family_invite(
+        HouseholdScope(owner.account.id, owner.household.id)
+    )
+
+    async def raise_unrelated_error(*args, **kwargs):
+        raise OperationalError("lock households", {}, _SqlStateError("08006"))
+
+    monkeypatch.setattr(
+        IdentityRepository, "lock_households", raise_unrelated_error, raising=False
+    )
+
+    with pytest.raises(OperationalError):
         await identity_service.accept_family_invite(
             HouseholdScope(actor.account.id, actor.household.id), invite.code
         )
@@ -369,3 +469,5 @@ async def test_lark_uniqueness_race_maps_integrity_error_to_domain_conflict(
 
     with pytest.raises(IdentityConflictError, match="Lark identity is already linked"):
         await identity_service.link_lark_identity(link.code, "ou_race")
+    with pytest.raises(InvalidTokenError):
+        await identity_service.link_lark_identity(link.code, "ou_retry")

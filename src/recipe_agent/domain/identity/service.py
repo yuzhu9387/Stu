@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from recipe_agent.domain.identity.models import (
@@ -29,6 +29,9 @@ class IdentityConflictError(ValueError):
 
 class PermissionDeniedError(PermissionError):
     """The account does not have permission for an identity operation."""
+
+
+_RETRYABLE_TRANSACTION_SQLSTATES = frozenset({"40P01", "40001"})
 
 
 @dataclass(frozen=True)
@@ -188,17 +191,37 @@ class IdentityService:
         async with self._session_factory() as session:
             repository = IdentityRepository(session)
             try:
+                code_hash = _hash_token(code)
+                candidate = await repository.get_family_invite(code_hash)
+                if (
+                    candidate is None
+                    or candidate.consumed_at is not None
+                    or _expired(candidate.expires_at, now)
+                ):
+                    raise InvalidTokenError("Family invite is invalid or expired")
+                expected_household_ids = {
+                    scope.household_id,
+                    candidate.household_id,
+                }
+                locked_households = await repository.lock_households(
+                    tuple(expected_household_ids)
+                )
+                if {household.id for household in locked_households} != expected_household_ids:
+                    raise IdentityConflictError("Family invite could not be accepted")
+                source_household = next(
+                    household
+                    for household in locked_households
+                    if household.id == scope.household_id
+                )
                 invite = await repository.consume_family_invite(
-                    code_hash=_hash_token(code), account_id=scope.account_id, now=now
+                    code_hash=code_hash, account_id=scope.account_id, now=now
                 )
                 if invite is None:
                     raise InvalidTokenError("Family invite is invalid or expired")
                 membership = await repository.lock_membership_for_account(scope.account_id)
-                source_household = await repository.lock_household(scope.household_id)
                 if (
                     membership is None
                     or membership.household_id != scope.household_id
-                    or source_household is None
                 ):
                     raise InvalidTokenError("Authenticated family scope is no longer valid")
                 is_empty_singleton = (
@@ -223,6 +246,13 @@ class IdentityService:
                 raise IdentityConflictError(
                     "Family invite could not be accepted"
                 ) from error
+            except DBAPIError as error:
+                await session.rollback()
+                if _is_retryable_transaction_error(error):
+                    raise IdentityConflictError(
+                        "Family invite could not be accepted"
+                    ) from error
+                raise
 
     async def create_lark_link_code(self, account_id: UUID) -> LinkCodeDelivery:
         code = secrets.token_urlsafe(32)
@@ -289,3 +319,10 @@ def _expired(expires_at: datetime, now: datetime) -> bool:
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=UTC)
     return expires_at <= now
+
+
+def _is_retryable_transaction_error(error: DBAPIError) -> bool:
+    sqlstate = getattr(error.orig, "sqlstate", None) or getattr(
+        error.orig, "pgcode", None
+    )
+    return sqlstate in _RETRYABLE_TRANSACTION_SQLSTATES

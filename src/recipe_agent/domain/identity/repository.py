@@ -84,6 +84,12 @@ class IdentityRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_family_invite(self, code_hash: str) -> FamilyInvite | None:
+        result = await self._session.execute(
+            select(FamilyInvite).where(FamilyInvite.code_hash == code_hash)
+        )
+        return result.scalar_one_or_none()
+
     async def lock_membership_for_account(
         self, account_id: UUID
     ) -> FamilyMembership | None:
@@ -99,6 +105,17 @@ class IdentityRepository:
             select(Household).where(Household.id == household_id).with_for_update()
         )
         return result.scalar_one_or_none()
+
+    async def lock_households(
+        self, household_ids: tuple[UUID, ...]
+    ) -> tuple[Household, ...]:
+        result = await self._session.execute(
+            select(Household)
+            .where(Household.id.in_(household_ids))
+            .order_by(Household.id)
+            .with_for_update()
+        )
+        return tuple(result.scalars())
 
     async def household_membership_count(self, household_id: UUID) -> int:
         result = await self._session.execute(
@@ -159,6 +176,7 @@ class IdentityRepository:
             )
             .values(consumed_at=now, consumed_by_account_id=account_id)
             .returning(FamilyInvite)
+            .execution_options(synchronize_session=False)
         )
         return result.scalar_one_or_none()
 

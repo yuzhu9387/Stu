@@ -62,9 +62,7 @@ class LarkDeliveryQueue(Protocol):
 
 
 class LarkEventStore(Protocol):
-    async def reserve(
-        self, event_id: str, fingerprint_hash: str
-    ) -> LarkEventReservation: ...
+    async def reserve(self, event_id: str, fingerprint_hash: str) -> LarkEventReservation: ...
 
     async def accept(
         self,
@@ -170,9 +168,7 @@ class LarkInboundService:
     ) -> None:
         try:
             if self._actions is None:
-                raise SuggestedActionNotFoundError(
-                    "Suggested action service is unavailable"
-                )
+                raise SuggestedActionNotFoundError("Suggested action service is unavailable")
             scope = await self._identity.resolve_lark_identity(event.open_id)
             if scope is None:
                 raise SuggestedActionNotFoundError("Suggested action not found")

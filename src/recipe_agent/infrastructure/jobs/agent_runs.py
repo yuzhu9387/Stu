@@ -116,9 +116,7 @@ async def run_agent_job(
             max_attempts=DEFAULT_RUN_MAX_ATTEMPTS,
         )
         raise
-    await repository.complete(
-        run_id, response, attempt_count=claimed.attempt_count
-    )
+    await repository.complete(run_id, response, attempt_count=claimed.attempt_count)
     return True
 
 

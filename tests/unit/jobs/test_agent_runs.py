@@ -84,9 +84,7 @@ class RecordingRepository:
         self.responses.append(dict(response))
         return self.run
 
-    async def retry_or_fail(
-        self, run_id, error_code, *, attempt_count, max_attempts
-    ):
+    async def retry_or_fail(self, run_id, error_code, *, attempt_count, max_attempts):
         del run_id, attempt_count, max_attempts
         self.failures.append(error_code)
         return "queued"

@@ -544,9 +544,7 @@ def _decode_stored_arguments(action_type: str, arguments_json: str) -> ActionArg
         decoded = json.loads(arguments_json)
         model = _ARGUMENT_MODELS[action_type].model_validate(decoded)
     except (json.JSONDecodeError, ValidationError):
-        raise InvalidSuggestedActionError(
-            "Stored suggested action arguments are invalid"
-        ) from None
+        raise InvalidSuggestedActionError("Stored suggested action arguments are invalid") from None
     return cast(ActionArguments, model)
 
 

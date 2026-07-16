@@ -345,16 +345,12 @@ def test_migrated_legacy_event_receipt_is_duplicate_without_weakening_new_checks
 ) -> None:
     postgres_database.upgrade("0010_durable_action_execution")
     with psycopg.connect(postgres_database.database_url) as connection:
-        connection.execute(
-            "INSERT INTO lark_event_receipts (event_id) VALUES ('evt_legacy')"
-        )
+        connection.execute("INSERT INTO lark_event_receipts (event_id) VALUES ('evt_legacy')")
     postgres_database.upgrade("head")
 
     async def verify() -> None:
         engine = create_async_engine(
-            postgres_database.database_url.replace(
-                "postgresql://", "postgresql+asyncpg://", 1
-            )
+            postgres_database.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
         )
         try:
             store = SqlLarkEventStore(async_sessionmaker(engine, expire_on_commit=False))

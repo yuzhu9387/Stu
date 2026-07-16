@@ -64,17 +64,18 @@ async def test_live_event_lease_is_busy_so_provider_can_retry_after_a_crash(
     store = SqlLarkEventStore(session_factory)
     start = datetime(2026, 7, 15, tzinfo=UTC)
     assert isinstance(
-        await store.reserve(
-            "evt_crash", "a" * 64, now=start, lease_duration=timedelta(seconds=5)
-        ),
+        await store.reserve("evt_crash", "a" * 64, now=start, lease_duration=timedelta(seconds=5)),
         LarkEventLease,
     )
-    assert await store.reserve(
-        "evt_crash",
-        "a" * 64,
-        now=start + timedelta(seconds=4),
-        lease_duration=timedelta(seconds=5),
-    ) == "busy"
+    assert (
+        await store.reserve(
+            "evt_crash",
+            "a" * 64,
+            now=start + timedelta(seconds=4),
+            lease_duration=timedelta(seconds=5),
+        )
+        == "busy"
+    )
     assert isinstance(
         await store.reserve(
             "evt_crash",
@@ -102,9 +103,7 @@ async def test_delivery_lease_recovers_and_delivered_receipt_is_permanent(
     store = SqlLarkDeliveryStore(session_factory)
     start = datetime(2026, 7, 15, tzinfo=UTC)
 
-    first = await store.claim(
-        event_id, now=start, lease_duration=timedelta(seconds=5)
-    )
+    first = await store.claim(event_id, now=start, lease_duration=timedelta(seconds=5))
     assert first is not None and first.attempt_count == 1
     with pytest.raises(LarkDeliveryInProgressError):
         await store.claim(event_id, now=start + timedelta(seconds=4))
@@ -161,9 +160,7 @@ async def test_stale_identity_response_cannot_publish_before_fresh_acceptance(
     first = await store.reserve(
         "evt_identity", "a" * 64, now=start, lease_duration=timedelta(seconds=5)
     )
-    second = await store.reserve(
-        "evt_identity", "a" * 64, now=start + timedelta(seconds=6)
-    )
+    second = await store.reserve("evt_identity", "a" * 64, now=start + timedelta(seconds=6))
     assert isinstance(first, LarkEventLease)
     assert isinstance(second, LarkEventLease)
     assert not await store.accept_with_delivery(
@@ -237,9 +234,7 @@ async def test_live_final_delivery_attempt_cannot_be_terminal_failed_by_duplicat
     for attempt in range(1, DEFAULT_LARK_DELIVERY_MAX_ATTEMPTS):
         claimed = await store.claim(event_id, now=start + timedelta(seconds=attempt))
         assert claimed is not None
-        assert await store.mark_retry(
-            event_id, attempt_count=attempt, error_code="LarkAPIError"
-        )
+        assert await store.mark_retry(event_id, attempt_count=attempt, error_code="LarkAPIError")
     final = await store.claim(
         event_id,
         now=start + timedelta(seconds=10),

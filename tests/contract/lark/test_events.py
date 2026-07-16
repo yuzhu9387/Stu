@@ -32,12 +32,8 @@ def test_lark_v2_message_accepts_documented_transport_metadata() -> None:
     fixture = Path(__file__).parent / "fixtures" / "message_v2.json"
     payload = json.loads(fixture.read_text(encoding="utf-8"))
     payload["header"].update({"app_id": "cli_app", "tenant_key": "tenant"})
-    payload["event"]["sender"].update(
-        {"sender_type": "user", "tenant_key": "tenant"}
-    )
-    payload["event"]["message"].update(
-        {"create_time": "1720000000000", "chat_type": "p2p"}
-    )
+    payload["event"]["sender"].update({"sender_type": "user", "tenant_key": "tenant"})
+    payload["event"]["message"].update({"create_time": "1720000000000", "chat_type": "p2p"})
 
     event = LarkEventNormalizer().normalize(payload)
 

@@ -99,9 +99,7 @@ class RecordingDeliveryQueue:
         self.linking.append((chat_id, locale, event_id))
         return True
 
-    async def publish_linked(
-        self, chat_id: str, locale: Locale, event_id: str, **kwargs
-    ) -> bool:
+    async def publish_linked(self, chat_id: str, locale: Locale, event_id: str, **kwargs) -> bool:
         del kwargs
         self.linked.append((chat_id, locale, event_id))
         return True
@@ -289,12 +287,18 @@ async def test_callback_event_id_cannot_be_reused_with_another_token() -> None:
         actions=actions,
     )
 
-    assert await handler.handle(
-        _callback_payload(open_id="ou_clicker", token="first", event_id="evt_same")
-    ) == {}
-    assert await handler.handle(
-        _callback_payload(open_id="ou_clicker", token="second", event_id="evt_same")
-    ) == {}
+    assert (
+        await handler.handle(
+            _callback_payload(open_id="ou_clicker", token="first", event_id="evt_same")
+        )
+        == {}
+    )
+    assert (
+        await handler.handle(
+            _callback_payload(open_id="ou_clicker", token="second", event_id="evt_same")
+        )
+        == {}
+    )
 
     assert actions.calls == [("first", actor)]
 
@@ -374,9 +378,9 @@ async def test_unbound_callback_cannot_queue_an_action() -> None:
         actions=actions,
     )
 
-    assert await handler.handle(
-        _callback_payload(open_id="ou_unknown", token="private-token")
-    ) == {}
+    assert (
+        await handler.handle(_callback_payload(open_id="ou_unknown", token="private-token")) == {}
+    )
 
     assert actions.calls == []
 

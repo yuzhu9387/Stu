@@ -295,9 +295,7 @@ class AgentRunRepository:
             )
             if queued_id is None:
                 return "unchanged"
-            await self._outbox.add(
-                session, AGENT_RUN_REQUESTED_TOPIC, {"run_id": str(queued_id)}
-            )
+            await self._outbox.add(session, AGENT_RUN_REQUESTED_TOPIC, {"run_id": str(queued_id)})
             return "queued"
 
     async def recover_expired(
@@ -882,9 +880,7 @@ def _request_json(command: ConversationCommand) -> str:
 
 
 def _safe_response_json(response: Mapping[str, JsonValue]) -> str:
-    decoded = json.loads(
-        json.dumps(response, ensure_ascii=False, separators=(",", ":"))
-    )
+    decoded = json.loads(json.dumps(response, ensure_ascii=False, separators=(",", ":")))
     if isinstance(decoded, dict):
         actions = decoded.get("suggested_actions")
         if isinstance(actions, list):

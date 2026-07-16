@@ -130,9 +130,7 @@ async def add_lark_delivery_intent(
     dedupe_key: str,
 ) -> OutboxEvent:
     event = await outbox.add(session, topic, payload)
-    session.add(
-        LarkDeliveryReceipt(outbox_event_id=event.id, dedupe_key=dedupe_key)
-    )
+    session.add(LarkDeliveryReceipt(outbox_event_id=event.id, dedupe_key=dedupe_key))
     await session.flush()
     return event
 
@@ -176,23 +174,17 @@ class SqlLarkDeliveryStore:
                 .execution_options(synchronize_session=False)
             )
         if exhausted_id is not None:
-            raise LarkDeliveryAttemptsExhaustedError(
-                "Lark delivery attempts exhausted"
-            )
+            raise LarkDeliveryAttemptsExhaustedError("Lark delivery attempts exhausted")
         async with self._session_factory() as session, session.begin():
             receipt = await session.scalar(
-                select(LarkDeliveryReceipt).where(
-                    LarkDeliveryReceipt.outbox_event_id == event_id
-                )
+                select(LarkDeliveryReceipt).where(LarkDeliveryReceipt.outbox_event_id == event_id)
             )
             if receipt is None:
                 raise LookupError("Lark delivery receipt not found")
             if receipt.status == "delivered":
                 return None
             if receipt.status == "failed":
-                raise LarkDeliveryAttemptsExhaustedError(
-                    "Lark delivery attempts exhausted"
-                )
+                raise LarkDeliveryAttemptsExhaustedError("Lark delivery attempts exhausted")
             if (
                 receipt.status == "delivering"
                 and receipt.lease_expires_at is not None
@@ -274,9 +266,7 @@ class SqlLarkDeliveryStore:
                     LarkDeliveryReceipt.attempt_count == attempt_count,
                 )
                 .values(
-                    status=(
-                        "failed" if attempt_count >= max_attempts else "pending"
-                    ),
+                    status=("failed" if attempt_count >= max_attempts else "pending"),
                     lease_expires_at=None,
                     error_code=error_code,
                     updated_at=datetime.now(UTC),
@@ -286,9 +276,7 @@ class SqlLarkDeliveryStore:
             )
             return receipt_id is not None
 
-    async def recover_expired(
-        self, *, now: datetime, limit: int = 100
-    ) -> tuple[UUID, ...]:
+    async def recover_expired(self, *, now: datetime, limit: int = 100) -> tuple[UUID, ...]:
         """Return expired sends to pending so a worker can enqueue them again."""
 
         async with self._session_factory() as session, session.begin():
@@ -380,9 +368,9 @@ class SqlLarkEventStore:
                 raise LarkEventSubstitutionError("Lark event ID content mismatch")
             if receipt.processing_status == "accepted":
                 return "duplicate"
-            if receipt.lease_expires_at is not None and _as_utc(
-                receipt.lease_expires_at
-            ) > _as_utc(current_time):
+            if receipt.lease_expires_at is not None and _as_utc(receipt.lease_expires_at) > _as_utc(
+                current_time
+            ):
                 return "busy"
 
             attempt_count = await session.scalar(
@@ -405,9 +393,7 @@ class SqlLarkEventStore:
                 .execution_options(synchronize_session=False)
             )
             return (
-                LarkEventLease(attempt_count=attempt_count)
-                if attempt_count is not None
-                else "busy"
+                LarkEventLease(attempt_count=attempt_count) if attempt_count is not None else "busy"
             )
 
     async def accept(
@@ -490,6 +476,7 @@ class SqlLarkEventStore:
                 dedupe_key=dedupe_key,
             )
             return True
+
 
 def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:

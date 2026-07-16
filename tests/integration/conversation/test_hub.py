@@ -216,14 +216,18 @@ async def test_expired_run_lease_is_reclaimed_and_stale_attempt_cannot_complete(
 
     assert first is not None and first.attempt_count == 1
     assert second is not None and second.attempt_count == 2
-    assert await repository.retry_or_fail(
-        run.id,
-        "stale_failure",
-        attempt_count=first.attempt_count,
-    ) == "unchanged"
-    assert await repository.complete(
-        run.id, {"answer": "stale"}, attempt_count=first.attempt_count
-    ) is None
+    assert (
+        await repository.retry_or_fail(
+            run.id,
+            "stale_failure",
+            attempt_count=first.attempt_count,
+        )
+        == "unchanged"
+    )
+    assert (
+        await repository.complete(run.id, {"answer": "stale"}, attempt_count=first.attempt_count)
+        is None
+    )
     completed = await repository.complete(
         run.id, {"answer": "fresh"}, attempt_count=second.attempt_count
     )
@@ -248,9 +252,9 @@ async def test_expired_run_recovery_requeues_before_attempt_limit(
         )
     )
     start = datetime(2026, 7, 15, tzinfo=UTC)
-    assert await repository.claim(
-        run.id, now=start, lease_duration=timedelta(seconds=5)
-    ) is not None
+    assert (
+        await repository.claim(run.id, now=start, lease_duration=timedelta(seconds=5)) is not None
+    )
 
     assert await repository.recover_expired(now=start + timedelta(seconds=6)) == 1
     reclaimed = await repository.claim(

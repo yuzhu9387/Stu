@@ -33,9 +33,7 @@ def upgrade() -> None:
     with op.batch_alter_table("lark_event_receipts") as batch_op:
         batch_op.add_column(sa.Column("fingerprint_hash", sa.String(64), nullable=True))
         batch_op.add_column(
-            sa.Column(
-                "processing_status", sa.String(16), nullable=False, server_default="accepted"
-            )
+            sa.Column("processing_status", sa.String(16), nullable=False, server_default="accepted")
         )
         batch_op.add_column(
             sa.Column("attempt_count", sa.Integer(), nullable=False, server_default="1")
@@ -55,13 +53,9 @@ def upgrade() -> None:
         sa.column("fingerprint_hash", sa.String(64)),
         sa.column("outcome", sa.String(32)),
     )
-    op.get_bind().execute(
-        sa.update(receipts).values(fingerprint_hash="0" * 64, outcome="legacy")
-    )
+    op.get_bind().execute(sa.update(receipts).values(fingerprint_hash="0" * 64, outcome="legacy"))
     with op.batch_alter_table("lark_event_receipts") as batch_op:
-        batch_op.alter_column(
-            "fingerprint_hash", existing_type=sa.String(64), nullable=False
-        )
+        batch_op.alter_column("fingerprint_hash", existing_type=sa.String(64), nullable=False)
         batch_op.create_check_constraint(
             "ck_lark_event_processing_status",
             "processing_status IN ('processing', 'accepted')",
@@ -114,21 +108,23 @@ def upgrade() -> None:
         sa.column("status", sa.String(16)),
         sa.column("attempt_count", sa.Integer()),
     )
-    legacy_lark_events = tuple(op.get_bind().execute(
-        sa.select(outbox_events.c.id).where(outbox_events.c.topic.like("lark.%"))
-    ).scalars())
+    legacy_lark_events = tuple(
+        op.get_bind()
+        .execute(sa.select(outbox_events.c.id).where(outbox_events.c.topic.like("lark.%")))
+        .scalars()
+    )
     if legacy_lark_events:
         op.get_bind().execute(
             sa.insert(delivery_receipts),
             [
-            {
-                "id": uuid4(),
-                "outbox_event_id": event_id,
-                "dedupe_key": f"legacy-outbox:{event_id}",
-                "status": "pending",
-                "attempt_count": 0,
-            }
-            for event_id in legacy_lark_events
+                {
+                    "id": uuid4(),
+                    "outbox_event_id": event_id,
+                    "dedupe_key": f"legacy-outbox:{event_id}",
+                    "status": "pending",
+                    "attempt_count": 0,
+                }
+                for event_id in legacy_lark_events
             ],
         )
         op.get_bind().execute(

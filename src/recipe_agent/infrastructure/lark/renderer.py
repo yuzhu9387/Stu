@@ -96,7 +96,5 @@ class LarkCardRenderer:
     def _single_text(content: str) -> dict[str, JsonValue]:
         return {
             "config": {"wide_screen_mode": True},
-            "elements": [
-                {"tag": "div", "text": {"tag": "plain_text", "content": content}}
-            ],
+            "elements": [{"tag": "div", "text": {"tag": "plain_text", "content": content}}],
         }

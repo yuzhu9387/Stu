@@ -154,9 +154,7 @@ async def test_unbound_lark_event_commits_one_linking_delivery_intent(
         events = tuple(
             (
                 await session.scalars(
-                    select(OutboxEvent).where(
-                        OutboxEvent.topic == LARK_LINKING_INSTRUCTIONS_TOPIC
-                    )
+                    select(OutboxEvent).where(OutboxEvent.topic == LARK_LINKING_INSTRUCTIONS_TOPIC)
                 )
             ).all()
         )
@@ -211,16 +209,19 @@ async def test_completing_lark_run_commits_delivery_intent_with_response(
         actor=HouseholdScope(authenticated.account.id, authenticated.household.id),
         source_run_id=run_id,
     )
-    assert await repository.complete(
-        run_id,
-        {
-            "thinking": "I understood your request.",
-            "plan": "I checked your recipes.",
-            "act": "I compared eligible options.",
-            "answer": "Try tomato soup.",
-            "suggested_actions": [issued.model_dump(mode="json")],
-        },
-    ) is not None
+    assert (
+        await repository.complete(
+            run_id,
+            {
+                "thinking": "I understood your request.",
+                "plan": "I checked your recipes.",
+                "act": "I compared eligible options.",
+                "answer": "Try tomato soup.",
+                "suggested_actions": [issued.model_dump(mode="json")],
+            },
+        )
+        is not None
+    )
 
     async with session_factory() as session:
         events = tuple(
@@ -320,9 +321,7 @@ async def test_documented_callback_route_queues_real_suggested_action_once(
         action = await session.get(SuggestedActionRecord, issued.id)
         queued_events = tuple(
             await session.scalars(
-                select(OutboxEvent).where(
-                    OutboxEvent.topic == ACTION_EXECUTION_REQUESTED_TOPIC
-                )
+                select(OutboxEvent).where(OutboxEvent.topic == ACTION_EXECUTION_REQUESTED_TOPIC)
             )
         )
     assert action is not None and action.execution_status == "queued"

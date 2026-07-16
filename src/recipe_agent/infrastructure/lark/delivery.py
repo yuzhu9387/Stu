@@ -154,6 +154,7 @@ class SqlLarkDeliveryQueue:
             dedupe_key=f"event:{event_id}:identity_response",
         )
 
+
 class LarkDeliveryService:
     """Load a durable outbox intent and perform one idempotent Lark send."""
 
@@ -198,9 +199,7 @@ class LarkDeliveryService:
                 error_code=type(error).__name__,
             )
             raise
-        await self._deliveries.mark_delivered(
-            event_id, attempt_count=claimed.attempt_count
-        )
+        await self._deliveries.mark_delivered(event_id, attempt_count=claimed.attempt_count)
 
     async def _deliver_run(self, event_id: UUID, payload: object) -> None:
         run_id = UUID(_required_string(payload, "run_id"))

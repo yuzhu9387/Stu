@@ -7,6 +7,7 @@ from sqlalchemy import engine_from_config, pool
 
 from recipe_agent.config import get_settings
 from recipe_agent.domain.identity import models as identity_models  # noqa: F401
+from recipe_agent.domain.planning import models as planning_models  # noqa: F401
 from recipe_agent.domain.recipes import models as recipe_models  # noqa: F401
 from recipe_agent.infrastructure.db.base import Base
 from recipe_agent.infrastructure.lark import events as lark_events  # noqa: F401

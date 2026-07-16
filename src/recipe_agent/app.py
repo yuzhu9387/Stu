@@ -6,6 +6,7 @@ from fastapi.responses import PlainTextResponse
 from recipe_agent.api.lark import router as lark_router
 from recipe_agent.api.security import RequestSecurityMiddleware
 from recipe_agent.api.session import SessionScopeMiddleware
+from recipe_agent.api.v1.actions import router as actions_router
 from recipe_agent.api.v1.agent import router as agent_router
 from recipe_agent.api.v1.auth import router as auth_router
 from recipe_agent.api.v1.families import router as families_router
@@ -46,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SessionScopeMiddleware, identity=identity_service)
     app.include_router(auth_router)
     app.include_router(agent_router)
+    app.include_router(actions_router)
     app.include_router(families_router)
     app.include_router(feedback_router)
     app.include_router(feature_reads_router)

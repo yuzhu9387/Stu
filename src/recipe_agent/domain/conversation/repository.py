@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast, overload
 from uuid import UUID
@@ -16,10 +17,34 @@ from recipe_agent.domain.conversation.contracts import (
     ConversationCommand,
     RunStatus,
 )
-from recipe_agent.domain.identity.models import AgentRun, Conversation, ConversationMessage
+from recipe_agent.domain.identity.models import (
+    AgentRun,
+    Conversation,
+    ConversationMessage,
+    SuggestedActionRecord,
+)
 from recipe_agent.infrastructure.db.outbox import OutboxRepository
 
 AGENT_RUN_REQUESTED_TOPIC = "agent.run.requested"
+
+
+class SuggestedActionRunNotFoundError(LookupError):
+    """The source run does not belong to the issuing scope."""
+
+
+class SuggestedActionAlreadyClaimedError(RuntimeError):
+    """The persisted action has already left its pending state."""
+
+
+class SuggestedActionInvalidRecordError(ValueError):
+    """The token claims do not match a live persisted action."""
+
+
+@dataclass(frozen=True)
+class ClaimedSuggestedAction:
+    id: UUID
+    action_type: str
+    arguments_json: str
 
 
 class ConversationNotFoundError(LookupError):
@@ -228,6 +253,147 @@ class AgentRunRepository:
         session.add(conversation)
         await session.flush()
         return conversation
+
+
+class SuggestedActionRepository:
+    """Persist and atomically claim signed suggested-action intents."""
+
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        self._session_factory = session_factory
+
+    async def create(
+        self,
+        *,
+        action_id: UUID,
+        token_hash: str,
+        source_run_id: UUID,
+        account_id: UUID,
+        household_id: UUID,
+        action_type: str,
+        arguments_json: str,
+        expires_at: datetime,
+    ) -> None:
+        async with self._session_factory() as session, session.begin():
+            source_run = await session.scalar(
+                select(AgentRun.id).where(
+                    AgentRun.id == source_run_id,
+                    AgentRun.account_id == account_id,
+                    AgentRun.household_id == household_id,
+                )
+            )
+            if source_run is None:
+                raise SuggestedActionRunNotFoundError("Source run not found")
+            session.add(
+                SuggestedActionRecord(
+                    id=action_id,
+                    token_hash=token_hash,
+                    run_id=source_run_id,
+                    account_id=account_id,
+                    household_id=household_id,
+                    action_type=action_type,
+                    arguments_json=arguments_json,
+                    expires_at=expires_at,
+                    execution_status="pending",
+                )
+            )
+
+    async def claim_once(
+        self,
+        *,
+        token_hash: str,
+        action_id: UUID,
+        source_run_id: UUID,
+        account_id: UUID,
+        household_id: UUID,
+        action_type: str,
+        now: datetime,
+    ) -> ClaimedSuggestedAction:
+        async with self._session_factory() as session, session.begin():
+            record = await session.scalar(
+                update(SuggestedActionRecord)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.token_hash == token_hash,
+                    SuggestedActionRecord.run_id == source_run_id,
+                    SuggestedActionRecord.account_id == account_id,
+                    SuggestedActionRecord.household_id == household_id,
+                    SuggestedActionRecord.action_type == action_type,
+                    SuggestedActionRecord.consumed_at.is_(None),
+                    SuggestedActionRecord.execution_status == "pending",
+                    SuggestedActionRecord.expires_at > now,
+                )
+                .values(
+                    consumed_at=now,
+                    consumed_by_account_id=account_id,
+                    execution_status="executing",
+                )
+                .returning(SuggestedActionRecord)
+                .execution_options(synchronize_session=False)
+            )
+            if record is not None:
+                return ClaimedSuggestedAction(
+                    id=record.id,
+                    action_type=record.action_type,
+                    arguments_json=record.arguments_json,
+                )
+            existing = await session.scalar(
+                select(SuggestedActionRecord).where(SuggestedActionRecord.token_hash == token_hash)
+            )
+            if existing is None:
+                raise SuggestedActionInvalidRecordError("Suggested action is invalid")
+            if existing.consumed_at is not None or existing.execution_status != "pending":
+                raise SuggestedActionAlreadyClaimedError("Suggested action was already consumed")
+            if _as_utc(existing.expires_at) <= now:
+                raise SuggestedActionInvalidRecordError("Suggested action is expired")
+            raise SuggestedActionInvalidRecordError("Suggested action claims do not match")
+
+    async def complete(
+        self,
+        action_id: UUID,
+        actor_account_id: UUID,
+        result_json: str,
+    ) -> bool:
+        async with self._session_factory() as session, session.begin():
+            completed_id = await session.scalar(
+                update(SuggestedActionRecord)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.consumed_by_account_id == actor_account_id,
+                    SuggestedActionRecord.execution_status == "executing",
+                )
+                .values(
+                    execution_status="succeeded",
+                    result_json=result_json,
+                    error_code=None,
+                )
+                .returning(SuggestedActionRecord.id)
+                .execution_options(synchronize_session=False)
+            )
+            return completed_id is not None
+
+    async def fail(
+        self,
+        action_id: UUID,
+        actor_account_id: UUID,
+        error_code: str,
+    ) -> bool:
+        async with self._session_factory() as session, session.begin():
+            failed_id = await session.scalar(
+                update(SuggestedActionRecord)
+                .where(
+                    SuggestedActionRecord.id == action_id,
+                    SuggestedActionRecord.consumed_by_account_id == actor_account_id,
+                    SuggestedActionRecord.execution_status == "executing",
+                )
+                .values(
+                    execution_status="failed",
+                    result_json=None,
+                    error_code=error_code,
+                )
+                .returning(SuggestedActionRecord.id)
+                .execution_options(synchronize_session=False)
+            )
+            return failed_id is not None
 
 
 def _request_json(command: ConversationCommand) -> str:

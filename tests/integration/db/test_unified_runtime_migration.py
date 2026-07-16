@@ -378,6 +378,7 @@ def test_suggested_actions_enforce_schema_and_allow_unconsumed_rows(
         "arguments_json",
         "expires_at",
         "created_at",
+        "execution_status",
     }
 
     with pytest.raises(psycopg.errors.UniqueViolation):
@@ -520,3 +521,30 @@ def test_live_read_migration_preserves_legacy_shares_and_adds_preferences(
         )
         is None
     )
+
+
+def test_action_execution_audit_migration_upgrades_and_downgrades(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0008_live_read_models")
+
+    postgres_database.upgrade("head")
+
+    columns = postgres_database.fetch_one(
+        """
+        SELECT string_agg(column_name, ',' ORDER BY column_name)
+        FROM information_schema.columns
+        WHERE table_name = 'suggested_actions'
+          AND column_name IN ('execution_status', 'result_json', 'error_code')
+        """
+    )
+    assert columns == ("error_code,execution_status,result_json",)
+
+    postgres_database.downgrade("0008_live_read_models")
+    assert postgres_database.fetch_one(
+        """
+        SELECT count(*) FROM information_schema.columns
+        WHERE table_name = 'suggested_actions'
+          AND column_name IN ('execution_status', 'result_json', 'error_code')
+        """
+    ) == (0,)

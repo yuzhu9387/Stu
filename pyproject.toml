@@ -36,9 +36,12 @@ dev = [
 packages = ["src/recipe_agent"]
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-config --strict-markers"
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+filterwarnings = [
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
 
 [tool.ruff]
 target-version = "py312"

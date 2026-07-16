@@ -104,6 +104,7 @@ def upgrade() -> None:
         "outbox_events",
         sa.column("id", sa.Uuid()),
         sa.column("topic", sa.String(160)),
+        sa.column("published_at", sa.DateTime(timezone=True)),
     )
     delivery_receipts = sa.table(
         "lark_delivery_receipts",
@@ -129,6 +130,11 @@ def upgrade() -> None:
             }
             for event_id in legacy_lark_events
             ],
+        )
+        op.get_bind().execute(
+            sa.update(outbox_events)
+            .where(outbox_events.c.id.in_(legacy_lark_events))
+            .values(published_at=None)
         )
 
 

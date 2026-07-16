@@ -8,6 +8,7 @@ import psycopg
 import pytest
 import pytest_asyncio
 from psycopg import sql
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -15,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from recipe_agent.infrastructure.db.base import Base
-from recipe_agent.infrastructure.db.outbox import OutboxRepository
+from recipe_agent.infrastructure.db.outbox import OutboxEvent, OutboxRepository
 from recipe_agent.infrastructure.lark.events import (
     DEFAULT_LARK_DELIVERY_MAX_ATTEMPTS,
     LarkDeliveryAttemptsExhaustedError,
@@ -149,6 +150,45 @@ async def test_stale_event_attempt_cannot_finalize_after_lease_takeover(
         attempt_count=second.attempt_count,
         now=start + timedelta(seconds=7),
     )
+
+
+@pytest.mark.asyncio
+async def test_stale_identity_response_cannot_publish_before_fresh_acceptance(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    store = SqlLarkEventStore(session_factory)
+    start = datetime(2026, 7, 15, tzinfo=UTC)
+    first = await store.reserve(
+        "evt_identity", "a" * 64, now=start, lease_duration=timedelta(seconds=5)
+    )
+    second = await store.reserve(
+        "evt_identity", "a" * 64, now=start + timedelta(seconds=6)
+    )
+    assert isinstance(first, LarkEventLease)
+    assert isinstance(second, LarkEventLease)
+    assert not await store.accept_with_delivery(
+        "evt_identity",
+        "a" * 64,
+        "stale",
+        attempt_count=first.attempt_count,
+        topic="lark.stale",
+        payload={"chat_id": "oc_test"},
+        dedupe_key="event:evt_identity:identity_response",
+        now=start + timedelta(seconds=7),
+    )
+    assert await store.accept_with_delivery(
+        "evt_identity",
+        "a" * 64,
+        "fresh",
+        attempt_count=second.attempt_count,
+        topic="lark.fresh",
+        payload={"chat_id": "oc_test"},
+        dedupe_key="event:evt_identity:identity_response",
+        now=start + timedelta(seconds=7),
+    )
+    async with session_factory() as session:
+        topics = tuple(await session.scalars(select(OutboxEvent.topic)))
+    assert topics == ("lark.fresh",)
 
 
 @pytest.mark.asyncio

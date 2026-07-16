@@ -7,7 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from recipe_agent.domain.conversation.actions import IssuedSuggestedAction
@@ -16,10 +15,9 @@ from recipe_agent.domain.conversation.responses import FinalAgentResponse
 from recipe_agent.domain.identity.locale import Locale
 from recipe_agent.domain.identity.models import AgentRun
 from recipe_agent.domain.identity.service import HouseholdScope
-from recipe_agent.infrastructure.db.outbox import OutboxRepository
 from recipe_agent.infrastructure.lark.events import (
     SqlLarkDeliveryStore,
-    add_lark_delivery_intent,
+    SqlLarkEventStore,
 )
 
 LARK_LINKING_INSTRUCTIONS_TOPIC = "lark.linking_instructions.requested"
@@ -114,16 +112,23 @@ class SqlLarkDeliveryQueue:
     """Queue unlinked guidance once in the event-receipt transaction."""
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
-        self._session_factory = session_factory
-        self._outbox = OutboxRepository()
+        self._events = SqlLarkEventStore(session_factory)
 
     async def publish_linking_instructions(
         self,
         chat_id: str,
         locale: Locale,
         event_id: str,
+        *,
+        fingerprint_hash: str,
+        attempt_count: int,
+        outcome: str,
     ) -> bool:
-        return await self._publish_once(
+        return await self._events.accept_with_delivery(
+            event_id,
+            fingerprint_hash,
+            outcome,
+            attempt_count=attempt_count,
             topic=LARK_LINKING_INSTRUCTIONS_TOPIC,
             payload={"chat_id": chat_id, "locale": locale.value, "source_event_id": event_id},
             dedupe_key=f"event:{event_id}:identity_response",
@@ -134,30 +139,20 @@ class SqlLarkDeliveryQueue:
         chat_id: str,
         locale: Locale,
         event_id: str,
+        *,
+        fingerprint_hash: str,
+        attempt_count: int,
+        outcome: str,
     ) -> bool:
-        return await self._publish_once(
+        return await self._events.accept_with_delivery(
+            event_id,
+            fingerprint_hash,
+            outcome,
+            attempt_count=attempt_count,
             topic=LARK_LINKED_TOPIC,
             payload={"chat_id": chat_id, "locale": locale.value, "source_event_id": event_id},
             dedupe_key=f"event:{event_id}:identity_response",
         )
-
-    async def _publish_once(
-        self, *, topic: str, payload: dict[str, str], dedupe_key: str
-    ) -> bool:
-        async with self._session_factory() as session, session.begin():
-            try:
-                async with session.begin_nested():
-                    await add_lark_delivery_intent(
-                        session,
-                        self._outbox,
-                        topic=topic,
-                        payload=payload,
-                        dedupe_key=dedupe_key,
-                    )
-            except IntegrityError:
-                return False
-            return True
-
 
 class LarkDeliveryService:
     """Load a durable outbox intent and perform one idempotent Lark send."""

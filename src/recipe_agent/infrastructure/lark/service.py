@@ -43,6 +43,10 @@ class LarkDeliveryQueue(Protocol):
         chat_id: str,
         locale: Locale,
         event_id: str,
+        *,
+        fingerprint_hash: str,
+        attempt_count: int,
+        outcome: str,
     ) -> bool: ...
 
     async def publish_linked(
@@ -50,6 +54,10 @@ class LarkDeliveryQueue(Protocol):
         chat_id: str,
         locale: Locale,
         event_id: str,
+        *,
+        fingerprint_hash: str,
+        attempt_count: int,
+        outcome: str,
     ) -> bool: ...
 
 
@@ -122,24 +130,18 @@ class LarkInboundService:
                         event.chat_id,
                         event.locale,
                         event.event_id,
-                    )
-                    await self._event_store.accept(
-                        event.event_id,
-                        fingerprint_hash,
-                        "link_rejected",
+                        fingerprint_hash=fingerprint_hash,
                         attempt_count=attempt_count,
+                        outcome="link_rejected",
                     )
                     return
             await self._delivery_queue.publish_linked(
                 event.chat_id,
                 event.locale,
                 event.event_id,
-            )
-            await self._event_store.accept(
-                event.event_id,
-                fingerprint_hash,
-                "identity_linked",
+                fingerprint_hash=fingerprint_hash,
                 attempt_count=attempt_count,
+                outcome="identity_linked",
             )
             return
         if scope is None:
@@ -147,12 +149,9 @@ class LarkInboundService:
                 event.chat_id,
                 event.locale,
                 event.event_id,
-            )
-            await self._event_store.accept(
-                event.event_id,
-                fingerprint_hash,
-                "linking_instructions_queued",
+                fingerprint_hash=fingerprint_hash,
                 attempt_count=attempt_count,
+                outcome="linking_instructions_queued",
             )
             return
         await self._hub.submit_message(event.to_command(scope))

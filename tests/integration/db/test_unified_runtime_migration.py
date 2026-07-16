@@ -1,3 +1,4 @@
+import asyncio
 import os
 from collections.abc import Callable, Iterator, Mapping
 from datetime import UTC, datetime, timedelta
@@ -10,8 +11,14 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from psycopg import sql
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from recipe_agent.config import get_settings
+from recipe_agent.infrastructure.lark.events import (
+    LarkEventLease,
+    LarkEventSubstitutionError,
+    SqlLarkEventStore,
+)
 
 PROJECT_ROOT = Path(__file__).parents[3]
 POSTGRES_PORT = 55432
@@ -298,8 +305,9 @@ def test_lark_recovery_migration_backfills_live_runs_and_existing_outbox(
         )
         connection.execute(
             """
-            INSERT INTO outbox_events (id, topic, payload_json)
-            VALUES (%s, 'lark.run.completed', '{}'), (%s, 'agent.run.requested', '{}')
+            INSERT INTO outbox_events (id, topic, payload_json, published_at)
+            VALUES (%s, 'lark.run.completed', '{}', NOW()),
+                   (%s, 'agent.run.requested', '{}', NOW())
             """,
             (lark_event_id, other_event_id),
         )
@@ -319,8 +327,52 @@ def test_lark_recovery_migration_backfills_live_runs_and_existing_outbox(
         FROM lark_delivery_receipts
         """
     )
+    publication_state = postgres_database.fetch_one(
+        """
+        SELECT
+            (SELECT published_at IS NULL FROM outbox_events WHERE id = %(lark_id)s),
+            (SELECT published_at IS NOT NULL FROM outbox_events WHERE id = %(other_id)s)
+        """,
+        {"lark_id": lark_event_id, "other_id": other_event_id},
+    )
     assert run_recovery == (0, True)
     assert receipt == (lark_event_id, "pending", 0)
+    assert publication_state == (True, True)
+
+
+def test_migrated_legacy_event_receipt_is_duplicate_without_weakening_new_checks(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0010_durable_action_execution")
+    with psycopg.connect(postgres_database.database_url) as connection:
+        connection.execute(
+            "INSERT INTO lark_event_receipts (event_id) VALUES ('evt_legacy')"
+        )
+    postgres_database.upgrade("head")
+
+    async def verify() -> None:
+        engine = create_async_engine(
+            postgres_database.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+        )
+        try:
+            store = SqlLarkEventStore(async_sessionmaker(engine, expire_on_commit=False))
+            assert await store.reserve("evt_legacy", "a" * 64) == "duplicate"
+            lease = await store.reserve("evt_new", "b" * 64)
+            assert isinstance(lease, LarkEventLease)
+            assert await store.accept(
+                "evt_new",
+                "b" * 64,
+                "new",
+                attempt_count=lease.attempt_count,
+            )
+            with pytest.raises(LarkEventSubstitutionError):
+                await store.reserve("evt_new", "c" * 64)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(verify())
 
 
 def test_downgrade_preserves_legacy_records(postgres_database: PostgresDatabase) -> None:

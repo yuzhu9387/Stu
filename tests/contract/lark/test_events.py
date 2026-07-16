@@ -89,7 +89,8 @@ class StaticIdentity:
 
 
 class UnusedDelivery:
-    async def publish_linking_instructions(self, chat_id, locale, event_id):
+    async def publish_linking_instructions(self, chat_id, locale, event_id, **kwargs):
+        del kwargs
         raise AssertionError("bound sender must not queue linking guidance")
 
 

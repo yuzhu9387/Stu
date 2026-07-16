@@ -334,6 +334,7 @@ class SqlLarkEventStore:
         session_factory: async_sessionmaker[AsyncSession],
     ) -> None:
         self._session_factory = session_factory
+        self._outbox = OutboxRepository()
 
     async def reserve(
         self,
@@ -369,6 +370,12 @@ class SqlLarkEventStore:
             )
             if receipt is None:
                 return "busy"
+            if (
+                receipt.processing_status == "accepted"
+                and receipt.fingerprint_hash == "0" * 64
+                and receipt.outcome == "legacy"
+            ):
+                return "duplicate"
             if receipt.fingerprint_hash != fingerprint_hash:
                 raise LarkEventSubstitutionError("Lark event ID content mismatch")
             if receipt.processing_status == "accepted":
@@ -439,6 +446,50 @@ class SqlLarkEventStore:
                 .execution_options(synchronize_session=False)
             )
             return accepted_id is not None
+
+    async def accept_with_delivery(
+        self,
+        event_id: str,
+        fingerprint_hash: str,
+        outcome: str,
+        *,
+        attempt_count: int,
+        topic: str,
+        payload: Mapping[str, Any],
+        dedupe_key: str,
+        now: datetime | None = None,
+    ) -> bool:
+        """Fence receipt acceptance and its identity-response intent atomically."""
+
+        current_time = now or datetime.now(UTC)
+        async with self._session_factory() as session, session.begin():
+            accepted_id = await session.scalar(
+                update(LarkEventReceipt)
+                .where(
+                    LarkEventReceipt.event_id == event_id,
+                    LarkEventReceipt.fingerprint_hash == fingerprint_hash,
+                    LarkEventReceipt.processing_status == "processing",
+                    LarkEventReceipt.attempt_count == attempt_count,
+                )
+                .values(
+                    processing_status="accepted",
+                    outcome=outcome,
+                    lease_expires_at=None,
+                    updated_at=current_time,
+                )
+                .returning(LarkEventReceipt.event_id)
+                .execution_options(synchronize_session=False)
+            )
+            if accepted_id is None:
+                return False
+            await add_lark_delivery_intent(
+                session,
+                self._outbox,
+                topic=topic,
+                payload=payload,
+                dedupe_key=dedupe_key,
+            )
+            return True
 
 def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:

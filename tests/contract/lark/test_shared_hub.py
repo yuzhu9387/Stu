@@ -93,12 +93,16 @@ class RecordingDeliveryQueue:
         self.linked: list[tuple[str, Locale, str]] = []
 
     async def publish_linking_instructions(
-        self, chat_id: str, locale: Locale, event_id: str
+        self, chat_id: str, locale: Locale, event_id: str, **kwargs
     ) -> bool:
+        del kwargs
         self.linking.append((chat_id, locale, event_id))
         return True
 
-    async def publish_linked(self, chat_id: str, locale: Locale, event_id: str) -> bool:
+    async def publish_linked(
+        self, chat_id: str, locale: Locale, event_id: str, **kwargs
+    ) -> bool:
+        del kwargs
         self.linked.append((chat_id, locale, event_id))
         return True
 

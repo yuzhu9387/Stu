@@ -20,7 +20,8 @@ action service.
   reuse of an event ID with different content is rejected. A live busy lease returns a retryable
   response instead of acknowledging work that could be lost after a crash.
 - Queues unbound-user guidance through durable event and delivery receipts plus the transactional
-  outbox, and performs no outbound Lark call on the webhook request path.
+  outbox, and performs no outbound Lark call on the webhook request path. Receipt acceptance and
+  its identity-response delivery intent commit atomically under the same attempt fence.
 - Supports one-time account binding through `link CODE` / `绑定 CODE`; linking never creates or
   merges accounts, and the code is never submitted as a conversation message.
 - Adds callback normalization that accepts real Lark envelope metadata but strictly allows only
@@ -70,11 +71,11 @@ The feature tests were written and observed failing before the corresponding imp
 ## Verification
 
 - Focused Lark/worker tests: all pass.
-- Full local backend suite: `218 passed, 11 skipped` (skips require external database environment
+- Full local backend suite: `220 passed, 11 skipped` (skips require external database environment
   when the suite is run without its variables).
 - PostgreSQL-backed event, run, delivery, conversation, and suggested-action concurrency/security
-  tests: `27 passed` against the local test PostgreSQL service.
-- PostgreSQL migration verification: `10 passed` (23 existing Alembic deprecation warnings).
+  tests: `28 passed` against the local test PostgreSQL service.
+- PostgreSQL migration verification: `11 passed` (25 existing Alembic deprecation warnings).
 - Ruff: all source and test checks pass.
 - mypy strict: success across 100 source files.
 - `git diff --check`: clean.
@@ -100,5 +101,7 @@ The feature tests were written and observed failing before the corresponding imp
 - Migration `0011_lark_runtime_recovery` adds agent-run attempts/leases, event fingerprints and
   processing leases/outcomes, and durable Lark delivery receipts with attempts and send leases.
   It also makes pre-existing running jobs immediately recoverable and backfills receipts for
-  pre-existing `lark.*` outbox events.
+  pre-existing `lark.*` outbox events, resetting their publication marker so workers enqueue them.
+  Legacy accepted event receipts use a migration-only sentinel that remains duplicate-safe without
+  weakening substitution detection for newly received events.
 - `web/next-env.d.ts` was not edited or staged.

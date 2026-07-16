@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     metrics_token: str = "development-only-metrics-token"
     max_request_bytes: int = 2 * 1024 * 1024
     max_upload_bytes: int = 10 * 1024 * 1024
+    litellm_chat_model: str = Field(default="openai/gpt-5.1", min_length=1)
+    litellm_fallback_model: str = Field(default="openai/gpt-5-mini", min_length=1)
+    litellm_reasoning_effort: Literal["low", "medium", "high"] = "high"
+    litellm_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
+    litellm_max_retries: int = Field(default=2, ge=0, le=5)
+    react_max_iterations: int = Field(default=5, ge=1, le=5)
 
     @model_validator(mode="after")
     def reject_development_secret_in_production(self) -> Self:

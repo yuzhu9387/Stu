@@ -40,12 +40,14 @@ class _EmbeddingResponse(BaseModel):
 class LiteLLMCompletion:
     """Normalize LiteLLM's OpenAI-compatible response into JSON text."""
 
-    def __init__(self, acompletion: ACompletion | None = None) -> None:
-        if acompletion is None:
-            from litellm import acompletion as default_acompletion
-
-            acompletion = cast(ACompletion, default_acompletion)
+    def __init__(
+        self,
+        acompletion: ACompletion | None = None,
+        *,
+        api_key: str | None = None,
+    ) -> None:
         self._acompletion = acompletion
+        self._api_key = api_key
 
     async def __call__(
         self,
@@ -62,14 +64,23 @@ class LiteLLMCompletion:
                 f"{prompt}\nRepair the prior response to satisfy the schema. "
                 f"Validation error: {validation_error}"
             )
-        response = await self._acompletion(
-            model=model,
-            messages=[{"role": "user", "content": instructions}],
-            response_format={
+        completion = self._acompletion
+        if completion is None:
+            from litellm import acompletion as default_acompletion
+
+            completion = cast(ACompletion, default_acompletion)
+            self._acompletion = completion
+        options: dict[str, object] = {
+            "model": model,
+            "messages": [{"role": "user", "content": instructions}],
+            "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "structured_result", "schema": dict(schema)},
             },
-        )
+        }
+        if self._api_key is not None:
+            options["api_key"] = self._api_key
+        response = await completion(**options)
         if isinstance(response, BaseModel):
             raw_response: object = response.model_dump()
         elif hasattr(response, "model_dump"):

@@ -89,6 +89,7 @@ class LiteLLMReactModel:
         timeout_seconds: float,
         max_retries: int,
         tool_definitions: Sequence[ReadOnlyToolDefinition],
+        api_key: str | None = None,
         acompletion: ACompletion | None = None,
     ) -> None:
         if not model or not fallback_model:
@@ -97,16 +98,13 @@ class LiteLLMReactModel:
             raise ValueError("timeout_seconds must be positive")
         if not 0 <= max_retries <= 5:
             raise ValueError("max_retries must be between 0 and 5")
-        if acompletion is None:
-            from litellm import acompletion as default_acompletion
-
-            acompletion = cast(ACompletion, default_acompletion)
         self._model = model
         self._fallback_model = fallback_model
         self._reasoning_effort = reasoning_effort
         self._timeout_seconds = timeout_seconds
         self._max_retries = max_retries
         self._tool_definitions = tuple(tool_definitions)
+        self._api_key = api_key
         for definition in self._tool_definitions:
             if definition.parameters.get("type") != "object":
                 raise ValueError(f"Tool {definition.name} must use a strict object schema")
@@ -215,17 +213,28 @@ class LiteLLMReactModel:
                 "schema": FinalAgentResponse.model_json_schema(),
             },
         }
+        completion = self._acompletion
+        if completion is None:
+            from litellm import acompletion as default_acompletion
+
+            completion = cast(ACompletion, default_acompletion)
+            self._acompletion = completion
         try:
-            return await self._acompletion(
-                model=model,
-                messages=messages,
-                reasoning_effort=self._reasoning_effort,
-                timeout=self._timeout_seconds,
-                max_retries=self._max_retries,
-                tools=tools,
-                tool_choice=tool_choice,
-                parallel_tool_calls=False,
-                response_format=response_format,
+            provider_options = {
+                "model": model,
+                "messages": messages,
+                "reasoning_effort": self._reasoning_effort,
+                "timeout": self._timeout_seconds,
+                "max_retries": self._max_retries,
+                "tools": tools,
+                "tool_choice": tool_choice,
+                "parallel_tool_calls": False,
+                "response_format": response_format,
+            }
+            if self._api_key is not None:
+                provider_options["api_key"] = self._api_key
+            return await completion(
+                **provider_options,
             )
         except Exception as error:
             raise ReactModelProviderError(

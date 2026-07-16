@@ -148,7 +148,8 @@ class ReactModel(Protocol):
 
 
 class ReadOnlyToolRegistry(Protocol):
-    definitions: Sequence[ReadOnlyToolDefinition]
+    @property
+    def definitions(self) -> Sequence[ReadOnlyToolDefinition]: ...
 
     async def execute(
         self,

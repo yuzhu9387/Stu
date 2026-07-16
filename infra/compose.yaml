@@ -11,6 +11,7 @@ services:
       RECIPE_AGENT_ENVIRONMENT: development
       RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
       RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+      RECIPE_AGENT_ACTION_SIGNING_KEY: development-only-action-key
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,6 +26,14 @@ services:
       RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
       RECIPE_AGENT_REDIS_URL: redis://redis:6379/0
       RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+      RECIPE_AGENT_ACTION_SIGNING_KEY: development-only-action-key
+      RECIPE_AGENT_WEB_ORIGIN: http://localhost:3000
+      RECIPE_AGENT_LARK_ENABLED: ${RECIPE_AGENT_LARK_ENABLED:-false}
+      RECIPE_AGENT_LARK_APP_ID: ${RECIPE_AGENT_LARK_APP_ID:-}
+      RECIPE_AGENT_LARK_APP_SECRET: ${RECIPE_AGENT_LARK_APP_SECRET:-}
+      RECIPE_AGENT_LARK_VERIFICATION_TOKEN: ${RECIPE_AGENT_LARK_VERIFICATION_TOKEN:-}
+      RECIPE_AGENT_LARK_ENCRYPT_KEY: ${RECIPE_AGENT_LARK_ENCRYPT_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -54,9 +63,50 @@ services:
       RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
       RECIPE_AGENT_REDIS_URL: redis://redis:6379/0
       RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+      RECIPE_AGENT_ACTION_SIGNING_KEY: development-only-action-key
+      RECIPE_AGENT_LARK_ENABLED: ${RECIPE_AGENT_LARK_ENABLED:-false}
+      RECIPE_AGENT_LARK_APP_ID: ${RECIPE_AGENT_LARK_APP_ID:-}
+      RECIPE_AGENT_LARK_APP_SECRET: ${RECIPE_AGENT_LARK_APP_SECRET:-}
+      RECIPE_AGENT_LARK_VERIFICATION_TOKEN: ${RECIPE_AGENT_LARK_VERIFICATION_TOKEN:-}
+      RECIPE_AGENT_LARK_ENCRYPT_KEY: ${RECIPE_AGENT_LARK_ENCRYPT_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    command:
+      [
+        "celery",
+        "-A",
+        "recipe_agent.worker:celery_app",
+        "worker",
+        "--loglevel=INFO",
+      ]
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  dispatcher:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    environment:
+      RECIPE_AGENT_DATABASE_URL: postgresql+asyncpg://recipe:recipe@postgres:5432/recipe
+      RECIPE_AGENT_ENVIRONMENT: development
+      RECIPE_AGENT_METRICS_TOKEN: development-only-metrics-token
+      RECIPE_AGENT_REDIS_URL: redis://redis:6379/0
+      RECIPE_AGENT_SESSION_SIGNING_KEY: development-only-session-key
+      RECIPE_AGENT_ACTION_SIGNING_KEY: development-only-action-key
+      RECIPE_AGENT_LARK_ENABLED: ${RECIPE_AGENT_LARK_ENABLED:-false}
+      RECIPE_AGENT_LARK_APP_ID: ${RECIPE_AGENT_LARK_APP_ID:-}
+      RECIPE_AGENT_LARK_APP_SECRET: ${RECIPE_AGENT_LARK_APP_SECRET:-}
+      RECIPE_AGENT_LARK_VERIFICATION_TOKEN: ${RECIPE_AGENT_LARK_VERIFICATION_TOKEN:-}
+      RECIPE_AGENT_LARK_ENCRYPT_KEY: ${RECIPE_AGENT_LARK_ENCRYPT_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    command: ["python", "-m", "recipe_agent.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   web:
     build:
@@ -69,6 +119,10 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      worker:
+        condition: service_started
+      dispatcher:
+        condition: service_started
 
   postgres:
     image: pgvector/pgvector:0.8.1-pg17

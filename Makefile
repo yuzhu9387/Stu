@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check typecheck migration-check web-test web-typecheck web-lint web-build web-e2e backend-verify web-verify verify services-up services-down run-api
+.PHONY: install test lint format format-check typecheck migration-check web-test web-typecheck web-lint web-build web-e2e backend-verify web-verify verify services-up services-down local-up local-down migrate run-api run-worker run-dispatcher run-web
 
 PYTHON := .venv/bin/python
 RUFF := .venv/bin/ruff
@@ -54,5 +54,21 @@ services-up:
 services-down:
 	docker compose -f infra/compose.yaml down
 
+local-up: services-up
+
+local-down: services-down
+
+migrate:
+	$(ALEMBIC) upgrade head
+
 run-api:
 	uv run uvicorn recipe_agent.app:app --reload --host 0.0.0.0 --port 8000
+
+run-worker:
+	uv run celery -A recipe_agent.worker:celery_app worker --loglevel=INFO
+
+run-dispatcher:
+	uv run python -m recipe_agent.worker
+
+run-web:
+	pnpm --dir web dev

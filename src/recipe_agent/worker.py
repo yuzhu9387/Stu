@@ -9,7 +9,7 @@ from uuid import UUID
 
 from celery import Celery
 
-from recipe_agent.config import get_settings
+from recipe_agent.config import Settings, get_settings
 from recipe_agent.domain.conversation.repository import (
     ACTION_EXECUTION_REQUESTED_TOPIC,
     AGENT_RUN_REQUESTED_TOPIC,
@@ -22,14 +22,12 @@ from recipe_agent.infrastructure.db.outbox import OutboxRepository
 from recipe_agent.infrastructure.db.session import create_session_factory
 from recipe_agent.infrastructure.jobs.actions import (
     ACTION_TASK_NAME,
-    ActionExecutor,
     CeleryActionPublisher,
     run_action_job,
 )
 from recipe_agent.infrastructure.jobs.agent_runs import (
     AGENT_RUN_TASK_NAME,
     LARK_DELIVERY_TASK_NAME,
-    AgentRunExecutor,
     CeleryLarkDeliveryPublisher,
     CeleryRunPublisher,
     LarkDeliveryExecutor,
@@ -41,12 +39,9 @@ from recipe_agent.infrastructure.lark.events import SqlLarkDeliveryStore
 from recipe_agent.infrastructure.observability.logging import render_log
 
 celery_app = Celery("recipe_agent")
-ExecutorFactory = Callable[[AgentRunRepository], AgentRunExecutor]
-ActionExecutorFactory = Callable[[SuggestedActionRepository], ActionExecutor]
 LarkDeliveryFactory = Callable[[], AbstractAsyncContextManager[LarkDeliveryExecutor]]
-_executor_factory: ExecutorFactory | None = None
-_action_executor_factory: ActionExecutorFactory | None = None
 _lark_delivery_factory: LarkDeliveryFactory | None = None
+_worker_settings: Settings | None = None
 
 
 class StructuredLogPublisher:
@@ -117,25 +112,30 @@ class RoutingPublisher:
         await self._fallback.publish(event_id=event_id, topic=topic, payload=payload)
 
 
-def configure_agent_run_executor(factory: ExecutorFactory) -> None:
-    """Install the Task 4 executor factory inside the worker process."""
-
-    global _executor_factory
-    _executor_factory = factory
-
-
-def configure_suggested_action_executor(factory: ActionExecutorFactory) -> None:
-    """Install the durable suggested-action executor inside the worker process."""
-
-    global _action_executor_factory
-    _action_executor_factory = factory
-
-
 def configure_lark_delivery(factory: LarkDeliveryFactory) -> None:
     """Install the Task 7 delivery factory inside the worker process."""
 
     global _lark_delivery_factory
     _lark_delivery_factory = factory
+
+
+def create_worker(settings: Settings | None = None) -> Celery:
+    """Configure Celery and loop-local runtime factories from one settings object."""
+
+    from recipe_agent.bootstrap import lark_delivery_context
+
+    global _worker_settings
+    resolved = settings or get_settings()
+    _worker_settings = resolved
+    celery_app.conf.broker_url = resolved.redis_url
+    celery_app.conf.result_backend = resolved.redis_url
+    celery_app.conf.recipe_agent_environment = resolved.environment
+    configure_lark_delivery(lambda: lark_delivery_context(resolved))
+    return celery_app
+
+
+def _settings() -> Settings:
+    return _worker_settings or get_settings()
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -154,11 +154,18 @@ def execute_agent_run(run_id: str) -> bool:
 
 
 async def _execute_agent_run(run_id: UUID) -> bool:
-    settings = get_settings()
-    repository = AgentRunRepository(create_session_factory(settings))
-    if _executor_factory is None:
-        raise RuntimeError("Agent run executor is not configured")
-    return await run_agent_job(repository, _executor_factory(repository), run_id)
+    settings = _settings()
+    from recipe_agent.bootstrap import build_runtime
+
+    runtime = build_runtime(settings)
+    try:
+        return await run_agent_job(
+            runtime.agent_run_repository,
+            runtime.agent_run_service,
+            run_id,
+        )
+    finally:
+        await runtime.aclose()
 
 
 @celery_app.task(name=ACTION_TASK_NAME)  # type: ignore[untyped-decorator]
@@ -169,11 +176,14 @@ def execute_suggested_action(action_id: str) -> bool:
 
 
 async def _execute_suggested_action(action_id: UUID) -> bool:
-    settings = get_settings()
-    repository = SuggestedActionRepository(create_session_factory(settings))
-    if _action_executor_factory is None:
-        raise RuntimeError("Suggested action executor is not configured")
-    return await run_action_job(_action_executor_factory(repository), action_id)
+    settings = _settings()
+    from recipe_agent.bootstrap import build_runtime
+
+    runtime = build_runtime(settings)
+    try:
+        return await run_action_job(runtime.suggested_action_service, action_id)
+    finally:
+        await runtime.aclose()
 
 
 @celery_app.task(  # type: ignore[untyped-decorator]
@@ -201,9 +211,7 @@ async def _deliver_lark_outbox(event_id: UUID) -> bool:
 async def run() -> None:
     """Poll committed outbox rows and enqueue durable agent-run tasks."""
 
-    settings = get_settings()
-    celery_app.conf.broker_url = settings.redis_url
-    celery_app.conf.result_backend = settings.redis_url
+    settings = _settings()
     session_factory = create_session_factory(settings)
     repository = OutboxRepository()
     action_repository = SuggestedActionRepository(session_factory)
@@ -214,23 +222,34 @@ async def run() -> None:
         CeleryActionPublisher(celery_app),
         CeleryLarkDeliveryPublisher(celery_app),
     )
-    while True:
-        await action_repository.recover_expired(
-            now=datetime.now(UTC),
-            max_attempts=DEFAULT_ACTION_MAX_ATTEMPTS,
-        )
-        await run_repository.recover_expired(
-            now=datetime.now(UTC),
-            max_attempts=DEFAULT_RUN_MAX_ATTEMPTS,
-        )
-        for delivery_event_id in await delivery_store.recover_expired(
-            now=datetime.now(UTC)
-        ):
-            celery_app.send_task(
-                LARK_DELIVERY_TASK_NAME, args=[str(delivery_event_id)]
+    try:
+        while True:
+            await action_repository.recover_expired(
+                now=datetime.now(UTC),
+                max_attempts=DEFAULT_ACTION_MAX_ATTEMPTS,
             )
-        published = await publish_pending(repository, publisher, session_factory)
-        await asyncio.sleep(1 if published else 3)
+            await run_repository.recover_expired(
+                now=datetime.now(UTC),
+                max_attempts=DEFAULT_RUN_MAX_ATTEMPTS,
+            )
+            for delivery_event_id in await delivery_store.recover_expired(now=datetime.now(UTC)):
+                celery_app.send_task(LARK_DELIVERY_TASK_NAME, args=[str(delivery_event_id)])
+            published = await publish_pending(repository, publisher, session_factory)
+            await asyncio.sleep(1 if published else 3)
+    finally:
+        await _dispose_session_factory(session_factory)
+
+
+async def _dispose_session_factory(session_factory: object) -> None:
+    factory_options = getattr(session_factory, "kw", None)
+    if not isinstance(factory_options, dict):
+        return
+    dispose = getattr(factory_options.get("bind"), "dispose", None)
+    if callable(dispose):
+        await dispose()
+
+
+create_worker()
 
 
 if __name__ == "__main__":

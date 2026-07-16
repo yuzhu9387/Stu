@@ -203,3 +203,18 @@ def test_worker_registers_outbox_uuid_only_lark_delivery_task() -> None:
     assert task.max_retries == 5
     assert task.acks_late is True
     assert task.reject_on_worker_lost is True
+
+
+async def test_worker_disposes_its_long_lived_database_engine() -> None:
+    class Engine:
+        def __init__(self) -> None:
+            self.closed = False
+
+        async def dispose(self) -> None:
+            self.closed = True
+
+    engine = Engine()
+
+    await worker._dispose_session_factory(type("Factory", (), {"kw": {"bind": engine}})())
+
+    assert engine.closed is True

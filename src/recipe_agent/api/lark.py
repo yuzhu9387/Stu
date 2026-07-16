@@ -25,6 +25,10 @@ from recipe_agent.infrastructure.lark.service import LarkInboundService
 router = APIRouter(prefix="/webhooks/lark", tags=["lark"])
 
 
+class LarkIntegrationDisabledError(RuntimeError):
+    """The Lark callback surface is intentionally closed by configuration."""
+
+
 class _Header(BaseModel):
     model_config = ConfigDict(extra="ignore", frozen=True)
 
@@ -110,6 +114,11 @@ async def receive_event(
 ) -> dict[str, str]:
     try:
         return await handler.handle(payload)
+    except LarkIntegrationDisabledError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lark integration is disabled",
+        ) from None
     except PermissionError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED) from None
     except LarkEventBusyError:

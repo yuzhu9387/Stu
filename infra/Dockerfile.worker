@@ -21,4 +21,4 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
     CMD ["python", "-c", "import os; os.kill(1, 0)"]
 
-CMD ["python", "-m", "recipe_agent.worker"]
+CMD ["celery", "-A", "recipe_agent.worker:celery_app", "worker", "--loglevel=INFO"]

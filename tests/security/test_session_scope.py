@@ -17,10 +17,14 @@ from recipe_agent.infrastructure.db.base import Base
 
 def _settings(database_url: str, *, environment: str = "test") -> Settings:
     return Settings(
+        _env_file=None,
         environment=environment,
         database_url=database_url,
         session_signing_key="test-session-signing-key",
         metrics_token="test-metrics-token",
+        action_signing_key="test-action-signing-key",
+        openai_api_key="test-openai-api-key",
+        lark_enabled=False,
     )
 
 

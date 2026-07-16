@@ -15,6 +15,7 @@ from recipe_agent.domain.conversation.react import (
     UnknownReadOnlyToolError,
 )
 from recipe_agent.domain.conversation.responses import (
+    ActionArgument,
     FinalAgentResponse,
     SuggestedActionDraft,
 )
@@ -37,6 +38,7 @@ def final_response(answer: str = "Try the tomato soup.") -> FinalAgentResponse:
         plan="Search family-visible recipes and summarize the best match.",
         act="Checked family-visible recipes.",
         answer=answer,
+        suggested_actions=(),
     )
 
 
@@ -124,18 +126,19 @@ async def test_model_cannot_request_mutation_tool() -> None:
 @pytest.mark.asyncio
 async def test_tool_observation_is_bounded_before_next_model_decision() -> None:
     model = FakeModel([tool_decision(), ReactDecision(final=final_response())])
-    tools = FakeTools(payload={"blob": "x" * 10_000})
+    tools = FakeTools(payload={"blob": ('"\\\u5bb6\u5ead' * 2_000)})
+    max_observation_chars = 128
 
     await ReactAgent(
         model=model,
         tools=tools,
-        max_observation_chars=128,
+        max_observation_chars=max_observation_chars,
     ).run(context())
 
     observation = model.observations[1][0]
     assert observation.truncated is True
-    assert len(str(observation.data)) < 512
-    assert "x" * 1_000 not in str(observation.data)
+    assert len(observation.model_dump_json()) <= max_observation_chars
+    assert '"\\\u5bb6\u5ead' * 100 not in str(observation.data)
 
 
 def test_react_decision_requires_exactly_one_choice() -> None:
@@ -151,7 +154,12 @@ def test_final_response_exposes_only_safe_summaries_and_typed_drafts() -> None:
         plan="Prepare a save draft for your review.",
         act="Parsed the recipe without saving it.",
         answer="Review the suggested save action.",
-        suggested_actions=(SuggestedActionDraft(type="save_recipe", arguments={"name": "Soup"}),),
+        suggested_actions=(
+            SuggestedActionDraft(
+                type="save_recipe",
+                arguments=(ActionArgument(name="name", value_json='"Soup"'),),
+            ),
+        ),
     )
 
     assert tuple(response.model_dump()) == (
@@ -161,13 +169,15 @@ def test_final_response_exposes_only_safe_summaries_and_typed_drafts() -> None:
         "answer",
         "suggested_actions",
     )
-    assert response.model_dump(mode="json")["suggested_actions"][0]["type"] == "save_recipe"
+    serialized_action = response.model_dump(mode="json")["suggested_actions"][0]
+    assert serialized_action["type"] == "save_recipe"
+    assert serialized_action["arguments"] == [{"name": "name", "value_json": '"Soup"'}]
     with pytest.raises(ValidationError):
         FinalAgentResponse.model_validate(
             final_response().model_dump() | {"private_reasoning": "hidden reasoning"}
         )
     with pytest.raises(ValidationError):
-        SuggestedActionDraft(type="delete_recipe", arguments={})
+        SuggestedActionDraft(type="delete_recipe", arguments=())
     with pytest.raises(ValidationError):
         FinalAgentResponse(
             thinking="Safe summary",
@@ -175,6 +185,6 @@ def test_final_response_exposes_only_safe_summaries_and_typed_drafts() -> None:
             act="No action",
             answer="Answer",
             suggested_actions=tuple(
-                SuggestedActionDraft(type="save_recipe", arguments={}) for _ in range(4)
+                SuggestedActionDraft(type="save_recipe", arguments=()) for _ in range(4)
             ),
         )

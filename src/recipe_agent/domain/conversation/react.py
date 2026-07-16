@@ -77,17 +77,45 @@ class ToolObservation(BaseModel):
     truncated: bool = False
 
     def bounded(self, max_chars: int) -> Self:
-        """Replace an oversized payload with a bounded, explicit preview."""
+        """Replace an oversized payload with a hard-bounded serialized preview."""
 
-        encoded = json.dumps(self.data, ensure_ascii=False, separators=(",", ":"))
-        if len(encoded) <= max_chars:
+        if max_chars < 1:
+            raise ValueError("max_chars must be positive")
+        if len(self.model_dump_json()) <= max_chars:
             return self
-        preview_budget = max(0, max_chars - 64)
-        return type(self)(
+        encoded = json.dumps(self.data, ensure_ascii=False, separators=(",", ":"))
+        minimal = type(self)(
             tool_name=self.tool_name,
-            data={"preview": encoded[:preview_budget]},
+            data=None,
             truncated=True,
         )
+        if len(minimal.model_dump_json()) > max_chars:
+            raise ValueError("max_chars cannot contain the serialized observation envelope")
+
+        empty_preview = type(self)(
+            tool_name=self.tool_name,
+            data={"preview": ""},
+            truncated=True,
+        )
+        if len(empty_preview.model_dump_json()) > max_chars:
+            return minimal
+
+        best = empty_preview
+        low = 0
+        high = len(encoded)
+        while low <= high:
+            midpoint = (low + high) // 2
+            candidate = type(self)(
+                tool_name=self.tool_name,
+                data={"preview": encoded[:midpoint]},
+                truncated=True,
+            )
+            if len(candidate.model_dump_json()) <= max_chars:
+                best = candidate
+                low = midpoint + 1
+            else:
+                high = midpoint - 1
+        return best
 
 
 class ReactDecision(BaseModel):

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -77,5 +77,5 @@ class RawInputSummary(BaseModel):
     household_id: UUID
     kind: str
     status: str
-    error: str | None
+    error_code: Literal["processing_failed"] | None
     created_at: datetime

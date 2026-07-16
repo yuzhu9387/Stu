@@ -72,17 +72,9 @@ class ShoppingListDraft(BaseModel):
         return sum(entry.name == canonical_name for entry in self.entries)
 
 
-class MealPlanSummary(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    id: UUID
-    owner_account_id: UUID
+class MealPlanSummary(MealPlan):
     owner_display_name: str
     is_owned_by_current_account: bool
-    household_id: UUID
-    week_start: date
-    version: int
-    items: tuple[PlanItem, ...]
 
 
 class ShoppingListView(BaseModel):

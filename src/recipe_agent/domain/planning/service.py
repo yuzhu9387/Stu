@@ -83,23 +83,22 @@ class PlanningService:
         plan_id: UUID,
         day: date,
     ) -> MealPlan:
-        updated = await self.preview_replace_item(household_id, plan_id, day)
+        plan = await self._repository.get(household_id, plan_id)
+        updated = await self.preview_replace_item(plan, day)
         return await self._repository.save(updated)
 
     async def preview_replace_item(
         self,
-        household_id: UUID,
-        plan_id: UUID,
+        plan: MealPlan,
         day: date,
     ) -> MealPlan:
         """Calculate a replacement without saving the proposed plan."""
 
-        plan = await self._repository.get(household_id, plan_id)
         target = next((item for item in plan.items if item.day == day), None)
         if target is None:
             raise PlanItemNotFoundError("Plan item not found")
         recommendations = await self._recommendations.recommend(
-            RecommendationQuery(household_id=household_id)
+            RecommendationQuery(household_id=plan.household_id)
         )
         preserved_recipe_ids = {item.recipe_id for item in plan.items if item.id != target.id}
         replacement = next(

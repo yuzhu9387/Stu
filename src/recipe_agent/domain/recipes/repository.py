@@ -125,7 +125,11 @@ class RawInputRepository:
             status=(
                 record.status.value if isinstance(record.status, RawInputStatus) else record.status
             ),
-            error=record.error,
+            error_code=(
+                "processing_failed"
+                if record.status is RawInputStatus.NEEDS_REVIEW or record.error is not None
+                else None
+            ),
             created_at=record.created_at,
         )
 

@@ -20,8 +20,10 @@ from recipe_agent.domain.identity.models import (
     SuggestedActionRecord,
     WebSession,
 )
+from recipe_agent.domain.identity.preferences import DietaryPreference
 from recipe_agent.domain.planning.models import MealPlanRecord
 from recipe_agent.domain.recipes.models import MediaObject, RawInput, Recipe
+from recipe_agent.domain.sharing.models import ShareSnapshotRecord
 
 
 class NotFoundError(LookupError):
@@ -143,6 +145,8 @@ class IdentityRepository:
             Conversation.household_id,
             AgentRun.household_id,
             SuggestedActionRecord.household_id,
+            DietaryPreference.household_id,
+            ShareSnapshotRecord.household_id,
         )
         result = await self._session.execute(
             select(or_(*(exists().where(column == household_id) for column in household_columns)))

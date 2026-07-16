@@ -1,6 +1,9 @@
 """Family-visible dietary preference read model and scoped repository."""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
@@ -9,8 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import Mapped, mapped_column
 
 from recipe_agent.domain.identity.models import Account
-from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.infrastructure.db.base import Base
+
+if TYPE_CHECKING:
+    from recipe_agent.domain.identity.service import HouseholdScope
 
 
 class DietaryPreference(Base):

@@ -14,6 +14,7 @@ from recipe_agent.domain.identity.models import (
     Household,
     SuggestedActionRecord,
 )
+from recipe_agent.domain.identity.preferences import DietaryPreference
 from recipe_agent.domain.identity.repository import IdentityRepository
 from recipe_agent.domain.identity.service import (
     HouseholdScope,
@@ -23,6 +24,7 @@ from recipe_agent.domain.identity.service import (
 )
 from recipe_agent.domain.planning.models import MealPlanRecord
 from recipe_agent.domain.recipes.models import MediaObject, RawInput, Recipe
+from recipe_agent.domain.sharing.models import ShareSnapshotRecord
 
 
 @pytest.mark.asyncio
@@ -192,6 +194,8 @@ async def test_family_with_another_member_cannot_be_replaced(
         "conversation",
         "run",
         "suggested_action",
+        "preference",
+        "share",
     ),
 )
 @pytest.mark.asyncio
@@ -262,6 +266,20 @@ async def test_every_business_record_kind_makes_family_nonempty(
             household_id=household_id,
             action_type="test",
             expires_at=datetime.now(UTC) + timedelta(minutes=10),
+        ),
+        "preference": DietaryPreference(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            label="vegetarian",
+        ),
+        "share": ShareSnapshotRecord(
+            id=record_id,
+            household_id=household_id,
+            owner_account_id=account_id,
+            token_hash=record_id.hex * 2,
+            snapshot_json="{}",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         ),
     }
     async with session_factory() as session:

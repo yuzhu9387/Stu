@@ -1,6 +1,7 @@
 import asyncio
 import os
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import psycopg
@@ -15,11 +16,13 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from recipe_agent.domain.identity.models import FamilyMembership, Household
+from recipe_agent.domain.identity.preferences import DietaryPreference
 from recipe_agent.domain.identity.service import (
     HouseholdScope,
     IdentityConflictError,
     IdentityService,
 )
+from recipe_agent.domain.sharing.models import ShareSnapshotRecord
 from recipe_agent.infrastructure.db.base import Base
 
 TEST_DATABASE_URL_ENV = "RECIPE_AGENT_TEST_DATABASE_URL"
@@ -83,6 +86,53 @@ async def test_postgres_family_join_updates_session_and_deletes_source(
     )
     async with session_factory() as session:
         assert await session.get(Household, source_household_id) is None
+
+
+@pytest.mark.asyncio
+async def test_postgres_family_join_preserves_preference_and_share_boundary(
+    postgres_identity_service,
+) -> None:
+    service, session_factory = postgres_identity_service
+    owner = await service.consume_magic_link(
+        (await service.request_magic_link("owner-preserve@example.com")).token
+    )
+    member = await service.consume_magic_link(
+        (await service.request_magic_link("member-preserve@example.com")).token
+    )
+    preference_id = uuid4()
+    share_id = uuid4()
+    async with session_factory() as session:
+        session.add_all(
+            [
+                DietaryPreference(
+                    id=preference_id,
+                    owner_account_id=member.account.id,
+                    household_id=member.household.id,
+                    label="keep vegetarian",
+                ),
+                ShareSnapshotRecord(
+                    id=share_id,
+                    owner_account_id=member.account.id,
+                    household_id=member.household.id,
+                    token_hash="q" * 64,
+                    snapshot_json="{}",
+                    expires_at=datetime.now(UTC) + timedelta(hours=1),
+                ),
+            ]
+        )
+        await session.commit()
+    invite = await service.create_family_invite(
+        HouseholdScope(owner.account.id, owner.household.id)
+    )
+
+    with pytest.raises(IdentityConflictError, match="Personal family is not empty"):
+        await service.accept_family_invite(
+            HouseholdScope(member.account.id, member.household.id), invite.code
+        )
+
+    async with session_factory() as session:
+        assert await session.get(DietaryPreference, preference_id) is not None
+        assert await session.get(ShareSnapshotRecord, share_id) is not None
 
 
 @pytest.mark.asyncio

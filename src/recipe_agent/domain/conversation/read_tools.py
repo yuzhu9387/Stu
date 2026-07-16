@@ -19,12 +19,16 @@ from recipe_agent.domain.identity.service import HouseholdScope
 from recipe_agent.domain.imports.contracts import InputKind
 from recipe_agent.domain.planning.contracts import MealPlan, MealPlanSummary, ShoppingListView
 from recipe_agent.domain.recipes.contracts import RecipeCandidate, RecipeSummary
-from recipe_agent.domain.recommendations.contracts import RecommendationQuery
+from recipe_agent.domain.recommendations.contracts import RecommendationQuery, RecommendationSource
 from recipe_agent.domain.recommendations.service import RecommendationService
 
 
 class InvalidReadOnlyToolArgumentsError(ValueError):
     """A registered tool was called with arguments outside its closed schema."""
+
+
+class InvalidRecommendationOwnershipError(RuntimeError):
+    """A household recommendation is missing required ownership metadata."""
 
 
 class RecipeQueries(Protocol):
@@ -64,9 +68,7 @@ class ImportPreviewService(Protocol):
 
 
 class PlanningPreviewService(Protocol):
-    async def preview_replace_item(
-        self, household_id: UUID, plan_id: UUID, day: date
-    ) -> MealPlan: ...
+    async def preview_replace_item(self, plan: MealPlan, day: date) -> MealPlan: ...
 
 
 class _Arguments(BaseModel):
@@ -198,8 +200,19 @@ class ReadOnlyToolRegistry:
                 )
             )
             recommendations = _dump(results)
-            for item in recommendations:
-                if isinstance(item, dict) and item.get("owner_account_id") is None:
+            for result, item in zip(results, recommendations, strict=True):
+                if (
+                    result.source is RecommendationSource.HOUSEHOLD
+                    and result.owner_account_id is None
+                ):
+                    raise InvalidRecommendationOwnershipError(
+                        "Household recommendation is missing its owner"
+                    )
+                if (
+                    result.source is RecommendationSource.GENERATED
+                    and result.owner_account_id is None
+                    and isinstance(item, dict)
+                ):
                     item["owner_account_id"] = str(scope.account_id)
             data = {"recommendations": recommendations}
         elif call.name == "preview_recipe_import":
@@ -221,10 +234,8 @@ class ReadOnlyToolRegistry:
             )
         else:
             plan_preview = _as(arguments, _PlanPreviewArguments)
-            await self._plan_queries.get_for_scope(scope, plan_preview.plan_id)
-            proposed = await self._planning_service.preview_replace_item(
-                scope.household_id, plan_preview.plan_id, plan_preview.day
-            )
+            plan = await self._plan_queries.get_for_scope(scope, plan_preview.plan_id)
+            proposed = await self._planning_service.preview_replace_item(plan, plan_preview.day)
             data = cast(JsonValue, {"plan": proposed.model_dump(mode="json")})
         return ToolObservation(tool_name=call.name, data=data)
 

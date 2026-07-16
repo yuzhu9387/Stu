@@ -16,9 +16,11 @@ from recipe_agent.domain.recommendations.contracts import (
 class MemoryPlanRepository:
     def __init__(self, plan: MealPlan) -> None:
         self.plan = plan
+        self.get_calls = 0
         self.save_calls = 0
 
     async def get(self, household_id: object, plan_id: object) -> MealPlan:
+        self.get_calls += 1
         return self.plan
 
     async def save(self, plan: MealPlan) -> MealPlan:
@@ -81,6 +83,7 @@ async def test_replacing_one_item_preserves_other_plan_items() -> None:
     updated = await service.replace_item(household_id, saved_plan.id, target_day)
 
     assert original_ids <= {item.id for item in updated.items}
+    assert repository.get_calls == 1
     assert updated.owner_account_id == saved_plan.owner_account_id
     assert updated.version == 2
     assert next(item for item in updated.items if item.day == target_day).id not in {
@@ -144,8 +147,9 @@ async def test_preview_replacement_does_not_save_the_proposed_plan() -> None:
         recommendations=FixedRecommendations(uuid4()),
     )
 
-    preview = await service.preview_replace_item(household_id, saved_plan.id, day)
+    preview = await service.preview_replace_item(saved_plan, day)
 
     assert preview.version == 2
+    assert repository.get_calls == 0
     assert repository.save_calls == 0
     assert repository.plan == saved_plan

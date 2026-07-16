@@ -1,6 +1,6 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, update
@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from recipe_agent.app import create_app
 from recipe_agent.config import Settings
 from recipe_agent.domain.identity.models import FamilyMembership, WebSession
+from recipe_agent.domain.identity.preferences import DietaryPreference
 from recipe_agent.domain.recipes.models import RawInput
+from recipe_agent.domain.sharing.models import ShareSnapshotRecord
 from recipe_agent.infrastructure.db.base import Base
 
 
@@ -213,6 +215,55 @@ def test_invite_accept_rejects_account_id_and_requires_session(tmp_path) -> None
     assert unauthenticated.status_code == 401
     assert nonempty.status_code == 409
     assert nonempty.json() == {"detail": "Personal family is not empty"}
+
+
+def test_invite_accept_preserves_owned_preference_and_share(tmp_path) -> None:
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'accept-preserves-live-reads.db'}"
+    asyncio.run(_create_schema(database_url))
+    app = create_app(_settings(database_url, environment="development"))
+    owner_client = TestClient(app)
+    member_client = TestClient(app)
+    _login_with_magic_link(owner_client, "owner-live@example.com")
+    code = owner_client.post("/api/v1/families/invites").json()["code"]
+    _login_with_magic_link(member_client, "member-live@example.com")
+    member = member_client.get("/api/v1/auth/session").json()
+    preference_id = uuid4()
+    share_id = uuid4()
+
+    async def add_records() -> None:
+        async with app.state.identity_service._session_factory() as session:
+            session.add_all(
+                [
+                    DietaryPreference(
+                        id=preference_id,
+                        owner_account_id=UUID(member["account_id"]),
+                        household_id=UUID(member["household_id"]),
+                        label="keep vegetarian",
+                    ),
+                    ShareSnapshotRecord(
+                        id=share_id,
+                        owner_account_id=UUID(member["account_id"]),
+                        household_id=UUID(member["household_id"]),
+                        token_hash="p" * 64,
+                        snapshot_json="{}",
+                        expires_at=datetime.now(UTC) + timedelta(hours=1),
+                    ),
+                ]
+            )
+            await session.commit()
+
+    asyncio.run(add_records())
+    response = member_client.post("/api/v1/families/invites/accept", json={"code": code})
+
+    async def records_remain() -> bool:
+        async with app.state.identity_service._session_factory() as session:
+            preference = await session.get(DietaryPreference, preference_id)
+            share = await session.get(ShareSnapshotRecord, share_id)
+            return preference is not None and share is not None
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Personal family is not empty"}
+    assert asyncio.run(records_remain())
 
 
 def test_session_cookie_security_attributes_follow_environment(tmp_path) -> None:

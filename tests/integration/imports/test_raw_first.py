@@ -12,7 +12,11 @@ from recipe_agent.domain.recipes.contracts import (
     RecipeStepCandidate,
 )
 from recipe_agent.domain.recipes.models import RawInputStatus
-from recipe_agent.domain.recipes.repository import RawInputRepository, RecipeRepository
+from recipe_agent.domain.recipes.repository import (
+    RawInputNotFoundError,
+    RawInputRepository,
+    RecipeRepository,
+)
 
 
 class FailingAdapter:
@@ -38,12 +42,45 @@ async def test_raw_input_survives_adapter_failure(
 
     receipt = await service.receive(command)
     with pytest.raises(ExternalPlatformError):
-        await service.process(receipt.raw_input_id)
+        await service.process(
+            command.owner_account_id,
+            command.household_id,
+            receipt.raw_input_id,
+        )
 
-    saved = await repository.get(receipt.household_id, receipt.raw_input_id)
+    saved = await repository.get(
+        command.owner_account_id,
+        receipt.household_id,
+        receipt.raw_input_id,
+    )
     assert saved.status is RawInputStatus.NEEDS_REVIEW
     assert saved.owner_account_id == command.owner_account_id
     assert saved.source_url == "https://example.invalid/recipe"
+
+
+@pytest.mark.asyncio
+async def test_raw_input_is_private_between_accounts_in_one_family(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    repository = RawInputRepository(session_factory)
+    owner_account_id = uuid4()
+    other_account_id = uuid4()
+    household_id = uuid4()
+    raw = await repository.create(
+        ImportCommand(
+            owner_account_id=owner_account_id,
+            household_id=household_id,
+            kind=InputKind.TEXT,
+            source="private family note",
+        )
+    )
+
+    with pytest.raises(RawInputNotFoundError):
+        await repository.get(other_account_id, household_id, raw.id)
+
+    owned_raw = await repository.get(owner_account_id, household_id, raw.id)
+    assert owned_raw.id == raw.id
+    assert owned_raw.owner_account_id == owner_account_id
 
 
 class FixedAIProvider:
@@ -78,9 +115,17 @@ async def test_successful_import_persists_structured_recipe(
     )
 
     receipt = await service.receive(command)
-    outcome = await service.process(receipt.raw_input_id)
+    outcome = await service.process(
+        command.owner_account_id,
+        command.household_id,
+        receipt.raw_input_id,
+    )
     recipe = await recipe_repository.get(command.household_id, outcome.recipe_id)
-    saved_raw = await raw_repository.get(command.household_id, receipt.raw_input_id)
+    saved_raw = await raw_repository.get(
+        command.owner_account_id,
+        command.household_id,
+        receipt.raw_input_id,
+    )
 
     assert recipe.name == "Family Soup"
     assert saved_raw.owner_account_id == command.owner_account_id

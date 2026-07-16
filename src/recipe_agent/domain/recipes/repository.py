@@ -1,4 +1,4 @@
-"""Household-scoped raw input persistence."""
+"""Account-scoped raw input and household-scoped recipe persistence."""
 
 from collections.abc import Mapping
 from typing import Any, Protocol
@@ -59,11 +59,17 @@ class RawInputRepository:
             await session.commit()
         return raw
 
-    async def get(self, household_id: UUID, raw_input_id: UUID) -> RawInput:
+    async def get(
+        self,
+        owner_account_id: UUID,
+        household_id: UUID,
+        raw_input_id: UUID,
+    ) -> RawInput:
         async with self._session_factory() as session:
             result = await session.execute(
                 select(RawInput).where(
                     RawInput.id == raw_input_id,
+                    RawInput.owner_account_id == owner_account_id,
                     RawInput.household_id == household_id,
                 )
             )
@@ -72,24 +78,49 @@ class RawInputRepository:
                 raise RawInputNotFoundError("Raw input not found")
             return raw
 
-    async def get_unscoped(self, raw_input_id: UUID) -> RawInput:
-        async with self._session_factory() as session:
-            raw = await session.get(RawInput, raw_input_id)
-            if raw is None:
-                raise RawInputNotFoundError("Raw input not found")
-            return raw
+    async def mark_needs_review(
+        self,
+        owner_account_id: UUID,
+        household_id: UUID,
+        raw_input_id: UUID,
+        error: str,
+    ) -> None:
+        await self._set_status(
+            owner_account_id,
+            household_id,
+            raw_input_id,
+            RawInputStatus.NEEDS_REVIEW,
+            error,
+        )
 
-    async def mark_needs_review(self, raw_input_id: UUID, error: str) -> None:
-        await self._set_status(raw_input_id, RawInputStatus.NEEDS_REVIEW, error)
-
-    async def mark_extracted(self, raw_input_id: UUID) -> None:
-        await self._set_status(raw_input_id, RawInputStatus.EXTRACTED, None)
+    async def mark_extracted(
+        self, owner_account_id: UUID, household_id: UUID, raw_input_id: UUID
+    ) -> None:
+        await self._set_status(
+            owner_account_id,
+            household_id,
+            raw_input_id,
+            RawInputStatus.EXTRACTED,
+            None,
+        )
 
     async def _set_status(
-        self, raw_input_id: UUID, status: RawInputStatus, error: str | None
+        self,
+        owner_account_id: UUID,
+        household_id: UUID,
+        raw_input_id: UUID,
+        status: RawInputStatus,
+        error: str | None,
     ) -> None:
         async with self._session_factory() as session:
-            raw = await session.get(RawInput, raw_input_id)
+            result = await session.execute(
+                select(RawInput).where(
+                    RawInput.id == raw_input_id,
+                    RawInput.owner_account_id == owner_account_id,
+                    RawInput.household_id == household_id,
+                )
+            )
+            raw = result.scalar_one_or_none()
             if raw is None:
                 raise RawInputNotFoundError("Raw input not found")
             raw.status = status

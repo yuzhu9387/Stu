@@ -1,5 +1,6 @@
 import os
 from collections.abc import Callable, Iterator, Mapping
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -250,3 +251,187 @@ def test_downgrade_preserves_legacy_records(postgres_database: PostgresDatabase)
         )
         is None
     )
+
+
+def test_family_invites_enforce_unique_codes_required_fields_and_foreign_keys(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0006_operations")
+    account_id, household_id, _ = postgres_database.seed_legacy_family_recipe()
+    postgres_database.upgrade("head")
+    expires_at = datetime.now(UTC) + timedelta(minutes=10)
+    parameters = {
+        "id": uuid4(),
+        "household_id": household_id,
+        "account_id": account_id,
+        "code_hash": "a" * 64,
+        "expires_at": expires_at,
+    }
+
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO family_invites
+            (id, household_id, created_by_account_id, code_hash, expires_at)
+        VALUES (%(id)s, %(household_id)s, %(account_id)s, %(code_hash)s, %(expires_at)s)
+        RETURNING code_hash, consumed_at, consumed_by_account_id, created_at IS NOT NULL
+        """,
+        parameters,
+    ) == ("a" * 64, None, None, True)
+    required_columns = postgres_database.fetch_one(
+        """
+        SELECT string_agg(column_name, ',' ORDER BY column_name)
+        FROM information_schema.columns
+        WHERE table_name = 'family_invites' AND is_nullable = 'NO'
+        """
+    )
+    assert required_columns is not None
+    assert set(required_columns[0].split(",")) == {
+        "id",
+        "household_id",
+        "created_by_account_id",
+        "code_hash",
+        "expires_at",
+        "created_at",
+    }
+
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO family_invites
+                (id, household_id, created_by_account_id, code_hash, expires_at)
+            VALUES (%(id)s, %(household_id)s, %(account_id)s, %(code_hash)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4()},
+        )
+    with pytest.raises(psycopg.errors.NotNullViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO family_invites
+                (id, household_id, created_by_account_id, code_hash, expires_at)
+            VALUES (%(id)s, %(household_id)s, NULL, %(code_hash)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "code_hash": "b" * 64},
+        )
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO family_invites
+                (id, household_id, created_by_account_id, code_hash, expires_at)
+            VALUES (%(id)s, %(household_id)s, %(account_id)s, %(code_hash)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "account_id": uuid4(), "code_hash": "c" * 64},
+        )
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO family_invites
+                (id, household_id, created_by_account_id, code_hash, expires_at)
+            VALUES (%(id)s, %(household_id)s, %(account_id)s, %(code_hash)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "household_id": uuid4(), "code_hash": "g" * 64},
+        )
+
+
+def test_suggested_actions_enforce_schema_and_allow_unconsumed_rows(
+    postgres_database: PostgresDatabase,
+) -> None:
+    postgres_database.upgrade("0006_operations")
+    ids = postgres_database.seed_legacy_owned_records()
+    postgres_database.upgrade("head")
+    expires_at = datetime.now(UTC) + timedelta(minutes=10)
+    parameters = {
+        "id": uuid4(),
+        "token_hash": "d" * 64,
+        "run_id": ids["agent_run"],
+        "account_id": ids["account"],
+        "household_id": ids["household"],
+        "action_type": "create_recipe",
+        "expires_at": expires_at,
+    }
+
+    assert postgres_database.fetch_one(
+        """
+        INSERT INTO suggested_actions
+            (id, token_hash, run_id, account_id, household_id, action_type, expires_at)
+        VALUES
+            (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+             %(household_id)s, %(action_type)s, %(expires_at)s)
+        RETURNING arguments_json, consumed_at, consumed_by_account_id, created_at IS NOT NULL
+        """,
+        parameters,
+    ) == ("{}", None, None, True)
+    required_columns = postgres_database.fetch_one(
+        """
+        SELECT string_agg(column_name, ',' ORDER BY column_name)
+        FROM information_schema.columns
+        WHERE table_name = 'suggested_actions' AND is_nullable = 'NO'
+        """
+    )
+    assert required_columns is not None
+    assert set(required_columns[0].split(",")) == {
+        "id",
+        "token_hash",
+        "run_id",
+        "account_id",
+        "household_id",
+        "action_type",
+        "arguments_json",
+        "expires_at",
+        "created_at",
+    }
+
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO suggested_actions
+                (id, token_hash, run_id, account_id, household_id, action_type, expires_at)
+            VALUES
+                (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+                 %(household_id)s, %(action_type)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4()},
+        )
+    with pytest.raises(psycopg.errors.NotNullViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO suggested_actions
+                (id, token_hash, run_id, account_id, household_id, action_type, expires_at)
+            VALUES
+                (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+                 %(household_id)s, NULL, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "token_hash": "e" * 64},
+        )
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO suggested_actions
+                (id, token_hash, run_id, account_id, household_id, action_type, expires_at)
+            VALUES
+                (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+                 %(household_id)s, %(action_type)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "token_hash": "f" * 64, "run_id": uuid4()},
+        )
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO suggested_actions
+                (id, token_hash, run_id, account_id, household_id, action_type, expires_at)
+            VALUES
+                (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+                 %(household_id)s, %(action_type)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "token_hash": "g" * 64, "account_id": uuid4()},
+        )
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        postgres_database.fetch_one(
+            """
+            INSERT INTO suggested_actions
+                (id, token_hash, run_id, account_id, household_id, action_type, expires_at)
+            VALUES
+                (%(id)s, %(token_hash)s, %(run_id)s, %(account_id)s,
+                 %(household_id)s, %(action_type)s, %(expires_at)s)
+            """,
+            parameters | {"id": uuid4(), "token_hash": "h" * 64, "household_id": uuid4()},
+        )

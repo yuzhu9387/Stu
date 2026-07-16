@@ -1,5 +1,7 @@
 import pytest
+from sqlalchemy import select
 
+from recipe_agent.domain.identity.models import FamilyMembership
 from recipe_agent.domain.identity.service import InvalidTokenError
 
 
@@ -11,6 +13,24 @@ async def test_consuming_magic_link_creates_one_account_and_household(identity_s
     assert authenticated.account.email == "cook@example.com"
     assert authenticated.household.owner_account_id == authenticated.account.id
     assert authenticated.session_token
+
+
+@pytest.mark.asyncio
+async def test_new_account_has_one_owner_membership(identity_service, session_factory) -> None:
+    delivery = await identity_service.request_magic_link("owner@example.com")
+
+    authenticated = await identity_service.consume_magic_link(delivery.token)
+
+    async with session_factory() as session:
+        result = await session.execute(
+            select(FamilyMembership).where(
+                FamilyMembership.account_id == authenticated.account.id,
+                FamilyMembership.household_id == authenticated.household.id,
+            )
+        )
+        memberships = result.scalars().all()
+    assert len(memberships) == 1
+    assert memberships[0].role == "owner"
 
 
 @pytest.mark.asyncio

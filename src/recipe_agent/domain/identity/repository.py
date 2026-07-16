@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from recipe_agent.domain.identity.models import (
     Account,
+    FamilyMembership,
     Household,
     LarkIdentity,
     LarkLinkCode,
@@ -48,6 +49,14 @@ class IdentityRepository:
         await self._session.flush()
         household = Household(owner_account_id=account.id)
         self._session.add(household)
+        await self._session.flush()
+        self._session.add(
+            FamilyMembership(
+                account_id=account.id,
+                household_id=household.id,
+                role="owner",
+            )
+        )
         await self._session.flush()
         return account, household
 

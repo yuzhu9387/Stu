@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "spriteVersionNumber": 2,
+  "run_dir": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu",
+  "spritesheet": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/final/spritesheet-extended.webp",
+  "validation": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/final/validation-extended.json",
+  "chroma_despill": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/chroma-despill-extended.json",
+  "contact_sheet": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/contact-sheet-extended.png",
+  "direction_sheet": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/look-directions.png",
+  "direction_semantics": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/direction-semantics.json",
+  "blind_direction_validation": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/direction-blind-validation.json",
+  "continuity": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/look-continuity.json",
+  "review": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/review.json",
+  "final_visual_qa": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/qa/final-visual-qa.json",
+  "package": "/Users/guoyuzhu/.codex/pets/yuzhu"
+}

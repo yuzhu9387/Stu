@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "reviewed_by": "independent final visual QA worker",
+  "directions": [
+    {"degree":"000","expected":"up","verdict":"pass","observed":"up","reason":"Horizontal: centered frontal face. Vertical: eyes and muzzle unmistakably lifted."},
+    {"degree":"022.5","expected":"up-right","verdict":"pass","observed":"up-right","reason":"Horizontal: muzzle and pupils shift screen-right. Vertical: chin and gaze remain raised."},
+    {"degree":"045","expected":"up-right","verdict":"pass","observed":"up-right","reason":"Horizontal: clear screen-right three-quarter turn. Vertical: eyes and muzzle aim upward."},
+    {"degree":"067.5","expected":"up-right","verdict":"warning","observed":"right with subtle up cue","reason":"Horizontal: strong screen-right turn. Vertical: muzzle is slightly raised in labeled sequence although blind vertical review disagreed."},
+    {"degree":"090","expected":"right","verdict":"pass","observed":"right","reason":"Horizontal: unmistakable screen-right profile. Vertical: approximately level."},
+    {"degree":"112.5","expected":"down-right","verdict":"warning","observed":"right with subtle down cue","reason":"Horizontal: muzzle and visible eye remain screen-right. Vertical: chin begins lowering in labeled sequence although blind vertical review disagreed."},
+    {"degree":"135","expected":"down-right","verdict":"pass","observed":"down-right","reason":"Horizontal: face turns screen-right. Vertical: head and eyes clearly lower."},
+    {"degree":"157.5","expected":"down-right","verdict":"warning","observed":"down with subtle right cue","reason":"Horizontal: rightward cue is weak and blind review found it ambiguous. Vertical: deep chin tuck and low gaze clearly read down."},
+    {"degree":"180","expected":"down","verdict":"pass","observed":"down","reason":"Horizontal: frontal and centered. Vertical: eyes and chin clearly point down while smoothly continuing 157.5."},
+    {"degree":"202.5","expected":"down-left","verdict":"warning","observed":"down with subtle left cue","reason":"Horizontal: screen-left turn is weak and blind review found it ambiguous. Vertical: lowered head and gaze clearly read down."},
+    {"degree":"225","expected":"down-left","verdict":"pass","observed":"down-left","reason":"Horizontal: clear screen-left three-quarter face. Vertical: chin and gaze are lowered."},
+    {"degree":"247.5","expected":"down-left","verdict":"warning","observed":"left with subtle down cue","reason":"Horizontal: strong screen-left turn. Vertical: downward axis is subtle but remains in the labeled quadrant without reversal."},
+    {"degree":"270","expected":"left","verdict":"pass","observed":"left","reason":"Horizontal: unmistakable unclipped screen-left profile. Vertical: approximately level."},
+    {"degree":"292.5","expected":"up-left","verdict":"warning","observed":"left with subtle up cue","reason":"Horizontal: muzzle and pupil point screen-left. Vertical: lift is subtle but advances correctly toward the upward family."},
+    {"degree":"315","expected":"up-left","verdict":"warning","observed":"near-frontal up-left","reason":"Horizontal: screen-left cue is subtle. Vertical: upward cue is subtle, but labeled loop context confirms both axes without reversal."},
+    {"degree":"337.5","expected":"up-left","verdict":"warning","observed":"up with subtle left cue","reason":"Horizontal: near-frontal screen-left cue is intentionally slight and blind review found it ambiguous. Vertical: raised gaze clearly reads up and transitions smoothly into 000."}
+  ],
+  "review_warnings": "Blind intermediate uncertainty at 067.5, 112.5, 157.5, 202.5, 247.5, 292.5, 315, and 337.5 is accepted because labeled normal-size review confirms the intended quadrants and ordered loop. Continuity metric warnings have no conspicuous visible snap, pop, reversal, or identity change."
+}

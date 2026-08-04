@@ -1,0 +1,973 @@
+{
+  "ok": true,
+  "frames_root": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames",
+  "states": [
+    "idle",
+    "running-right",
+    "running-left",
+    "waving",
+    "jumping",
+    "failed",
+    "waiting",
+    "running",
+    "review"
+  ],
+  "errors": [],
+  "warnings": [],
+  "rows": [
+    {
+      "state": "idle",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/idle/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23873,
+          "bbox": [
+            5,
+            5,
+            187,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 460
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/idle/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23865,
+          "bbox": [
+            5,
+            5,
+            187,
+            202
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 459
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/idle/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24177,
+          "bbox": [
+            5,
+            5,
+            186,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 499
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/idle/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24266,
+          "bbox": [
+            5,
+            6,
+            187,
+            202
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 500
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/idle/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23839,
+          "bbox": [
+            5,
+            5,
+            187,
+            202
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 477
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/idle/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23655,
+          "bbox": [
+            5,
+            6,
+            187,
+            202
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 465
+        }
+      ]
+    },
+    {
+      "state": "running-right",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20994,
+          "bbox": [
+            5,
+            9,
+            187,
+            199
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 675
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 14052,
+          "bbox": [
+            5,
+            36,
+            187,
+            171
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 440
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20904,
+          "bbox": [
+            5,
+            9,
+            187,
+            198
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 646
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 18881,
+          "bbox": [
+            5,
+            20,
+            187,
+            187
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 616
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20471,
+          "bbox": [
+            5,
+            11,
+            187,
+            197
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 693
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19200,
+          "bbox": [
+            5,
+            19,
+            187,
+            188
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 619
+        },
+        {
+          "index": 6,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19391,
+          "bbox": [
+            5,
+            14,
+            187,
+            193
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 591
+        },
+        {
+          "index": 7,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-right/07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 15983,
+          "bbox": [
+            5,
+            33,
+            187,
+            175
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 509
+        }
+      ]
+    },
+    {
+      "state": "running-left",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19822,
+          "bbox": [
+            5,
+            17,
+            187,
+            190
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 606
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21624,
+          "bbox": [
+            5,
+            13,
+            187,
+            195
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 718
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20872,
+          "bbox": [
+            7,
+            10,
+            184,
+            198
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 377
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21346,
+          "bbox": [
+            12,
+            5,
+            179,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 647
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19808,
+          "bbox": [
+            5,
+            18,
+            187,
+            189
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 764
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20054,
+          "bbox": [
+            9,
+            15,
+            182,
+            193
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 381
+        },
+        {
+          "index": 6,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21066,
+          "bbox": [
+            12,
+            5,
+            180,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 721
+        },
+        {
+          "index": 7,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running-left/07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20740,
+          "bbox": [
+            12,
+            5,
+            179,
+            202
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 405
+        }
+      ]
+    },
+    {
+      "state": "waving",
+      "expected_frames": 4,
+      "actual_frames": 4,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waving/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23546,
+          "bbox": [
+            8,
+            5,
+            184,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 278
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waving/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23219,
+          "bbox": [
+            7,
+            5,
+            184,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 274
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waving/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24637,
+          "bbox": [
+            6,
+            5,
+            186,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 273
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waving/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23210,
+          "bbox": [
+            10,
+            5,
+            182,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 283
+        }
+      ]
+    },
+    {
+      "state": "jumping",
+      "expected_frames": 5,
+      "actual_frames": 5,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/jumping/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20979,
+          "bbox": [
+            5,
+            23,
+            187,
+            185
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 352
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/jumping/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22222,
+          "bbox": [
+            5,
+            16,
+            187,
+            191
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 361
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/jumping/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22772,
+          "bbox": [
+            5,
+            11,
+            187,
+            197
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 393
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/jumping/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22827,
+          "bbox": [
+            5,
+            11,
+            187,
+            196
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 439
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/jumping/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22078,
+          "bbox": [
+            5,
+            20,
+            187,
+            187
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 377
+        }
+      ]
+    },
+    {
+      "state": "failed",
+      "expected_frames": 8,
+      "actual_frames": 8,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23265,
+          "bbox": [
+            7,
+            5,
+            184,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 541
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23678,
+          "bbox": [
+            7,
+            5,
+            185,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 530
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19479,
+          "bbox": [
+            5,
+            17,
+            187,
+            190
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 496
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 16299,
+          "bbox": [
+            5,
+            36,
+            187,
+            172
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 360
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 17846,
+          "bbox": [
+            5,
+            27,
+            187,
+            180
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 413
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22719,
+          "bbox": [
+            7,
+            5,
+            185,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 520
+        },
+        {
+          "index": 6,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/06.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22072,
+          "bbox": [
+            9,
+            5,
+            183,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 552
+        },
+        {
+          "index": 7,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/failed/07.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22069,
+          "bbox": [
+            11,
+            5,
+            181,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 506
+        }
+      ]
+    },
+    {
+      "state": "waiting",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waiting/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22447,
+          "bbox": [
+            11,
+            5,
+            181,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 372
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waiting/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21319,
+          "bbox": [
+            12,
+            5,
+            179,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 306
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waiting/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21975,
+          "bbox": [
+            8,
+            5,
+            183,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 354
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waiting/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22108,
+          "bbox": [
+            5,
+            9,
+            187,
+            199
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 309
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waiting/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20411,
+          "bbox": [
+            13,
+            5,
+            178,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 343
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/waiting/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21081,
+          "bbox": [
+            15,
+            5,
+            176,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 360
+        }
+      ]
+    },
+    {
+      "state": "running",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23513,
+          "bbox": [
+            9,
+            5,
+            183,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 351
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24025,
+          "bbox": [
+            7,
+            5,
+            184,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 371
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22375,
+          "bbox": [
+            12,
+            5,
+            180,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 362
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22579,
+          "bbox": [
+            5,
+            13,
+            187,
+            195
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 414
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21935,
+          "bbox": [
+            17,
+            5,
+            175,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 384
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/running/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23506,
+          "bbox": [
+            7,
+            5,
+            185,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 422
+        }
+      ]
+    },
+    {
+      "state": "review",
+      "expected_frames": 6,
+      "actual_frames": 6,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/review/00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 23567,
+          "bbox": [
+            5,
+            5,
+            186,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 325
+        },
+        {
+          "index": 1,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/review/01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21576,
+          "bbox": [
+            20,
+            5,
+            171,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 326
+        },
+        {
+          "index": 2,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/review/02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22037,
+          "bbox": [
+            17,
+            5,
+            174,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 339
+        },
+        {
+          "index": 3,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/review/03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 24834,
+          "bbox": [
+            5,
+            7,
+            187,
+            201
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 393
+        },
+        {
+          "index": 4,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/review/04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 22320,
+          "bbox": [
+            6,
+            5,
+            186,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 359
+        },
+        {
+          "index": 5,
+          "file": "/Users/guoyuzhu/Leona's Friends/pet-runs/yuzhu/frames/review/05.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20920,
+          "bbox": [
+            19,
+            5,
+            172,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 282
+        }
+      ]
+    }
+  ]
+}

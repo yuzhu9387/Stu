@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "row": "look-row-10",
+  "directions": [
+    {"degree": "180", "expected": "down", "verdict": "pass", "evidence": "Frontal chin tuck and downward eye aim continue the near-frontal 157.5 family."},
+    {"degree": "202.5", "expected": "down-left", "verdict": "pass", "evidence": "Downward gaze gains a small screen-left muzzle and head turn."},
+    {"degree": "225", "expected": "down-left", "verdict": "pass", "evidence": "Clear diagonal down-left head and eye aim with stable paws."},
+    {"degree": "247.5", "expected": "down-left", "verdict": "pass", "evidence": "Leftward turn strengthens while the chin remains lowered."},
+    {"degree": "270", "expected": "left", "verdict": "pass", "evidence": "Muzzle and eye aim are unmistakably screen-left in a compact side profile."},
+    {"degree": "292.5", "expected": "up-left", "verdict": "pass", "evidence": "Screen-left profile begins lifting the muzzle and gaze."},
+    {"degree": "315", "expected": "up-left", "verdict": "pass", "evidence": "Head and eyes aim diagonally up-left while the lower body stays anchored."},
+    {"degree": "337.5", "expected": "up-left", "verdict": "pass", "evidence": "Near-frontal raised gaze keeps a subtle screen-left cue one step before 000."}
+  ],
+  "continuity": {
+    "verdict": "warning",
+    "evidence": "Metrics flag area/center changes at 157.5->180 and 337.5->000, but normal-size labeled review shows the intended near-frontal boundary families with no visible reversal, identity change, edge clipping, or tail detachment. Independent final QA remains required."
+  },
+  "registration": {
+    "verdict": "pass",
+    "evidence": "Complete row assembled at the approved row-9 transform; the compact 270 repair has no final-cell edge failure."
+  }
+}

@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Node.js
+node_modules/
+.next/
+dist/
+build/
+.pnpm-store/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environment and local services
+.env
+.env.*
+!.env.example
+*.log
+*.db
+*.sqlite3
+
+# Local agent/tooling state
+.superpowers/
+.worktrees/
+.claude/settings.local.json

@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "row": "look-row-9",
+  "directions": [
+    {"degree": "000", "expected": "up", "verdict": "pass", "evidence": "Eyes and muzzle lift above head center; both ears remain visible."},
+    {"degree": "022.5", "expected": "up-right", "verdict": "pass", "evidence": "Head remains lifted while muzzle and eye aim begin moving screen-right."},
+    {"degree": "045", "expected": "up-right", "verdict": "pass", "evidence": "Clear diagonal up-right head and eye aim with stable paws."},
+    {"degree": "067.5", "expected": "up-right", "verdict": "pass", "evidence": "Rightward turn strengthens while the muzzle remains raised."},
+    {"degree": "090", "expected": "right", "verdict": "pass", "evidence": "Muzzle and eye aim are clearly screen-right with right-side facial exposure."},
+    {"degree": "112.5", "expected": "down-right", "verdict": "pass", "evidence": "Rightward turn continues as chin and gaze begin lowering."},
+    {"degree": "135", "expected": "down-right", "verdict": "pass", "evidence": "Head and eyes aim diagonally down-right; lower-body anchor remains fixed."},
+    {"degree": "157.5", "expected": "down-right", "verdict": "pass", "evidence": "Deep down-right tuck lands one even step before the down cardinal."}
+  ],
+  "continuity": {
+    "verdict": "pass",
+    "evidence": "All adjacent head, ear, upper-torso, and tail-pearl changes progress clockwise without visible reversal, scale pop, registration jump, or attachment break."
+  },
+  "registration": {
+    "verdict": "pass",
+    "scale": 0.6490448702671026,
+    "evidence": "Registered row fits all eight cells without reported edge failure and shares the neutral baseline and lower-body anchor."
+  }
+}

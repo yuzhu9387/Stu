@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "visual_qa": "pass",
+  "reviewed_by": "independent final visual QA worker",
+  "qa_note": "All nine standard animations, four cardinal gates, and the repaired clockwise direction loop pass final visual QA with consistent identity, clean transparency, and no conspicuous motion discontinuity.",
+  "repair_rows": [],
+  "repair_notes": null,
+  "direction_semantics": "qa/direction-semantics.json"
+}

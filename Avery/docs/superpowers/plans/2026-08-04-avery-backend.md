@@ -1605,7 +1605,7 @@ This is the load-bearing task. Everything else is plumbing; this is the product.
 - [ ] **Step 1: Write the failing test — `backend/tests/test_analytics.py`**
 
 ```python
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -1631,10 +1631,7 @@ PERIOD_END = datetime(2026, 9, 1)
 def slice_(id_: int, tag: int, day: int, start_h: int, hours: float) -> EventSlice:
     start = datetime(2026, 8, day, start_h)
     return EventSlice(
-        id=id_,
-        start_at=start,
-        end_at=start + __import__("datetime").timedelta(hours=hours),
-        tag_ids=(tag,),
+        id=id_, start_at=start, end_at=start + timedelta(hours=hours), tag_ids=(tag,)
     )
 
 
@@ -2211,7 +2208,7 @@ git commit -m "feat: add analytics evaluation endpoint over the pure engine"
 
 **Interfaces:**
 - Consumes: `services.tasks.find_or_create_by_name`, `services.events.create_event`, `EventCreate`
-- Produces: `Template`, `TemplateBlock` models; `services.templates.get_active_template(session) -> Template | None`, `create_template`, `list_templates`, `upsert_block(session, template_id, data: TemplateBlockCreate, block_id=None) -> TemplateBlock | None`, `delete_block`, `materialize_week(session, monday: date, template=None) -> list[Event]`, `week_bounds(any_day: date) -> tuple[date, date]`
+- Produces: `Template`, `TemplateBlock` models; `services.templates.get_active_template(session) -> Template | None`, `create_template`, `list_templates`, `get_template`, `delete_template`, `create_block(session, template_id, data: TemplateBlockCreate) -> TemplateBlock | None`, `update_block(session, block_id, data) -> TemplateBlock | None`, `delete_block(session, block_id) -> bool`, `materialize_week(session, any_day: date, template=None) -> tuple[date, list[Event], list[date]]`, `week_bounds(any_day: date) -> tuple[date, date]`
 
 - [ ] **Step 1: Write the failing test — `backend/tests/test_templates.py`**
 
@@ -2399,7 +2396,7 @@ __all__ = [
 ```python
 from datetime import datetime, time
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TemplateBlockCreate(BaseModel):
@@ -2410,9 +2407,12 @@ class TemplateBlockCreate(BaseModel):
     tag_ids: list[int] = Field(default_factory=list)
     sort_order: int = 0
 
-    def model_post_init(self, _context) -> None:
-        if any(d < 1 or d > 7 for d in self.days):
+    @field_validator("days")
+    @classmethod
+    def days_are_iso_weekdays(cls, value: list[int]) -> list[int]:
+        if any(d < 1 or d > 7 for d in value):
             raise ValueError("days must be ISO weekdays 1-7")
+        return value
 
 
 class TemplateBlockOut(BaseModel):
@@ -2480,11 +2480,23 @@ async def list_templates(session: AsyncSession) -> list[Template]:
 
 
 async def get_template(session: AsyncSession, template_id: int) -> Template | None:
-    return await session.get(Template, template_id)
+    # populate_existing re-runs the selectin load of `blocks`. Without it, a Template
+    # already in the identity map returns a stale block list after an add or delete.
+    stmt = (
+        select(Template)
+        .where(Template.id == template_id)
+        .execution_options(populate_existing=True)
+    )
+    return (await session.scalars(stmt)).first()
 
 
 async def get_active_template(session: AsyncSession) -> Template | None:
-    stmt = select(Template).where(Template.is_active.is_(True)).order_by(Template.id.desc())
+    stmt = (
+        select(Template)
+        .where(Template.is_active.is_(True))
+        .order_by(Template.id.desc())
+        .execution_options(populate_existing=True)
+    )
     return (await session.scalars(stmt)).first()
 
 
@@ -2505,23 +2517,26 @@ async def delete_template(session: AsyncSession, template_id: int) -> bool:
     return True
 
 
-async def upsert_block(
-    session: AsyncSession,
-    template_id: int,
-    data: TemplateBlockCreate,
-    block_id: int | None = None,
+async def create_block(
+    session: AsyncSession, template_id: int, data: TemplateBlockCreate
 ) -> TemplateBlock | None:
-    if block_id is None:
-        if await session.get(Template, template_id) is None:
-            return None
-        block = TemplateBlock(template_id=template_id, **data.model_dump())
-        session.add(block)
-    else:
-        block = await session.get(TemplateBlock, block_id)
-        if block is None:
-            return None
-        for key, value in data.model_dump().items():
-            setattr(block, key, value)
+    if await session.get(Template, template_id) is None:
+        return None
+    block = TemplateBlock(template_id=template_id, **data.model_dump())
+    session.add(block)
+    await session.commit()
+    await session.refresh(block)
+    return block
+
+
+async def update_block(
+    session: AsyncSession, block_id: int, data: TemplateBlockCreate
+) -> TemplateBlock | None:
+    block = await session.get(TemplateBlock, block_id)
+    if block is None:
+        return None
+    for key, value in data.model_dump().items():
+        setattr(block, key, value)
     await session.commit()
     await session.refresh(block)
     return block
@@ -2653,7 +2668,7 @@ async def delete_template(template_id: int, session: AsyncSession = Depends(get_
 async def create_block(
     template_id: int, data: TemplateBlockCreate, session: AsyncSession = Depends(get_session)
 ):
-    block = await service.upsert_block(session, template_id, data)
+    block = await service.create_block(session, template_id, data)
     if block is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "template not found")
     return block
@@ -2663,7 +2678,7 @@ async def create_block(
 async def update_block(
     block_id: int, data: TemplateBlockCreate, session: AsyncSession = Depends(get_session)
 ):
-    block = await service.upsert_block(session, 0, data, block_id=block_id)
+    block = await service.update_block(session, block_id, data)
     if block is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "block not found")
     return block
@@ -3659,7 +3674,7 @@ git commit -m "feat: add Reminder model, service, and REST endpoints"
 - Modify: `backend/app/main.py`
 
 **Interfaces:**
-- Consumes: `services.tags.create_tag`, `services.rules.create_rule_version`, `services.templates.create_template` / `upsert_block`
+- Consumes: `services.tags.create_tag`, `services.rules.create_rule_version`, `services.templates.create_template` / `create_block`
 - Produces: `services.seed.seed_all(session) -> dict[str, int]` — idempotent; returns counts created
 
 The template mirrors the source image: 周一–周五 / 周六 / 周日.
@@ -3853,7 +3868,7 @@ async def seed_all(session: AsyncSession) -> dict[str, int]:
             session, TemplateCreate(name="Default week")
         )
         for order, (days, start, end, task_name, tag_name) in enumerate(SEED_BLOCKS):
-            await template_service.upsert_block(
+            await template_service.create_block(
                 session,
                 template.id,
                 TemplateBlockCreate(

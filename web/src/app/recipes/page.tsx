@@ -1,5 +1,5 @@
-import { LiveFeatureScreen } from "@/features/records/live-feature-screen";
+import { RecipeLibrary } from "@/features/recipes/recipe-library";
 
 export default function RecipesPage() {
-  return <LiveFeatureScreen page="recipes" />;
+  return <RecipeLibrary />;
 }

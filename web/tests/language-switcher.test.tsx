@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -9,11 +9,13 @@ describe("language switcher", () => {
     const user = userEvent.setup();
     render(<LocalizedApp initialLocale="zh-CN" />);
 
-    expect(screen.getByRole("navigation")).toHaveTextContent("菜谱库");
+    expect(screen.getByRole("navigation", { name: "主要导航" })).toHaveTextContent("菜谱");
     await user.click(screen.getByRole("button", { name: "English" }));
 
-    expect(screen.getByRole("navigation")).toHaveTextContent("Recipes");
-    expect(screen.queryByText("菜谱库")).not.toBeInTheDocument();
-    expect(document.documentElement.lang).toBe("en-US");
+    await waitFor(() => {
+      expect(screen.getByRole("navigation", { name: "Primary navigation" })).toHaveTextContent("Recipes");
+      expect(screen.queryByText("菜谱")).not.toBeInTheDocument();
+      expect(document.documentElement.lang).toBe("en-US");
+    });
   });
 });

@@ -49,6 +49,9 @@ class RecommendationQuery(BaseModel):
     age_years: int | None = Field(default=None, ge=0)
     meal_type: str | None = None
     maximum_minutes: int | None = Field(default=None, ge=1)
+    preferences: tuple[str, ...] = Field(default=(), max_length=12)
+    people_count: int = Field(default=2, ge=1, le=20)
+    notes: str | None = Field(default=None, max_length=2000)
 
 
 class RecommendationResult(BaseModel):

@@ -1,31 +1,81 @@
 "use client";
 
-import { useLocale } from "@/i18n/locale-context";
-import { useFeatureData } from "@/lib/use-feature-data";
+import { ArrowLeft, Clock, PencilSimple, Trash, UsersThree } from "@phosphor-icons/react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-interface RecipeDetailData {
-  id: string;
-  name: string;
-  owner_display_name: string;
-  is_owned_by_current_account: boolean;
-  visibility: string;
-  ingredients: { name: string; quantity: string | number | null; unit: string | null }[];
-  steps: { number: number; text: string }[];
-}
+import { RecipeEditor } from "@/features/recipes/recipe-editor";
+import { useLocale } from "@/i18n/locale-context";
+import { api } from "@/lib/api";
+import { useResource } from "@/lib/use-resource";
+import type { Recipe } from "@/lib/workspace-types";
+import { mealLabel } from "@/lib/workspace-labels";
 
 export function RecipeDetail({ id }: { id: string }) {
   const { locale } = useLocale();
-  const state = useFeatureData<RecipeDetailData>(`/api/v1/recipes/${id}`);
   const chinese = locale === "zh-CN";
-  if (state.status === "loading") return <p className="empty-state">{chinese ? "正在加载菜谱…" : "Loading recipe…"}</p>;
-  if (state.status === "error") return <p className="empty-state" role="alert">{chinese ? "找不到这道菜谱。" : "Recipe not found."}</p>;
-  const recipe = state.data;
-  return <section className="feature-screen">
-    <header className="feature-header"><div><p className="eyebrow">{chinese ? "家庭菜谱" : "FAMILY RECIPE"}</p><h1>{recipe.name}</h1>
-      <p className="feature-description">{chinese ? "所有者" : "Owner"}: {recipe.is_owned_by_current_account ? (chinese ? "我" : "Me") : recipe.owner_display_name}</p></div></header>
-    <div className="record-grid">
-      <article className="record-card"><span className="record-index">01</span><div><h2>{chinese ? "食材" : "Ingredients"}</h2><p>{recipe.ingredients.map((item) => [item.name, item.quantity, item.unit].filter(Boolean).join(" ")).join(" · ")}</p></div><small>{recipe.visibility}</small></article>
-      <article className="record-card"><span className="record-index">02</span><div><h2>{chinese ? "步骤" : "Method"}</h2><p>{recipe.steps.map((step) => `${step.number}. ${step.text}`).join(" ")}</p></div><small>{recipe.steps.length} {chinese ? "步" : "steps"}</small></article>
-    </div>
-  </section>;
+  const router = useRouter();
+  const resource = useResource<Recipe>(`/api/v1/recipes/${id}`);
+  const [editing, setEditing] = useState(false);
+
+  if (resource.loading) return <p className="warm-empty">{chinese ? "正在准备菜谱…" : "Preparing the recipe…"}</p>;
+  if (resource.error || !resource.data) return <p className="warm-empty error">{chinese ? "找不到这道菜谱。" : "Recipe not found."}</p>;
+  const recipe = resource.data;
+
+  function formatQuantity(value: string | number | null) {
+    if (value === null || value === "") return "";
+    const number = Number(value);
+    return Number.isFinite(number) ? new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(number) : String(value);
+  }
+
+  async function remove() {
+    if (!window.confirm(chinese ? `删除“${recipe.name}”？` : `Delete “${recipe.name}”?`)) return;
+    await api<void>(`/api/v1/recipes/${recipe.id}`, { method: "DELETE" });
+    router.push("/recipes");
+  }
+
+  return (
+    <section className="workspace-page recipe-detail-page">
+      <div className="detail-top-actions">
+        <Link className="quiet-link" href="/recipes"><ArrowLeft size={18} /> {chinese ? "返回菜谱" : "Back to recipes"}</Link>
+        {recipe.is_owned_by_current_account ? <div>
+          <button aria-label={chinese ? "编辑菜谱" : "Edit recipe"} className="icon-button" type="button" onClick={() => setEditing(true)}><PencilSimple size={18} /></button>
+          <button aria-label={chinese ? "删除菜谱" : "Delete recipe"} className="icon-button danger" type="button" onClick={() => void remove()}><Trash size={18} /></button>
+        </div> : null}
+      </div>
+      <div className="recipe-hero">
+        <Image priority alt={recipe.name} fill sizes="(max-width: 900px) 100vw, 900px" src={recipe.image_url || "/assets/honey-soy-chicken.png"} />
+        <div className="recipe-hero-overlay" />
+        <div className="recipe-hero-copy">
+          <span className="meal-label light">{mealLabel(recipe.meal_type, locale)}</span>
+          <h1>{recipe.name}</h1>
+          <p>{chinese ? `由 ${recipe.is_owned_by_current_account ? "我" : recipe.owner_display_name} 收藏` : `Saved by ${recipe.is_owned_by_current_account ? "me" : recipe.owner_display_name}`}</p>
+        </div>
+      </div>
+      <div className="detail-stat-row">
+        <div><Clock size={20} /><span>{chinese ? "准备" : "Prep"}</span><strong>{recipe.prep_minutes} min</strong></div>
+        <div><Clock size={20} /><span>{chinese ? "烹饪" : "Cook"}</span><strong>{recipe.cook_minutes} min</strong></div>
+        <div><UsersThree size={20} /><span>{chinese ? "适合年龄" : "Suitable age"}</span><strong>{recipe.suitable_age_years}+</strong></div>
+      </div>
+      <div className="recipe-detail-grid">
+        <article className="detail-panel ingredients-panel">
+          <header><span>01</span><div><p>{chinese ? "准备" : "PREPARE"}</p><h2>{chinese ? "食材" : "Ingredients"}</h2></div></header>
+          <ul>{(recipe.ingredients ?? []).map((item) => <li key={`${item.name}-${item.unit}`}><strong>{item.name}</strong><span>{[formatQuantity(item.quantity), item.unit].filter(Boolean).join(" ") || "—"}</span></li>)}</ul>
+        </article>
+        <article className="detail-panel steps-panel">
+          <header><span>02</span><div><p>{chinese ? "开始烹饪" : "LET’S COOK"}</p><h2>{chinese ? "步骤" : "Method"}</h2></div></header>
+          <ol>{(recipe.steps ?? []).map((step) => <li key={step.number}><span>{step.number}</span><p>{step.text}</p></li>)}</ol>
+        </article>
+      </div>
+      <RecipeEditor
+        key={editing ? recipe.id : "closed"}
+        open={editing}
+        recipe={recipe}
+        onClose={() => setEditing(false)}
+        onSaved={() => void resource.reload()}
+      />
+    </section>
+  );
 }

@@ -40,6 +40,8 @@ class MealPlan(BaseModel):
     id: UUID
     owner_account_id: UUID
     household_id: UUID
+    title: str = "Weekly plan"
+    generated_by_ai: bool = False
     week_start: date
     version: int = Field(ge=1)
     items: tuple[PlanItem, ...]

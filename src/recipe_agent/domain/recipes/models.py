@@ -5,7 +5,17 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from recipe_agent.infrastructure.db.base import Base
@@ -51,9 +61,20 @@ class Recipe(Base):
         Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
     )
     visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="family")
+    meal_type: Mapped[str] = mapped_column(String(32), nullable=False, default="dinner")
+    prep_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cook_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    suitable_age_years: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    image_url: Mapped[str | None] = mapped_column(Text)
     active_version_id: Mapped[UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
     )
 
 

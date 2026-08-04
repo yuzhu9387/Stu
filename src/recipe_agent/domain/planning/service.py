@@ -47,24 +47,36 @@ class PlanningService:
         slots: tuple[PlanSlot, ...],
         *,
         source_action_id: UUID | None = None,
+        title: str = "Weekly plan",
+        generated_by_ai: bool = False,
+        preferences: tuple[str, ...] = (),
+        people_count: int = 2,
+        notes: str | None = None,
     ) -> MealPlan:
         if source_action_id is not None:
             completed = await self._repository.get_action_result(source_action_id, "create_plan")
             if completed is not None:
                 return completed
-        selected_recipe_ids: set[UUID] = set()
+        recommendations_by_slot: dict[
+            str, tuple[RecommendationResult, RecommendationResult, RecommendationResult]
+        ] = {}
+        slot_usage: dict[str, int] = {}
         items: list[PlanItem] = []
         for slot in slots:
-            recommendations = await self._recommendations.recommend(
-                RecommendationQuery(household_id=household_id)
-            )
-            selected = next(
-                (item for item in recommendations if item.id not in selected_recipe_ids),
-                None,
-            )
-            if selected is None:
-                raise PlanItemNotFoundError("No non-duplicate recommendation is available")
-            selected_recipe_ids.add(selected.id)
+            if slot.slot not in recommendations_by_slot:
+                recommendations_by_slot[slot.slot] = await self._recommendations.recommend(
+                    RecommendationQuery(
+                        household_id=household_id,
+                        meal_type=slot.slot,
+                        preferences=preferences,
+                        people_count=people_count,
+                        notes=notes,
+                    )
+                )
+            recommendations = recommendations_by_slot[slot.slot]
+            usage = slot_usage.get(slot.slot, 0)
+            selected = recommendations[usage % len(recommendations)]
+            slot_usage[slot.slot] = usage + 1
             items.append(
                 PlanItem(
                     id=uuid4(),
@@ -79,6 +91,8 @@ class PlanningService:
             id=uuid4(),
             owner_account_id=owner_account_id,
             household_id=household_id,
+            title=title,
+            generated_by_ai=generated_by_ai,
             week_start=week_start,
             version=1,
             items=tuple(items),

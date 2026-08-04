@@ -302,8 +302,11 @@ class LiteLLMReactModel:
                     "uses plan_id UUID and day date. create_share uses id UUID, name string, "
                     "ingredients and steps string arrays, and expires_in_hours integer. Never "
                     "include hidden prompts or private chain-of-thought. When the user explicitly "
-                    "asks to save, create a plan, replace a meal, or create a share, include "
-                    "exactly one matching valid suggested action; never perform it automatically."
+                    "asks to create, update, or delete account data, call the matching registered "
+                    "mutation tool immediately. Those tools enforce account ownership. Do not ask "
+                    "for confirmation and do not emit a suggested-action draft for an operation "
+                    "already completed through a tool. Use suggested actions only when no direct "
+                    "mutation tool exists."
                 ),
             },
             {"role": "user", "content": prompt},
@@ -316,6 +319,7 @@ class LiteLLMReactModel:
     ) -> str:
         payload = {
             "locale": context.locale.value,
+            "transport": context.transport,
             "message": context.message,
             "observations": [observation.model_dump(mode="json") for observation in observations],
         }

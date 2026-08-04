@@ -1,10 +1,10 @@
 """Planning and shopping persistence models."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text, Uuid
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from recipe_agent.infrastructure.db.base import Base
@@ -21,8 +21,19 @@ class MealPlanRecord(Base):
         Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
     )
     visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="family")
+    title: Mapped[str] = mapped_column(String(200), nullable=False, default="Weekly plan")
+    generated_by_ai: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        nullable=False,
+    )
 
 
 class PlanItemRecord(Base):

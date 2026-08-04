@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -9,18 +9,20 @@ describe("shell localization", () => {
     const user = userEvent.setup();
     render(<LocalizedApp initialLocale="zh-CN" />);
 
-    expect(screen.getByText("余家")).toBeVisible();
-    expect(screen.getByText("已记住 12 道菜谱")).toBeVisible();
-    expect(screen.getByText("Lark 未连接")).toBeVisible();
+    expect(screen.getByText("家的味道，都在这里")).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "主要导航" })).toHaveTextContent("计划");
+    expect(screen.getByText("仅 Web")).toBeVisible();
     expect(screen.getByText("网址 · 图片 · 表格")).toBeVisible();
-    expect(screen.queryByText("Yu household")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recipes that feel like home")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "English" }));
 
-    expect(screen.getByText("Yu household")).toBeVisible();
-    expect(screen.getByText("12 recipes remembered")).toBeVisible();
-    expect(screen.getByText("Lark not connected")).toBeVisible();
-    expect(screen.getByText("URL · image · spreadsheet")).toBeVisible();
-    expect(screen.queryByText("余家")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Recipes that feel like home")).toBeVisible();
+      expect(screen.getByRole("navigation", { name: "Primary navigation" })).toHaveTextContent("Plan");
+      expect(screen.getByText("Web only")).toBeVisible();
+      expect(screen.getByText("URL · image · spreadsheet")).toBeVisible();
+      expect(screen.queryByText("家的味道，都在这里")).not.toBeInTheDocument();
+    });
   });
 });

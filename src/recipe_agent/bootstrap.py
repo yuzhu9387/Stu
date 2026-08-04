@@ -64,6 +64,7 @@ from recipe_agent.domain.recommendations.contracts import (
 from recipe_agent.domain.recommendations.service import RecommendationService
 from recipe_agent.domain.sharing.repository import SqlShareRepository
 from recipe_agent.domain.sharing.service import ShareService
+from recipe_agent.domain.todos.repository import TodoRepository
 from recipe_agent.infrastructure.ai.litellm_provider import LiteLLMCompletion, LiteLLMProvider
 from recipe_agent.infrastructure.ai.react_model import LiteLLMReactModel
 from recipe_agent.infrastructure.db.session import create_session_factory
@@ -120,14 +121,15 @@ class AgentRunService:
         actor = HouseholdScope(command.account_id, command.household_id)
         issued = tuple(
             [
-                await self._actions.issue(
-                    draft,
-                    actor=actor,
-                    source_run_id=run_id,
-                )
+                await self._actions.issue(draft, actor=actor, source_run_id=run_id)
                 for draft in final.suggested_actions
             ]
         )
+        if command.transport == "lark":
+            for action in issued:
+                await self._actions.consume(action.token, actor=actor)
+                await self._actions.execute_queued(action.id)
+            issued = ()
         payload = final.model_dump(mode="json")
         payload["suggested_actions"] = [action.model_dump(mode="json") for action in issued]
         return cast(dict[str, JsonValue], payload)
@@ -172,6 +174,10 @@ class LiteLLMGeneratedCandidateSource:
         requested = max(1, min(3, count))
         prompt = (
             f"Suggest exactly {requested} concise recipe names as JSON. "
+            f"Meal type: {query.meal_type or 'any'}. "
+            f"Taste preferences: {list(query.preferences)}. "
+            f"People: {query.people_count}. "
+            f"Special notes: {query.notes or 'none'}. "
             f"Allergies: {sorted(query.allergies)}. "
             f"Available ingredients: {sorted(query.ingredients)}."
         )
@@ -194,14 +200,17 @@ class SqlHouseholdCandidateSource:
         self._session_factory = session_factory
 
     async def candidates(self, query: RecommendationQuery) -> list[RecommendationCandidate]:
+        criteria = [
+            Recipe.household_id == query.household_id,
+            Recipe.visibility == "family",
+        ]
+        if query.meal_type is not None:
+            criteria.append(Recipe.meal_type == query.meal_type)
         async with self._session_factory() as session:
             rows = await session.execute(
                 select(Recipe, RecipeVersion.name)
                 .join(RecipeVersion, RecipeVersion.id == Recipe.active_version_id)
-                .where(
-                    Recipe.household_id == query.household_id,
-                    Recipe.visibility == "family",
-                )
+                .where(*criteria)
                 .order_by(Recipe.created_at.desc(), Recipe.id)
                 .limit(100)
             )
@@ -298,6 +307,7 @@ def build_runtime(settings: Settings) -> Runtime:
     preference_repository = SqlDietaryPreferenceRepository(session_factory)
     raw_repository = RawInputRepository(session_factory)
     share_repository = SqlShareRepository(session_factory)
+    todo_repository = TodoRepository(session_factory)
 
     api_key = (
         settings.openai_api_key.get_secret_value() if settings.openai_api_key is not None else None
@@ -359,6 +369,7 @@ def build_runtime(settings: Settings) -> Runtime:
         recommendation_service=recommendation_service,
         import_service=import_service,
         planning_service=planning_service,
+        todo_queries=todo_repository,
     )
     model = LiteLLMReactModel(
         model=settings.litellm_chat_model,

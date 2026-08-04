@@ -57,6 +57,11 @@ class RecipeSummary(BaseModel):
     household_id: UUID
     name: str
     visibility: str
+    meal_type: str = "dinner"
+    prep_minutes: int = 0
+    cook_minutes: int = 0
+    suitable_age_years: int = 0
+    image_url: str | None = None
     created_at: datetime
 
 

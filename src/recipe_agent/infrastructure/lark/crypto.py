@@ -26,8 +26,19 @@ class LarkCipher:
 
     def decrypt(self, encrypted: str) -> dict[str, JsonValue]:
         try:
-            ciphertext = base64.b64decode(encrypted, validate=True)
-            decryptor = Cipher(algorithms.AES(self._key), modes.CBC(self._key[:16])).decryptor()
+            encrypted_payload = base64.b64decode(encrypted, validate=True)
+            block_size_bytes = algorithms.AES.block_size // 8
+            if (
+                len(encrypted_payload) < block_size_bytes * 2
+                or len(encrypted_payload) % block_size_bytes != 0
+            ):
+                raise ValueError("Invalid encrypted Lark payload length")
+            initialization_vector = encrypted_payload[:block_size_bytes]
+            ciphertext = encrypted_payload[block_size_bytes:]
+            decryptor = Cipher(
+                algorithms.AES(self._key),
+                modes.CBC(initialization_vector),
+            ).decryptor()
             padded = decryptor.update(ciphertext) + decryptor.finalize()
             unpadder = PKCS7(algorithms.AES.block_size).unpadder()
             plaintext = unpadder.update(padded) + unpadder.finalize()

@@ -1,6 +1,7 @@
 """SQL planning repository with optimistic version checks."""
 
 import json
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from pydantic import TypeAdapter
@@ -66,6 +67,8 @@ class SqlPlanRepository:
                 id=record.id,
                 owner_account_id=record.owner_account_id,
                 household_id=record.household_id,
+                title=record.title,
+                generated_by_ai=record.generated_by_ai,
                 week_start=record.week_start,
                 version=record.version,
                 items=tuple(self._item_from_record(item) for item in item_result.scalars()),
@@ -84,6 +87,8 @@ class SqlPlanRepository:
                     id=plan.id,
                     owner_account_id=plan.owner_account_id,
                     household_id=plan.household_id,
+                    title=plan.title,
+                    generated_by_ai=plan.generated_by_ai,
                     week_start=plan.week_start,
                     version=plan.version,
                 )
@@ -98,7 +103,10 @@ class SqlPlanRepository:
                             return MealPlan.model_validate(completed)
                     raise PlanVersionConflictError("Meal plan version conflict")
                 record.version = plan.version
+                record.title = plan.title
+                record.generated_by_ai = plan.generated_by_ai
                 record.week_start = plan.week_start
+                record.updated_at = datetime.now(UTC)
                 await session.execute(
                     delete(PlanItemRecord).where(PlanItemRecord.plan_id == plan.id)
                 )
@@ -116,6 +124,112 @@ class SqlPlanRepository:
                     raise
                 return MealPlan.model_validate(completed)
         return plan
+
+    async def update_metadata_for_owner(
+        self,
+        scope: HouseholdScope,
+        plan_id: UUID,
+        *,
+        title: str | None = None,
+        week_start: date | None = None,
+    ) -> MealPlanSummary:
+        async with self._session_factory() as session:
+            record = await self._owned_plan(session, scope, plan_id)
+            if title is not None:
+                record.title = title.strip()
+            if week_start is not None:
+                record.week_start = week_start
+            record.version += 1
+            record.updated_at = datetime.now(UTC)
+            await session.commit()
+        return await self.get_for_scope(scope, plan_id)
+
+    async def add_item_for_owner(
+        self, scope: HouseholdScope, plan_id: UUID, item: PlanItem
+    ) -> MealPlanSummary:
+        async with self._session_factory() as session:
+            record = await self._owned_plan(session, scope, plan_id)
+            session.add(self._record_from_item(plan_id, item))
+            record.version += 1
+            record.updated_at = datetime.now(UTC)
+            await session.commit()
+        return await self.get_for_scope(scope, plan_id)
+
+    async def update_item_for_owner(
+        self,
+        scope: HouseholdScope,
+        plan_id: UUID,
+        item_id: UUID,
+        item: PlanItem,
+    ) -> MealPlanSummary:
+        async with self._session_factory() as session:
+            record = await self._owned_plan(session, scope, plan_id)
+            target = await session.scalar(
+                select(PlanItemRecord).where(
+                    PlanItemRecord.id == item_id,
+                    PlanItemRecord.plan_id == plan_id,
+                )
+            )
+            if target is None:
+                raise PlanNotFoundError("Meal plan item not found")
+            target.day = item.day
+            target.slot = item.slot
+            target.recipe_id = item.recipe_id
+            target.recipe_name = item.recipe_name
+            target.reason_codes_json = json.dumps(item.reason_codes)
+            target.ingredients_json = _ingredients_adapter.dump_json(item.ingredients).decode(
+                "utf-8"
+            )
+            record.version += 1
+            record.updated_at = datetime.now(UTC)
+            await session.commit()
+        return await self.get_for_scope(scope, plan_id)
+
+    async def delete_item_for_owner(
+        self, scope: HouseholdScope, plan_id: UUID, item_id: UUID
+    ) -> MealPlanSummary:
+        async with self._session_factory() as session:
+            record = await self._owned_plan(session, scope, plan_id)
+            result = await session.execute(
+                delete(PlanItemRecord).where(
+                    PlanItemRecord.id == item_id,
+                    PlanItemRecord.plan_id == plan_id,
+                )
+            )
+            if getattr(result, "rowcount", 0) != 1:
+                raise PlanNotFoundError("Meal plan item not found")
+            record.version += 1
+            record.updated_at = datetime.now(UTC)
+            await session.commit()
+        return await self.get_for_scope(scope, plan_id)
+
+    async def delete_for_owner(self, scope: HouseholdScope, plan_id: UUID) -> None:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                delete(MealPlanRecord).where(
+                    MealPlanRecord.id == plan_id,
+                    MealPlanRecord.owner_account_id == scope.account_id,
+                    MealPlanRecord.household_id == scope.household_id,
+                )
+            )
+            if getattr(result, "rowcount", 0) != 1:
+                raise PlanNotFoundError("Meal plan not found")
+            await session.commit()
+
+    @staticmethod
+    async def _owned_plan(
+        session: AsyncSession, scope: HouseholdScope, plan_id: UUID
+    ) -> MealPlanRecord:
+        record = await session.scalar(
+            select(MealPlanRecord).where(
+                MealPlanRecord.id == plan_id,
+                MealPlanRecord.owner_account_id == scope.account_id,
+                MealPlanRecord.household_id == scope.household_id,
+            )
+        )
+        if record is None:
+            raise PlanNotFoundError("Meal plan not found")
+        return record
 
     async def list_for_scope(self, scope: HouseholdScope) -> tuple[MealPlanSummary, ...]:
         async with self._session_factory() as session:
@@ -269,6 +383,8 @@ class SqlPlanRepository:
             owner_display_name=_owner_display_name(email),
             is_owned_by_current_account=record.owner_account_id == scope.account_id,
             household_id=record.household_id,
+            title=record.title,
+            generated_by_ai=record.generated_by_ai,
             week_start=record.week_start,
             version=record.version,
             items=items,

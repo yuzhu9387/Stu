@@ -1,5 +1,5 @@
-import { LiveFeatureScreen } from "@/features/records/live-feature-screen";
+import { PlanBoard } from "@/features/plans/plan-board";
 
 export default function PlanPage() {
-  return <LiveFeatureScreen page="plan" />;
+  return <PlanBoard />;
 }

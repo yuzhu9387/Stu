@@ -125,13 +125,13 @@ async def test_valid_event_reaches_shared_submitter() -> None:
 @pytest.mark.asyncio
 async def test_encrypted_event_is_decrypted_before_verification_and_normalization() -> None:
     encrypted = (
-        "kS14Aix3+Av1N/i2qiqJJWqYMuHMbG5m34/uHzWDDFR/r5me2DxKuUDoQfW2mFDNSkGC5KbgMi7ch+7l"
-        "EQ8CDxJK0rb5M1AxL5EoJRYB1dF4Lfq9ZOIUm1wmTedoznE5CQzv5ge0DIoAVXcye848cXf9DUrZdaNrwWN4"
-        "ZfCwfZki+DMjviU5OXXWeGTvaD6Gb9/JNIUH2650GS+RBrQnjo/nRf8XIfPMQmxm3Fn4A21JAeiFfVGx/2lS"
-        "WI/CgwP8Anh61xAM2a7YmDuxliu0HJxUSOz/8BPPbyyaJLPT+bQhy3t3Ez/q5eoWvL/ANFKoQbWAszRl9sd9"
-        "15vKqMXYVs3U4W4Hjn2buuzQZAKi2IGbuFQT3aLm0VJdi7fs5KU6gfUC/JTJGPkbq+ZZTr9V+O3t5RgbGyi"
-        "0kQWuGt8YnfDwuujzeLHc2f87jX8nHDvMRFL44ALIrBnQa/j6zF2+NviV1E8FhozCMSVFNfRbqJOv4I+fz1"
-        "aKZQ4Ggv0Fn5aB0Ynkpm7lcZ/C7pUTfZQX0jjnXu7wC+GEs32n0iv52o0="
+        "AAECAwQFBgcICQoLDA0ODxyUh8fAZ1A9PUi/EnpUHksA/6JBKzha7Yeru5h0vmzHnjEzWJPSldqZI4zUBfLe"
+        "/+JWDRYtKiKploQhCLtUrIzY43us1ZjzH8GVZIA0EHOgS5cdFqBNXWU5cBLCb7KEYEujSXAfo5dUxxyfVfu3"
+        "bGrvfPxiGKMjpYkouuYbKdCm6Ige8cYaslV1xpsImY8V572jCa3Zobo2NABskFH2d9iI+Rc8RDp4pMXRQjTP"
+        "92wxOfZFnJEC/YWGFR8YiHIfwCIJM4kj6KOevhFXzJNHdvouvFj2hGpMPHTuHIipU5D6nT41hCPrqCjpMm2C"
+        "R2EQ3pmPfnzglvl5xRiIFpFmGy314mh/vNTFSbBhtxtq5txAx48E/3bVulWIo3RFDWsJDfhNKM4sR1CW+5mo"
+        "+0ANMtWP+bCfao//Fp472dV64QteDuUiaJndDjAK6yESGUlpejbPXRuOEJ8kzVCfSdBEsY/JUW6N7W8oZB/v"
+        "NX4JUWrFFRmh9RQJkozL1WLB83F/ptvE51+uD0oDaPOv5/taAvKLyr7Ur1SMCVPme7G7DOwD"
     )
     submitter = RecordingSubmitter()
     handler = handler_for(submitter, cipher=LarkCipher("test-encrypt-key"))

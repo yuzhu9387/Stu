@@ -1,10 +1,11 @@
 """Account-scoped raw input and household-scoped recipe persistence."""
 
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -202,6 +203,12 @@ class RecipeRepository:
         candidate: RecipeCandidate,
         *,
         source_action_id: UUID | None = None,
+        visibility: str = "family",
+        meal_type: str = "dinner",
+        prep_minutes: int = 0,
+        cook_minutes: int = 0,
+        suitable_age_years: int = 0,
+        image_url: str | None = None,
     ) -> RecipeView:
         async with self._session_factory() as session:
             if source_action_id is not None:
@@ -211,6 +218,12 @@ class RecipeRepository:
             recipe = Recipe(
                 owner_account_id=owner_account_id,
                 household_id=household_id,
+                visibility=visibility,
+                meal_type=meal_type,
+                prep_minutes=prep_minutes,
+                cook_minutes=cook_minutes,
+                suitable_age_years=suitable_age_years,
+                image_url=image_url,
             )
             session.add(recipe)
             await session.flush()
@@ -262,6 +275,79 @@ class RecipeRepository:
                     raise
                 return RecipeView.model_validate(completed)
             return view
+
+    async def update_for_owner(
+        self,
+        scope: HouseholdScope,
+        recipe_id: UUID,
+        candidate: RecipeCandidate,
+        *,
+        visibility: str,
+        meal_type: str,
+        prep_minutes: int,
+        cook_minutes: int,
+        suitable_age_years: int,
+        image_url: str | None,
+    ) -> RecipeDetail:
+        async with self._session_factory() as session:
+            recipe = await session.scalar(
+                select(Recipe).where(
+                    Recipe.id == recipe_id,
+                    Recipe.owner_account_id == scope.account_id,
+                    Recipe.household_id == scope.household_id,
+                )
+            )
+            if recipe is None or recipe.active_version_id is None:
+                raise RecipeNotFoundError("Recipe not found")
+            previous_version_id = recipe.active_version_id
+            version = RecipeVersion(
+                recipe_id=recipe.id,
+                parent_version_id=previous_version_id,
+                name=candidate.name,
+            )
+            session.add(version)
+            await session.flush()
+            session.add_all(
+                [
+                    RecipeIngredient(
+                        version_id=version.id,
+                        position=position,
+                        name=ingredient.name,
+                        quantity=ingredient.quantity,
+                        unit=ingredient.unit,
+                    )
+                    for position, ingredient in enumerate(candidate.ingredients, start=1)
+                ]
+            )
+            session.add_all(
+                [
+                    RecipeStep(version_id=version.id, number=step.number, text=step.text)
+                    for step in candidate.steps
+                ]
+            )
+            recipe.active_version_id = version.id
+            recipe.visibility = visibility
+            recipe.meal_type = meal_type
+            recipe.prep_minutes = prep_minutes
+            recipe.cook_minutes = cook_minutes
+            recipe.suitable_age_years = suitable_age_years
+            recipe.image_url = image_url
+            recipe.updated_at = datetime.now(UTC)
+            await session.commit()
+        return await self.get_for_scope(scope, recipe_id)
+
+    async def delete_for_owner(self, scope: HouseholdScope, recipe_id: UUID) -> None:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                delete(Recipe).where(
+                    Recipe.id == recipe_id,
+                    Recipe.owner_account_id == scope.account_id,
+                    Recipe.household_id == scope.household_id,
+                )
+            )
+            if getattr(result, "rowcount", 0) != 1:
+                raise RecipeNotFoundError("Recipe not found")
+            await session.commit()
 
     async def get(self, household_id: UUID, recipe_id: UUID) -> RecipeView:
         async with self._session_factory() as session:
@@ -398,6 +484,11 @@ class RecipeRepository:
             household_id=record.household_id,
             name=name,
             visibility=record.visibility,
+            meal_type=record.meal_type,
+            prep_minutes=record.prep_minutes,
+            cook_minutes=record.cook_minutes,
+            suitable_age_years=record.suitable_age_years,
+            image_url=record.image_url,
             created_at=record.created_at,
         )
 

@@ -33,6 +33,7 @@ from recipe_agent.domain.recommendations.contracts import (
     RecommendationSource,
 )
 from recipe_agent.domain.recommendations.service import RecommendationService
+from recipe_agent.domain.todos.repository import TodoRepository
 
 
 class _NoGeneratedCandidates:
@@ -182,6 +183,7 @@ async def _registry(
         ),
         import_service=_UnusedPreviewImport(),
         planning_service=_UnusedPreviewPlanning(),
+        todo_queries=TodoRepository(session_factory),
     )
 
 
@@ -346,6 +348,7 @@ async def test_remaining_read_tool_names_dispatch_with_scoped_data(
         ),
         import_service=import_preview,
         planning_service=planning_preview,
+        todo_queries=TodoRepository(session_factory),
     )
     scope = HouseholdScope(account_id=alice.id, household_id=household.id)
 
@@ -381,7 +384,7 @@ async def test_remaining_read_tool_names_dispatch_with_scoped_data(
     assert planning_preview.day == day
 
 
-def test_registry_exposes_exactly_eight_closed_read_only_schemas() -> None:
+def test_registry_exposes_closed_account_scoped_schemas() -> None:
     names = {
         "search_own_recipes",
         "search_family_recipes",
@@ -391,6 +394,19 @@ def test_registry_exposes_exactly_eight_closed_read_only_schemas() -> None:
         "recommend_three",
         "preview_recipe_import",
         "preview_plan_change",
+        "create_recipe",
+        "update_recipe",
+        "delete_recipe",
+        "create_plan",
+        "update_plan",
+        "delete_plan",
+        "add_plan_item",
+        "update_plan_item",
+        "delete_plan_item",
+        "read_todos",
+        "create_todo",
+        "update_todo",
+        "delete_todo",
     }
 
     assert set(ReadOnlyToolRegistry.tool_definitions()) == names
@@ -403,16 +419,17 @@ def test_registry_exposes_exactly_eight_closed_read_only_schemas() -> None:
 def test_registry_removes_provider_unsupported_schema_keywords() -> None:
     unsupported = {"default", "title", "uniqueItems"}
 
-    def assert_supported(node: object) -> None:
+    def assert_supported(node: object, *, property_map: bool = False) -> None:
         if isinstance(node, list):
             for item in node:
                 assert_supported(item)
             return
         if not isinstance(node, dict):
             return
-        assert unsupported.isdisjoint(node)
-        for child in node.values():
-            assert_supported(child)
+        checked_keys = set(node) - ({"title"} if property_map else set())
+        assert unsupported.isdisjoint(checked_keys)
+        for key, child in node.items():
+            assert_supported(child, property_map=key == "properties")
 
     for definition in ReadOnlyToolRegistry.tool_definitions().values():
         assert_supported(definition.parameters)

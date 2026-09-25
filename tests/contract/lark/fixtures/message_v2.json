@@ -1,0 +1,17 @@
+{
+  "schema": "2.0",
+  "header": {
+    "event_id": "evt_recipe_001",
+    "event_type": "im.message.receive_v1",
+    "token": "verification-token"
+  },
+  "event": {
+    "sender": {"sender_id": {"open_id": "ou_family_cook"}},
+    "message": {
+      "chat_id": "oc_family_chat",
+      "message_id": "om_recipe_001",
+      "message_type": "text",
+      "content": "{\"text\":\"Save this recipe\"}"
+    }
+  }
+}

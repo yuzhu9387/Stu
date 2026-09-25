@@ -1,0 +1,66 @@
+[
+  {
+    "file": "chicken-meatballs.jpg",
+    "node": 1015,
+    "hash": "6e4425c270d0cc2cb078f740e0809b7b7344aae7"
+  },
+  {
+    "file": "tomato-beef-noodles.jpg",
+    "node": 1031,
+    "hash": "1d235c3401bb1a30774822aba9792c04d02e5b59"
+  },
+  {
+    "file": "brown-rice.jpg",
+    "node": 1045,
+    "hash": "0db3067f156c501dd3c8bc2453ac9a3f05473280"
+  },
+  {
+    "file": "steamed-fish.jpg",
+    "node": 1059,
+    "hash": "f07349fa1450356fbfab41deaf382123cd36fc36"
+  },
+  {
+    "file": "pumpkin-porridge.jpg",
+    "node": 1075,
+    "hash": "b4fb68b50f0bafa8c495a22978372377c1f2843c"
+  },
+  {
+    "file": "garlic-shrimp.jpg",
+    "node": 1091,
+    "hash": "2ec53ddcdadea397075d71b75f87456ae155e270"
+  },
+  {
+    "file": "wheat-bread.jpg",
+    "node": 1105,
+    "hash": "562ccd462e41a70de928ddd5cfe4ea90f79764cf"
+  },
+  {
+    "file": "stir-fry-noodles.jpg",
+    "node": 1119,
+    "hash": "a8358cb3b77f0da2751584bb6442b83609fe8cdf"
+  },
+  {
+    "file": "stu-logo.png",
+    "node": "7:9",
+    "sha256": "1df5ea07b1d930dc777703e0182257f7a8ca168a325086d8d1e4c3b70715ba78",
+    "source": "Figma original export"
+  },
+  {
+    "file": "smile-plus.svg",
+    "node": "20:194",
+    "sha256": "cf56e9ae47f305fab4e6d20a20c13fd1aa06ee875fb5980c7e7d20f64c7aa65d",
+    "source": "Figma original export"
+  },
+  {
+    "file": "meh.svg",
+    "node": "20:131",
+    "sha256": "6fbba455e29389237ca0d6bd1d2938656b725929f6cf41a3f6387a8ba0aaa8be",
+    "source": "Figma original export"
+  },
+  {
+    "file": "angry.svg",
+    "node": "20:68",
+    "sha256": "31684c755d7db807bdb7ee0c788855b2a4c7d90b2e160e0c8465449bf6f42689",
+    "source": "Figma original export"
+  }
+]

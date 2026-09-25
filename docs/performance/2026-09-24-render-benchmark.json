@@ -1,0 +1,92 @@
+{
+  "before": {
+    "fixture": {
+      "recipes": 120,
+      "inventory": 60,
+      "weeks": 13
+    },
+    "environment": "React dev Profiler / jsdom, median of 4 runs after warmup, excludes network/paint",
+    "results": [
+      {
+        "page": "plan",
+        "initialRenderMs": 36.89,
+        "menuUpdateMs": 13.6
+      },
+      {
+        "page": "calendar",
+        "initialRenderMs": 21.62,
+        "menuUpdateMs": 8.27
+      },
+      {
+        "page": "fridge",
+        "initialRenderMs": 13.18,
+        "menuUpdateMs": 4.58
+      },
+      {
+        "page": "recipes",
+        "initialRenderMs": 57.57,
+        "menuUpdateMs": 22.76
+      },
+      {
+        "page": "guidance",
+        "initialRenderMs": 6.45,
+        "menuUpdateMs": 2.39
+      },
+      {
+        "page": "knowledge",
+        "initialRenderMs": 3.2,
+        "menuUpdateMs": 0.98
+      },
+      {
+        "page": "prep",
+        "initialRenderMs": 7.87,
+        "menuUpdateMs": 2.65
+      }
+    ]
+  },
+  "after": {
+    "fixture": {
+      "recipes": 120,
+      "inventory": 60,
+      "weeks": 13
+    },
+    "environment": "React dev Profiler / jsdom, median of 4 runs after warmup, excludes network/paint",
+    "results": [
+      {
+        "page": "plan",
+        "initialRenderMs": 37.45,
+        "menuUpdateMs": 0.3
+      },
+      {
+        "page": "calendar",
+        "initialRenderMs": 20.84,
+        "menuUpdateMs": 0.25
+      },
+      {
+        "page": "fridge",
+        "initialRenderMs": 13.49,
+        "menuUpdateMs": 0.33
+      },
+      {
+        "page": "recipes",
+        "initialRenderMs": 18.9,
+        "menuUpdateMs": 0.29
+      },
+      {
+        "page": "guidance",
+        "initialRenderMs": 6.45,
+        "menuUpdateMs": 0.23
+      },
+      {
+        "page": "knowledge",
+        "initialRenderMs": 3.4,
+        "menuUpdateMs": 0.16
+      },
+      {
+        "page": "prep",
+        "initialRenderMs": 7.39,
+        "menuUpdateMs": 0.18
+      }
+    ]
+  }
+}

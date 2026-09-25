@@ -1,0 +1,28 @@
+.superpowers/
+.worktrees/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Node.js
+node_modules/
+.pnpm-store/
+.next/
+.next-e2e/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Environment and local services (secrets never leave this machine)
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+data/
+.gstack/

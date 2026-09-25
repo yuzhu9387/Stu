@@ -1,0 +1,139 @@
+{
+  "brand": "家庭餐桌",
+  "tagline": "你的家庭菜谱记忆",
+  "nav": {
+    "chat": "智能助手",
+    "recipes": "菜谱库",
+    "plan": "一周计划",
+    "shopping": "购物清单",
+    "imports": "导入记录",
+    "shares": "私密分享",
+    "settings": "家庭设置"
+  },
+  "language": { "label": "语言", "english": "English", "chinese": "中文" },
+  "shell": {
+    "primaryNavigation": "主导航",
+    "household": "余家",
+    "recipeCount": "已记住 12 道菜谱",
+    "larkConnected": "Lark 已连接"
+  },
+  "chat": {
+    "eyebrow": "今晚吃什么",
+    "title": "今天想做点什么？",
+    "subtitle": "可以找灵感、保存菜谱，或把本周安排成计划。",
+    "placeholder": "试试“用番茄推荐三道快手晚餐”",
+    "send": "询问助手",
+    "attachments": "网址 · 图片 · 表格",
+    "quickOne": "推荐晚餐",
+    "quickTwo": "保存菜谱",
+    "quickThree": "规划本周"
+  },
+  "pages": {
+    "recipes": {
+      "eyebrow": "家庭记忆",
+      "title": "家庭菜谱库",
+      "body": "保存家里的每一道菜，并保留来源与版本历史。",
+      "action": "导入菜谱",
+      "metric": "已保存 12 道菜谱",
+      "items": [
+        { "title": "番茄炒蛋", "detail": "15 分钟 · 工作日晚餐", "meta": "昨天更新" },
+        { "title": "外婆红烧牛肉", "detail": "90 分钟 · 家传菜谱", "meta": "3 个版本" },
+        { "title": "葱油拌面", "detail": "20 分钟 · 常备食材", "meta": "做过 8 次" }
+      ]
+    },
+    "recipe": {
+      "eyebrow": "家庭菜谱",
+      "title": "番茄炒蛋",
+      "body": "从 Lark 对话保存的快手、均衡家常菜。",
+      "action": "开始烹饪",
+      "metric": "第 3 版",
+      "items": [
+        { "title": "食材", "detail": "番茄 3 个 · 鸡蛋 4 个 · 葱花 · 盐", "meta": "3 人份" },
+        { "title": "步骤", "detail": "鸡蛋炒嫩盛出，翻炒番茄后再混合。", "meta": "15 分钟" },
+        { "title": "家庭备注", "detail": "给长辈做时少放糖。", "meta": "余家添加" }
+      ]
+    },
+    "plan": {
+      "eyebrow": "7 月 13 日至 19 日",
+      "title": "一周餐食计划",
+      "body": "安排七天可执行的选择，也可以只替换其中一餐。",
+      "action": "替换一道菜",
+      "metric": "已规划 5 顿晚餐",
+      "items": [
+        { "title": "星期一", "detail": "番茄炒蛋", "meta": "15 分钟" },
+        { "title": "星期三", "detail": "姜葱蒸鱼", "meta": "30 分钟" },
+        { "title": "星期五", "detail": "香菇鸡肉饭", "meta": "45 分钟" }
+      ]
+    },
+    "shopping": {
+      "eyebrow": "本周",
+      "title": "购物清单",
+      "body": "相同单位自动合并，不同单位保持分开。",
+      "action": "分享到 Lark",
+      "metric": "还需购买 9 项",
+      "items": [
+        { "title": "蔬果", "detail": "番茄 · 葱 · 姜 · 香菇", "meta": "4 项" },
+        { "title": "肉蛋水产", "detail": "鸡蛋 · 鲈鱼 · 鸡腿肉", "meta": "3 项" },
+        { "title": "粮油调味", "detail": "香米 · 生抽", "meta": "2 项" }
+      ]
+    },
+    "imports": {
+      "eyebrow": "来源收件箱",
+      "title": "菜谱导入",
+      "body": "文字、图片、表格和链接都会先保存原始内容再提取。",
+      "action": "新建导入",
+      "metric": "原始来源均已保存",
+      "items": [
+        { "title": "Lark 图片", "detail": "番茄炒蛋", "meta": "已就绪" },
+        { "title": "网页链接", "detail": "外婆红烧牛肉", "meta": "已就绪" },
+        { "title": "电子表格", "detail": "夏季家庭菜谱", "meta": "处理中" }
+      ]
+    },
+    "shares": {
+      "eyebrow": "隐私控制",
+      "title": "私密分享",
+      "body": "使用严格隐私白名单创建可过期、可撤销的菜谱链接。",
+      "action": "创建私密链接",
+      "metric": "2 个有效链接",
+      "items": [
+        { "title": "外婆红烧牛肉", "detail": "6 天后过期", "meta": "有效" },
+        { "title": "番茄炒蛋", "detail": "明天过期", "meta": "有效" },
+        { "title": "葱油拌面", "detail": "7 月 10 日已撤销", "meta": "已撤销" }
+      ]
+    },
+    "settings": {
+      "eyebrow": "你的家庭",
+      "title": "家庭设置",
+      "body": "管理语言、饮食需求、年龄与已连接的 Lark 身份。",
+      "action": "保存更改",
+      "metric": "资料完整",
+      "items": [
+        { "title": "饮食偏好", "detail": "微辣 · 少盐", "meta": "全家适用" },
+        { "title": "家庭成员", "detail": "2 位成人 · 1 位儿童 · 1 位长辈", "meta": "共 4 人" },
+        { "title": "Lark 身份", "detail": "已安全连接", "meta": "已验证" }
+      ]
+    },
+    "publicShare": {
+      "eyebrow": "分享的菜谱",
+      "title": "外婆红烧牛肉",
+      "body": "余家通过私密链接与你分享了这道菜谱。",
+      "action": "保存副本",
+      "metric": "链接将在 6 天后过期",
+      "items": [
+        { "title": "食材", "detail": "牛腩 · 姜 · 八角 · 生抽", "meta": "6 人份" },
+        { "title": "步骤", "detail": "煎香牛肉，调味后慢炖至软烂。", "meta": "90 分钟" },
+        { "title": "隐私", "detail": "仅显示获准分享的菜谱信息。", "meta": "私密链接" }
+      ]
+    }
+  },
+  "progress": {
+    "understanding": "理解需求",
+    "planning": "制定计划",
+    "acting": "执行操作",
+    "checking": "检查结果",
+    "continuing": "继续下一步",
+    "checkedHouseholdRecipes": "已检查家庭菜谱库",
+    "savedRecipe": "已保存菜谱",
+    "createdPlan": "已创建一周计划"
+  }
+}

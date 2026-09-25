@@ -1,0 +1,18 @@
+{
+  "database": "codex_kitchen_verify_9de9c03e389d4def",
+  "port": 55433,
+  "checks": [
+    "full_alembic_upgrade_head",
+    "concurrent_initial_insert_retry_deduplicated",
+    "same_revision_race_one_commit_one409",
+    "concurrent_row_lock_retry_deduplicated",
+    "authenticated_household_isolation"
+  ],
+  "revision": "0014_kitchen_generation_jobs",
+  "tables": [
+    "kitchen_generation_jobs",
+    "kitchen_operation_receipts",
+    "kitchen_workspaces"
+  ],
+  "temporary_database_dropped": true
+}

@@ -1,0 +1,1 @@
+"""Validated household kitchen workspace."""

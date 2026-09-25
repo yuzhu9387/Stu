@@ -1,0 +1,1 @@
+"""Immutable household feedback domain."""

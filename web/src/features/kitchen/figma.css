@@ -1,0 +1,789 @@
+@import "./fonts.css";
+
+/* Source: exTOMpQuvjEJ4Y4VirSHoL, six exported frames, 18 September 2026. */
+.kw-workspace{--kw-ink:#35251f;--kw-muted:#6b584e;--kw-line:#35251f;--kw-bg:#fff8ef;--stu-muted:#6b584e;--stu-line:#d9cbbb;--kw-yellow:#f4af14;display:block;min-height:100dvh;font-family:"Nunito Variable","Noto Sans SC Variable",sans-serif;font-size:14px;font-weight:700;color:var(--kw-ink);background:var(--kw-bg);line-height:1.4;padding:0}
+.kw-workspace.has-drawer{display:block}.kw-workspace h1{font-size:36px;font-weight:900;letter-spacing:0;line-height:1.36}.kw-workspace h2{font-size:22px;font-weight:900;letter-spacing:0}.kw-workspace h3{font-weight:900}.kw-workspace button{font-weight:800}.kw-workspace button:focus-visible,.kw-workspace a:focus-visible{outline:3px solid #c74732;outline-offset:4px}.kw-workspace .kw-main,.kw-workspace.has-drawer .kw-main{padding:40px;min-height:calc(100dvh - 84px);max-width:none}
+.kw-navigation{height:84px;background:#fff;border-bottom:4px solid var(--kw-ink);padding:16px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;z-index:6}
+.kw-navigation .kw-brand{display:flex;align-items:center;gap:8px;margin:0;flex:0 0 135px}.kw-brand>img{width:44px;height:44px;object-fit:contain;border:2px solid #c74732;border-radius:50%;background:#fff8ef;box-shadow:0 3px 0 #35251f}.kw-navigation .kw-brand strong{font-size:28px;font-weight:900;line-height:36px}.kw-navigation .kw-brand small{display:block;font-size:12px;color:#64734b;letter-spacing:0;font-weight:700;white-space:nowrap;line-height:16px}
+.kw-navigation nav{display:flex;gap:16px;align-items:center}.kw-navigation nav>button{height:42px;padding:7px 17px;border:3px solid #35251f;border-radius:16px;background:#fff8ef;display:flex;gap:3px;align-items:center;color:#35251f;white-space:nowrap;font-size:16px;font-weight:900}.kw-navigation nav>button span{font-size:14px}.kw-navigation nav>button.active{background:#f4af14;box-shadow:0 3px 0 #35251f}.kw-navigation nav>button:hover{background:#ffe0a0}
+.kw-user-menu{position:relative;display:flex;align-items:center;gap:12px}.kw-points{border:3px solid #35251f;border-radius:99px;background:#fff;padding:3px 10px;display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap;height:31px}.kw-points i{width:16px;height:16px;background:#f4af14;border:2px solid #35251f;border-radius:50%}.kw-avatar{background:#ffc3a0;border:3px solid #35251f;width:44px;height:44px;border-radius:50%;font-size:20px}.kw-profile-menu{position:absolute;right:0;top:54px;width:220px;background:white;border:3px solid #35251f;border-radius:18px;box-shadow:0 5px 0 #35251f;padding:8px;display:grid;gap:6px}.kw-profile-menu button{display:flex;align-items:center;gap:8px;padding:12px;background:#fff8ef;border:0;border-radius:10px;text-align:left;color:#35251f}.kw-demo-ribbon{position:fixed;bottom:5px;left:12px;z-index:4;background:#fff8efe8;border-radius:5px;padding:2px 7px;color:#6b584e;font-size:10px}
+.kw-workspace .kw-button{border:3px solid #35251f;border-radius:16px;box-shadow:0 4px 0 #35251f;min-height:46px;padding:9px 16px;font-size:15px;font-weight:900;background:#c74732;color:white;white-space:normal}.kw-workspace .kw-button:hover{filter:brightness(.97)}.kw-workspace .kw-button.secondary{background:#fff;color:#35251f}.kw-workspace .kw-button.kw-yellow,.kw-workspace .kw-button.is-active{background:#f4af14;color:#35251f}.kw-workspace .kw-button.kw-blue{background:#7dcced;color:#35251f}.kw-workspace .kw-button.kw-olive{background:#64734b;color:white}.kw-workspace .kw-button.compact{min-height:34px;padding:5px 10px;font-size:12px;border-radius:10px;box-shadow:0 2px 0 #35251f}.kw-workspace .kw-icon.bordered{border:3px solid #35251f;border-radius:10px;background:#fff;color:#35251f;width:32px;height:32px;box-shadow:0 3px 0 #35251f}.kw-workspace .kw-pill{border:2px solid #35251f;border-radius:7px;background:#fff8ef;color:#35251f;font-weight:800;font-size:10px;padding:1px 5px}.kw-workspace .kw-pill.green{background:#e9f7ec;color:#64734b;border-color:#64734b}.kw-workspace .kw-pill.kw-yellow{background:#f4af14;border-radius:12px;padding:5px 10px;font-size:14px}
+.kw-workspace .kw-input{border:2px solid #35251f;border-radius:12px;padding:10px 12px;background:white;font-size:14px}.kw-workspace .kw-input::placeholder{color:#9c795a}.kw-workspace .kw-card{border:3px solid #35251f;border-radius:24px;background:#fff;padding:22px}.kw-workspace .kw-label{font-weight:800;font-size:13px}.kw-workspace .kw-muted{color:#64734b}.kw-workspace .kw-empty{border:2px dashed #d4a574;border-radius:16px}.kw-workspace .kw-support-page{padding:0;max-width:none}.kw-workspace .kw-page-header{margin-bottom:24px;min-height:49px}.kw-workspace .kw-page-header h1{margin:0}.kw-workspace .kw-page-header p{margin:7px 0 0;font-size:16px}.kw-workspace .kw-page-header>.kw-support-actions{margin:0}.kw-support-page .kw-support-editor{border:3px solid #35251f;border-radius:22px}.kw-support-task .kw-support-actions .kw-button{font-size:12px;min-height:30px;padding:4px 9px;border-width:2px;border-radius:9px;box-shadow:none}.kw-workspace .kw-support-toggle input{appearance:none;width:54px;height:32px;flex-shrink:0;border:3px solid #35251f;border-radius:99px;background:#d4a574;position:relative;cursor:pointer;margin:0}.kw-workspace .kw-support-toggle input:before{content:"";position:absolute;width:22px;height:22px;top:2px;left:2px;border:2px solid #35251f;border-radius:50%;background:#fff}.kw-workspace .kw-support-toggle input:checked{background:#64734b}.kw-workspace .kw-support-toggle input:checked:before{left:24px}
+/* Calendar, frame 7:6 */
+.kw-calendar-heading{display:flex;align-items:center;gap:16px;margin-bottom:24px;min-height:49px}.kw-calendar-heading h1{white-space:nowrap}.kw-workspace .kw-weekbar{padding:0;gap:8px;display:flex;align-items:center;flex-wrap:wrap}.kw-week-label{border:3px solid #35251f;background:white;border-radius:16px;padding:5px 12px;box-shadow:0 3px 0 #35251f;font-size:16px;white-space:nowrap}.kw-calendar-heading .kw-prep-link{margin-left:auto;font-size:18px;padding:9px 17px;min-height:49px;border-radius:20px}.kw-workspace .kw-calendar-scroll{padding:0 0 10px;overflow-x:auto;scrollbar-width:thin}.kw-workspace .kw-calendar.kw-calendar-reference{grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;min-width:1100px}
+.kw-workspace .kw-calendar-reference .kw-day{border:3px solid #35251f;border-radius:24px;padding:9px;min-width:0;box-shadow:0 6px 0 #35251f;background:#fff8ef;height:509px;display:flex;flex-direction:column;gap:0}.kw-workspace .kw-calendar-reference .kw-day:first-child{border-left:3px solid #35251f;padding:9px}.kw-workspace .kw-calendar-reference .kw-day.is-today{border:4px solid #f4af14;padding:8px;box-shadow:0 6px 0 #35251f,0 0 12px #f4af1470}
+.kw-workspace .kw-calendar-reference .kw-day-header{height:27px;min-height:27px;margin:0 0 16px;padding:0;display:flex;flex-direction:row;justify-content:center;align-items:center;gap:4px;background:none}.kw-workspace .kw-calendar-reference .kw-day-header strong{font-size:20px;font-weight:900;line-height:27px;letter-spacing:0}.kw-workspace .kw-calendar-reference .kw-day-header>span:first-of-type{font-size:14px;font-weight:700;color:#6b584e}.kw-workspace .kw-calendar-reference .kw-calendar-today{font-size:8px;position:absolute;top:-8px;right:-1px;background:#f4af14;color:#35251f;border-radius:5px;padding:0 3px}
+.kw-workspace .kw-calendar-reference .kw-meal-slot{margin:0 0 10px}.kw-workspace .kw-calendar-reference .kw-meal-card{height:126px;min-height:126px;border:3px solid #35251f;border-radius:16px;background:#fffdf9;box-shadow:none;overflow:visible}.kw-workspace .kw-calendar-reference .kw-meal-card.is-selected{border-color:#c74732;box-shadow:0 0 0 2px #f4af14}.kw-workspace .kw-calendar-reference .kw-meal-open{padding:7px;height:88px;min-height:0;gap:8px;overflow:hidden;border-radius:13px}.kw-workspace .kw-calendar-reference .kw-card-slot{font-size:12px;font-weight:800;color:#64734b;line-height:16px;margin:0;text-transform:uppercase;gap:0}.kw-workspace .kw-calendar-reference .kw-card-slot span span{font-size:11px}.kw-workspace .kw-calendar-reference .kw-meal-title{display:flex;align-items:center;gap:4px;width:100%;height:24px;flex-shrink:0}.kw-food-emoji{font-size:20px;line-height:20px;flex:0 0 20px}.kw-workspace .kw-calendar-reference .kw-meal-title strong{display:block;width:auto;flex:1;min-width:0;border:2px solid #35251f;border-radius:10px;background:#fff;font-size:13px;font-weight:800;padding:1px 5px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kw-workspace .kw-calendar-reference .kw-meal-meta{display:flex;gap:4px;align-items:flex-start;font-size:10px;line-height:14px;width:100%;color:#000;height:18px;overflow:visible}.kw-workspace .kw-calendar-reference .kw-meal-meta>span{display:block;border:2px solid #35251f;background:#f4af14;border-radius:6px;padding:0 4px;font-size:10px;line-height:14px;font-weight:900;white-space:nowrap}.kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{background:#d4a574;font-size:9px;max-width:calc(100% - 48px);overflow:hidden;text-overflow:ellipsis;line-height:12px;padding:0 3px}
+.kw-workspace .kw-calendar-reference .kw-card-tools{position:absolute;bottom:7px;left:7px;right:7px;min-height:24px;padding:0;justify-content:center;pointer-events:auto}.kw-workspace .kw-calendar-reference .kw-meal-quick-actions{opacity:1;margin:0;gap:8px}.kw-workspace .kw-calendar-reference .kw-card-tools button{display:grid;place-items:center;width:24px;height:24px;border:2px solid #35251f;border-radius:50%;padding:2px;background:#e0d5c8;color:#35251f}.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-complete{background:#64734b}.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-liked{background:#f4af14}.kw-workspace .kw-calendar-reference .kw-card-tools button[aria-pressed=true]{outline:2px solid #c74732;outline-offset:2px}.kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action{display:none;position:absolute;top:-83px;right:0;width:22px;height:22px;background:#fff8ef;border-width:1px}.kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action:last-child{right:24px}.kw-workspace .kw-calendar-reference .kw-meal-card:hover .kw-secondary-action,.kw-workspace .kw-calendar-reference .kw-meal-card:focus-within .kw-secondary-action,.kw-workspace .kw-calendar-reference .kw-meal-card.is-selected .kw-secondary-action{display:grid}
+.kw-workspace .kw-calendar-reference .kw-meal-state{font-size:0;position:absolute;left:30px;bottom:34px;transform:rotate(-12deg);background:#f4af14;border:3px solid #35251f;border-radius:8px;padding:0 6px;line-height:22px;pointer-events:none;color:#64734b;opacity:1!important}.kw-workspace .kw-calendar-reference .completed .kw-meal-state:after{content:"DONE! ✨";font-size:13px;font-weight:900}.kw-workspace .kw-calendar-reference .skipped .kw-meal-state:after{content:"SKIPPED";font-size:11px;font-weight:900}.kw-workspace .kw-calendar-reference .kw-shortage{width:6px;height:6px;background:#c74732;overflow:hidden;border-radius:50%;left:auto;right:7px;bottom:37px;font-size:0}.kw-workspace .kw-calendar-reference .kw-day-total{margin-top:auto;display:flex;align-items:center;justify-content:center;border:2px solid #35251f;border-radius:12px;background:white;height:28px;padding:0;font-size:12px;font-weight:900;white-space:nowrap}.kw-workspace .kw-calendar-reference .kw-day-total span{color:#35251f}.kw-workspace .kw-calendar-reference .kw-day-total.over-budget{background:#c74732}.kw-workspace .kw-calendar-reference .kw-day-total.over-budget span{color:#fff}.kw-workspace .kw-calendar-reference .kw-add-meal{height:126px;min-height:126px;border:2px dashed #b79f85;border-radius:16px;padding:10px;background:#fffdf9}
+.kw-workspace .kw-empty-week,.kw-workspace .kw-draft-banner{margin:0 0 24px;border-radius:18px}.kw-workspace .kw-draft-banner{border:2px solid #d4a574}.kw-page-notice{padding:0 0 20px}.kw-workspace .kw-page-notice .kw-toast,.kw-workspace .kw-drawer-notice .kw-toast{background:#e9f7ec;color:#35251f;border:3px solid #64734b;border-radius:18px;padding:11px 16px;font-size:14px;font-weight:800}.kw-workspace .kw-page-notice .kw-toast>svg,.kw-workspace .kw-drawer-notice .kw-toast>svg{color:#4f6138}.kw-workspace .kw-page-notice .kw-toast button,.kw-workspace .kw-drawer-notice .kw-toast button{color:#c74732;font-weight:900;text-decoration:underline}.kw-workspace .kw-page-notice .kw-toast .kw-icon,.kw-workspace .kw-drawer-notice .kw-toast .kw-icon{color:#35251f;text-decoration:none}.kw-workspace .kw-toast{border:2px solid #35251f;border-radius:14px}.kw-workspace .kw-toast button{color:#fff8ef}
+/* Plan, frame 7:475 */
+.kw-planning{display:flex;flex-direction:column;gap:24px}.kw-planning-heading{display:flex;align-items:center;gap:16px;min-height:49px}.kw-planning-buttons{margin-left:auto;display:flex;gap:12px}.kw-plan-stamp{background:#f4af14;color:#35251f;border:3px solid #35251f;border-radius:14px;padding:4px 12px;box-shadow:0 3px 0 #35251f;transform:rotate(-4deg);font-size:14px;font-weight:900}.kw-plan-stamp.confirmed{background:#64734b;color:#fff}.kw-workspace .kw-planning-brief{margin:0;border:3px solid #35251f;border-radius:24px;padding:20px}.kw-planning .kw-calendar-scroll{padding-bottom:6px}.kw-workspace .kw-calendar.kw-calendar-compact{min-width:1050px}.kw-workspace .kw-calendar-compact .kw-day{height:123px;border-radius:20px;padding:9px;box-shadow:0 3px 0 #35251f}.kw-workspace .kw-calendar-compact .kw-day-header{height:22px;min-height:22px;margin:0 0 4px;justify-content:flex-start}.kw-workspace .kw-calendar-compact .kw-day-header strong{font-size:16px}.kw-workspace .kw-calendar-compact .kw-day-header>span,.kw-workspace .kw-calendar-compact .kw-card-slot,.kw-workspace .kw-calendar-compact .kw-meal-meta,.kw-workspace .kw-calendar-compact .kw-day-total,.kw-workspace .kw-calendar-compact .kw-food-emoji,.kw-workspace .kw-calendar-compact .kw-shortage{display:none}.kw-workspace .kw-calendar-compact .kw-meal-slot{margin:0 0 3px}.kw-workspace .kw-calendar-compact .kw-meal-card{height:22px;min-height:22px;border:0;background:transparent;border-radius:8px}.kw-workspace .kw-calendar-compact .kw-meal-open{padding:0;height:22px;gap:0}.kw-workspace .kw-calendar-compact .kw-meal-title{height:22px}.kw-workspace .kw-calendar-compact .kw-meal-title strong{font-size:10px;line-height:16px;padding:1px 5px;border-width:1.5px;border-radius:8px}.kw-workspace .kw-calendar-compact .kw-card-tools{bottom:0;right:2px;left:auto;min-height:20px}.kw-workspace .kw-calendar-compact .kw-card-tools .kw-secondary-action{top:0;width:20px;height:20px}.kw-workspace .kw-calendar-compact .kw-meal-state{display:none}.kw-workspace .kw-calendar-compact .kw-add-meal{min-height:22px;height:22px;padding:0;display:block;font-size:10px}.kw-calendar-compact .kw-add-meal-label{padding:0;font-size:10px}
+/* Import dialog, frame 46:8; recognition results, frame 127:4. */
+.kw-import-modal{width:min(680px,100%)}
+.kw-import-modal .kw-modal-head{align-items:flex-start}
+.kw-import-modal .kw-modal-head h2{margin:0;font-size:22px;font-weight:900}
+.kw-import-modal .kw-modal-head p{margin:6px 0 0;font-size:14px;font-weight:800;color:#6b584e}
+.kw-dropzone{display:flex;flex-direction:column;align-items:center;gap:12px;border:3px dashed #35251f;border-radius:20px;background:#fff;padding:36px 24px;cursor:pointer;text-align:center}
+.kw-dropzone.over{background:#fdf3e4;border-color:#c74732}
+.kw-dropzone-icon{display:grid;place-items:center;width:92px;height:92px;border:3px solid #35251f;border-radius:50%;background:#fdf3e4;font-size:40px}
+.kw-dropzone>strong{font-size:22px;font-weight:900;color:#35251f}
+.kw-dropzone-hint{font-size:15px;font-weight:800;color:#6b584e}
+.kw-dropzone-formats{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.kw-dropzone-formats em{border:2px solid #35251f;border-radius:10px;background:#fff8ef;padding:3px 10px;font-size:13px;font-style:normal;font-weight:900}
+.kw-browse{border:3px solid #35251f;border-radius:16px;background:#c74732;color:#fff8ef;box-shadow:0 4px 0 #35251f;padding:12px 22px;font-size:16px;font-weight:900}
+.kw-paste>summary{cursor:pointer;color:#64734b;font-size:14px;font-weight:800;margin-bottom:10px}
+.kw-import-review{display:flex;flex-direction:column;gap:16px}
+.kw-review-head{display:flex;align-items:flex-start;gap:16px}
+.kw-review-head h1{margin:0;font-size:34px;font-weight:900}
+.kw-review-head p{margin:6px 0 0;font-size:14px}
+.kw-review-count{margin-left:auto;flex-shrink:0;border:3px solid #35251f;border-radius:18px;background:#f4af14;box-shadow:0 3px 0 #35251f;padding:9px 16px;font-size:15px;font-weight:900}
+.kw-review-label{margin:0;font-size:19px;font-weight:900}
+.kw-review-layout{display:grid;grid-template-columns:0.26fr 0.74fr;gap:20px;align-items:start}
+.kw-review-list{display:flex;flex-direction:column;gap:12px}
+.kw-review-item{display:flex;flex-direction:column;gap:5px;border:3px solid #35251f;border-radius:16px;box-shadow:0 4px 0 #35251f;background:#fff;padding:12px;text-align:left;color:#35251f}
+.kw-review-item.on{background:#f4af14}
+.kw-review-item-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#6b584e}
+.kw-review-status{margin-left:auto;border:2px solid #b9b0a4;border-radius:10px;background:#fff;padding:1px 8px;font-size:11px;font-weight:900;color:#6b584e}
+.kw-review-status.done{border-color:#64734b;background:#e9f7ec;color:#3f5030}
+.kw-review-item>strong{font-size:17px;font-weight:900}
+.kw-review-en{font-size:13px;font-weight:800;color:#6b584e}
+.kw-review-tags{display:flex;flex-wrap:wrap;gap:6px}
+.kw-review-tags em{border:2px solid #35251f;border-radius:9px;background:#fff8ef;padding:1px 7px;font-size:11px;font-style:normal;font-weight:900}
+.kw-review-detail{display:flex;flex-direction:column;gap:20px}
+.kw-workspace .kw-review-detail .kw-card{margin:0;border:4px solid #35251f;border-radius:24px;box-shadow:0 6px 0 #35251f;padding:20px}
+.kw-review-cuisine{display:flex;gap:8px;margin-bottom:14px}
+.kw-chip.red{background:#fbe6e1;border-color:#c74732;color:#8c2f1c}
+.kw-chip.blue{background:#e2f0fb;border-color:#5b8fb5;color:#2f5a7a}
+.kw-review-hero-body{display:flex;gap:22px;align-items:flex-start}
+.kw-review-cover{flex-shrink:0;width:290px}
+.kw-review-cover .kw-recipe-art{height:180px;border:3px solid #35251f;border-radius:14px}
+.kw-review-cover .kw-recipe-art:before{display:none}
+.kw-review-cover .kw-recipe-art img{width:100%;height:100%;object-fit:cover}
+.kw-change-cover{display:block;width:100%;margin-top:8px;border:0;background:none;padding:0;font-size:14px;font-weight:900;color:#c74732;text-decoration:underline}.kw-cover-input{width:100%;margin-top:8px;border:2px solid #35251f;border-radius:10px;background:#fff;padding:6px 9px;font-size:13px;font-family:inherit}.kw-review-facts{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.kw-review-facts h2{margin:0}
+.kw-review-name{width:100%;border:0;border-bottom:2px dashed #d4a574;background:none;font-size:30px;font-weight:900;color:#35251f;padding:0}
+.kw-review-name-en{width:100%;border:0;background:none;font-size:15px;font-weight:800;color:#6b584e;padding:0}
+.kw-review-meta{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px;font-weight:800;color:#6b584e}
+.kw-review-meta input{width:56px;border:0;border-bottom:2px solid #d4a574;background:none;font-size:14px;font-weight:900;color:#c74732;text-align:center;padding:0}
+.kw-review-meta select{border:0;background:none;font-size:14px;font-weight:900;color:#c98a14;font-family:inherit}
+.kw-review-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.kw-review-columns h3{margin:0 0 14px;font-size:19px;font-weight:900}
+.kw-review-group{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.kw-review-group-label{font-size:13px;font-weight:900;color:#6b584e}
+.kw-review-ingredient{display:flex;align-items:center;gap:10px;border:2px solid #e2d8c9;border-radius:12px;background:#fffaf2;padding:8px 11px;font-size:14px;font-weight:800;cursor:pointer}
+.kw-review-ingredient.off{opacity:.45;text-decoration:line-through}
+.kw-review-ingredient>input{flex-shrink:0;width:17px;height:17px;accent-color:#64734b}
+.kw-review-ingredient>span{flex:1;min-width:0}
+.kw-review-ingredient>em{font-style:normal;color:#6b584e;white-space:nowrap}
+.kw-review-add{width:100%;border:2px dashed #c18b57;border-radius:12px;background:#fff8ef;color:#c18b57;padding:10px;font-size:14px;font-weight:900}
+.kw-review-steps{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:10px}
+.kw-review-steps>li{display:flex;align-items:flex-start;gap:10px;border:2px solid #e2d8c9;border-radius:14px;background:#fffaf2;padding:10px 11px}
+.kw-review-step-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.kw-review-step-body strong{font-size:14px;font-weight:900}
+.kw-review-step-body textarea{width:100%;border:0;background:none;font-size:13px;color:#6b584e;font-family:inherit;resize:vertical}
+.kw-review-step-time{flex-shrink:0;border:2px solid #c98a14;border-radius:10px;background:#fdf1d6;padding:1px 7px;font-size:11px;font-style:normal;font-weight:900;color:#7a5406}
+.kw-review-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding-top:8px}
+.kw-review-foot>div{display:flex;flex-wrap:wrap;gap:12px}
+/* Meal drawer detail, frame 42:37. */
+.kw-drawer-lead{background:#fff;border-bottom:3px solid #35251f;padding:0 24px 18px;margin-top:-20px;margin-bottom:20px}
+.kw-dish-title{margin:0;font-size:26px;font-weight:900;color:#35251f;line-height:1.2}
+.kw-meal-hero{position:relative;border:3px solid #35251f;border-radius:18px;box-shadow:0 4px 0 #35251f;overflow:hidden;margin-bottom:16px}
+.kw-meal-hero .kw-recipe-art{height:176px;border-radius:0}
+.kw-meal-hero .kw-recipe-art:before{display:none}
+.kw-meal-hero .kw-recipe-art img{width:100%;height:100%;object-fit:cover}
+.kw-hero-actions{position:absolute;right:10px;bottom:10px;display:flex;gap:8px}
+.kw-hero-action{display:grid;place-items:center;width:40px;height:40px;padding:0;border:3px solid #35251f;border-radius:50%;box-shadow:0 3px 0 #35251f;background:#fff;color:#35251f}
+.kw-hero-action.done{background:#64734b;color:#fff8ef}
+.kw-hero-action.skip{background:#d8d2c8}
+.kw-hero-action.like{background:#c74732;color:#fff8ef}
+.kw-hero-action.like:not(.is-active){background:#fff;color:#c74732}
+.kw-hero-action:disabled{opacity:.45;box-shadow:0 3px 0 #9d918a}
+.kw-meal-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:18px}
+.kw-chip{display:inline-flex;align-items:center;gap:5px;border:3px solid #35251f;border-radius:14px;background:#fff;padding:4px 11px;font-size:13px;font-weight:900;color:#35251f;text-transform:capitalize}
+.kw-chip.yellow{background:#f4af14}
+.kw-detail-card{border:3px solid #35251f;border-radius:18px;box-shadow:0 4px 0 #35251f;background:#fff;padding:14px;margin-bottom:18px}
+.kw-detail-card>h3{margin:0 0 10px;font-size:17px;font-weight:900;color:#35251f}
+.kw-ingredient-list{display:flex;flex-direction:column;gap:10px}
+.kw-ingredient-group{display:flex;flex-direction:column;gap:6px}
+.kw-ingredient-label{font-size:13px;font-weight:900;color:#6b584e}
+.kw-ingredient-row{display:flex;align-items:center;gap:10px;border:2px solid #e2d8c9;border-radius:12px;background:#fffaf2;padding:7px 10px;font-size:14px;font-weight:800;cursor:pointer}
+.kw-ingredient-row>span{flex:1;min-width:0}
+.kw-ingredient-row>input{flex-shrink:0;width:17px;height:17px;accent-color:#64734b}
+.kw-quick-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.kw-quick-steps>li{display:flex;align-items:flex-start;gap:10px;border:2px solid #e2d8c9;border-radius:12px;background:#fffaf2;padding:9px 11px}
+.kw-step-number{display:grid;place-items:center;flex-shrink:0;width:22px;height:22px;border:2px solid #35251f;border-radius:50%;background:#f4af14;font-size:12px;font-weight:900}
+.kw-step-text{font-size:14px;line-height:1.45;color:#35251f}
+.kw-step-text em{font-style:normal;color:#6b584e}
+.kw-detail-extra{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:18px}
+.kw-workspace .kw-drawer-footer{flex-direction:column;gap:10px}
+.kw-button.kw-full-recipe{width:100%;border:3px solid #35251f;border-radius:16px;background:#c74732;color:#fff8ef;box-shadow:0 4px 0 #35251f;font-size:16px;font-weight:900;min-height:48px}
+.kw-button.kw-swap-dish{width:100%;border:3px solid #35251f;border-radius:16px;background:#fff;color:#35251f;box-shadow:0 4px 0 #35251f;font-size:16px;font-weight:900;min-height:48px}
+.kw-button.kw-full-recipe:disabled,.kw-button.kw-swap-dish:disabled{opacity:.5;box-shadow:0 4px 0 #9d918a}
+.kw-setup{display:flex;flex-direction:column;gap:20px}
+.kw-quick-chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 12px}
+.kw-quick-chips>button{border:2px solid #e2d8c9;border-radius:12px;background:#fff8ef;padding:5px 10px;font-size:13px;font-weight:800;color:#8d7d70}
+.kw-quick-chips>button:hover{border-color:#c18b57;background:#fdf3e4;color:#6b584e}
+
+.kw-next-step{display:flex;flex-direction:column;gap:14px;border:4px solid #35251f;border-radius:24px;box-shadow:0 6px 0 #35251f;background:#fff8ef;padding:22px}
+.kw-next-label{font-size:14px;font-weight:900;color:#c74732;letter-spacing:.06em}
+.kw-next-step h2{margin:0;font-size:26px;font-weight:900}
+.kw-calendar-plan.is-confirmed .kw-meal-card{border:2.5px solid #64734b;border-left-width:4px}
+.kw-calendar-plan.is-confirmed .kw-day:nth-child(3n+1){position:relative}
+.kw-calendar-plan.is-confirmed .kw-day:nth-child(3n+1):before{content:"✨";position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:15px;pointer-events:none}
+.kw-plan-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.kw-plan-stats>div,.kw-plan-stats>button{border:3px solid #35251f;border-radius:20px;box-shadow:0 3px 0 #35251f;min-height:82px;padding:12px;display:flex;align-items:center;gap:16px;background:white;color:#35251f;text-align:left}.kw-plan-stats>*>span{display:grid;place-items:center;flex-shrink:0;width:50px;height:50px;border:3px solid #35251f;border-radius:50%;background:#d4a574;font-size:26px}.kw-plan-stats>:nth-child(2)>span{background:#f4af14}.kw-plan-stats>:nth-child(3)>span{background:#c74732}.kw-plan-stats>:nth-child(4)>span{background:#64734b}.kw-plan-stats p{margin:0;color:#6b584e;font-size:14px;font-weight:800}.kw-plan-stats strong{display:block;color:#35251f;font-size:16px;font-weight:900;margin-top:3px}
+.kw-workspace .kw-chat{margin:0;border:4px solid #35251f;border-radius:24px;box-shadow:0 6px 0 #35251f;padding:20px;min-height:387px;display:flex;flex-direction:column}.kw-workspace .kw-chat h2{font-size:20px;margin:0}.kw-workspace .kw-chat-history{flex:1;margin:20px 0;min-height:180px}.kw-workspace .kw-chat-message{border:3px solid #35251f;border-radius:18px;background:#e9f7ec;font-size:14px;max-width:80%;padding:10px 14px}.kw-workspace .kw-chat-message.user{background:#fff8ef}.kw-workspace .kw-chat-composer{margin-top:auto;border:3px solid #35251f;border-radius:16px;background:#fff8ef;padding:8px;align-items:center;min-height:58px}.kw-workspace .kw-chat-composer textarea{font-size:14px;font-weight:700;line-height:20px;min-height:25px;height:28px;resize:vertical}.kw-workspace .kw-chat-composer .kw-button{padding:3px;width:34px;height:34px;min-height:34px;border-radius:12px;box-shadow:none;border-width:2px}.kw-workspace .kw-context{border:2px solid #35251f;border-radius:12px;background:#f4af14;color:#35251f;padding:4px 10px;font-size:12px}.kw-workspace .kw-contexts{margin:12px 0}.kw-workspace .kw-proposal{border:2px solid #35251f;border-radius:18px}.kw-plan-week-picker{display:flex;gap:12px;justify-content:center;align-items:center;color:#6b584e}
+/* Fridge, frame 7:651 — an appliance shell holding two compartments of shelves;
+   the item editor is the modal from frame 110:5. */
+.kw-fridge-heading{display:flex;align-items:center;gap:16px;margin-bottom:24px}.kw-fridge-heading h1{margin:0}
+.kw-fridge{border:4px solid #35251f;border-radius:28px;background:#35251f;box-shadow:0 6px 0 #241713;overflow:hidden}
+.kw-fridge-badge{display:flex;align-items:center;gap:14px;padding:16px 20px}.kw-fridge-badge>span{display:grid;place-items:center;width:46px;height:46px;border:3px solid #22211f;border-radius:50%;background:#4a352b;font-size:24px}.kw-fridge-badge strong{color:#fff8ef;font-size:22px;font-weight:900}
+.kw-fridge-body{display:grid;grid-template-columns:0.42fr 0.58fr;gap:5px;padding:0 5px 14px}.kw-fridge-body.wide{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.kw-compartment{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:#e0f0fa;min-height:420px}
+.kw-compartment>header{display:flex;align-items:center;gap:12px;padding:12px 18px;background:#b8e8f0}.kw-compartment>header h2{margin:0;font-size:21px;font-weight:900}.kw-compartment>header>span{margin-left:auto;font-size:14px;font-weight:800;color:#5b7a8a}
+.kw-compartment.chilled{background:#fff7ed}.kw-compartment.chilled>header{background:#f4e8d8}.kw-compartment.chilled>header>span{color:#9c7e56}
+.kw-compartment.other{background:#f3eee6}.kw-compartment.other>header{background:#e6ddd0}.kw-compartment.other>header>span{color:#7d6f5d}
+.kw-shelves{display:flex;flex-direction:column;gap:14px;padding:14px}
+.kw-shelf{display:grid;gap:12px;padding:10px 10px 0;border:3px solid #35251f;border-bottom-width:6px;border-radius:14px;background:#d6eff8;align-items:end}
+.kw-compartment.chilled .kw-shelf{background:#faf0e0}.kw-compartment.other .kw-shelf{background:#ece4d8}
+.kw-food-card{position:relative;display:flex;flex-direction:column;min-height:120px;margin-bottom:10px;padding:0;overflow:hidden;border:3px solid #35251f;border-radius:12px;background:#fffaf2;box-shadow:0 3px 0 #35251f;color:#35251f;text-align:center}
+.kw-food-card:hover{transform:translateY(-2px)}
+.kw-food-band{display:block;padding:3px;border-bottom:3px solid #35251f;background:#a6734c;color:#fff8ef;font-size:11px;font-weight:900}
+.kw-food-card.type-Carbs .kw-food-band{background:#f2cc66;color:#35251f}
+.kw-food-card.type-Vegetables .kw-food-band{background:#8cbf73;color:#35251f}
+.kw-food-card.type-Dairy .kw-food-band{background:#c8dded;color:#35251f}
+.kw-food-card.type-Other .kw-food-band{background:#d4a574;color:#35251f}
+.kw-food-art{display:block;font-size:34px;line-height:1;padding:14px 0 10px}
+.kw-food-line{display:flex;justify-content:center;align-items:baseline;gap:5px;padding:0 8px 12px;min-width:0}
+.kw-food-line h3{margin:0;font-size:14px;font-weight:900;overflow-wrap:anywhere}
+.kw-food-count{font-size:14px;font-weight:900;color:#6b584e;white-space:nowrap}
+.kw-food-flag{font-size:12px}
+.kw-food-expiry{display:block;margin-top:auto;padding:3px;border-top:2px solid #35251f;background:#f7e7c8;font-size:10px;font-weight:800}
+.kw-food-expiry.due{background:#f4c9a0}.kw-food-expiry.expired{background:#eec0b6;color:#8c2f1c}
+.kw-food-add{min-height:120px;margin-bottom:10px;border:3px dashed #598cb2;border-radius:12px;background:#daf0f9;color:#598cb2;font-size:26px;font-weight:900}
+.kw-compartment.chilled .kw-food-add{border-color:#99734c;background:#fdf6e9;color:#99734c}
+.kw-compartment.other .kw-food-add{border-color:#8b7c68;background:#f4efe6;color:#8b7c68}
+.kw-food-slot{min-height:120px;margin-bottom:10px;border-radius:12px;background:rgba(255,255,255,.28)}
+.kw-modal-backdrop{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;background:rgba(53,37,31,.45)}
+.kw-modal{width:min(560px,100%);max-height:calc(100dvh - 48px);display:flex;flex-direction:column;border:4px solid #35251f;border-radius:24px;background:#fff8ef;box-shadow:0 8px 0 #35251f}
+.kw-modal-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:3px solid #35251f}
+.kw-food-emoji-input{width:42px;padding:4px;border:2px solid #35251f;border-radius:10px;background:#fff;text-align:center;font-size:20px}
+.kw-food-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.kw-food-title{border:0;background:none;font-size:21px;font-weight:900;color:#35251f;padding:0;width:100%}
+.kw-food-subtitle{border:0;background:none;font-size:13px;font-weight:800;color:#6b584e;padding:0;width:100%}
+.kw-modal-close{display:grid;place-items:center;width:32px;height:32px;padding:0;border:3px solid #35251f;border-radius:50%;background:#fff;font-size:14px;font-weight:900}
+.kw-modal-body{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px}
+.kw-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-top:3px solid #35251f;background:#fdf3e4;border-radius:0 0 20px 20px}
+.kw-food-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.kw-field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:900;color:#6b584e}.kw-field.kw-grow{flex:1;min-width:140px}
+.kw-food-select{border:3px solid #35251f;border-radius:14px;background:#d4a574;padding:7px 10px;font-size:14px;font-weight:900;color:#35251f}
+.kw-segmented{display:inline-flex;gap:4px;padding:4px;border:3px solid #35251f;border-radius:16px;background:#fff}
+.kw-segmented>button{flex:1;padding:5px 8px;border:0;border-radius:11px;background:none;font-size:12px;font-weight:900;color:#a2938a}
+.kw-segmented>button.on{background:#fff8ef;border:2px solid #35251f;color:#35251f}
+.kw-portion-box{display:flex;align-items:center;gap:12px;padding:12px 14px;border:3px solid #35251f;border-radius:18px;background:#fff;box-shadow:0 3px 0 #35251f}
+.kw-portion-box>div{flex:1;min-width:0}.kw-portion-box strong{display:block;font-size:16px;font-weight:900}.kw-portion-box small{font-size:12px;color:#6b584e}
+.kw-grams{width:44px;border:0;border-bottom:2px solid #d4a574;background:none;font-size:12px;font-weight:800;color:#6b584e;text-align:center;padding:0}
+.kw-step{display:grid;place-items:center;width:34px;height:34px;padding:0;border:3px solid #35251f;border-radius:50%;background:#fff;font-size:18px;font-weight:900}.kw-step.add{background:#f4af14}
+.kw-portion-value{width:58px;border:0;background:none;text-align:center;font-size:22px;font-weight:900;color:#35251f;padding:0}
+.kw-food-dates{margin:0;padding:14px 0;border-top:2px dashed #d4a574;border-bottom:2px dashed #d4a574;display:flex;flex-direction:column;gap:8px}
+.kw-food-dates>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.kw-food-dates dt{font-size:13px;font-weight:900;color:#6b584e}.kw-food-dates dd{margin:0;font-size:14px;font-weight:800}
+.kw-plain-input{border:0;background:none;font-size:14px;font-weight:800;color:#35251f;text-align:right;padding:0;font-family:inherit}
+.kw-freshness{border:2px solid #64734b;border-radius:12px;background:#e9f7ec;color:#3f5030;padding:3px 9px;font-size:12px;font-weight:900}
+.kw-freshness.soon{border-color:#c98a14;background:#fdf1d6;color:#7a5406}
+.kw-freshness.due{border-color:#c74732;background:#fbe6e1;color:#8c2f1c}
+.kw-freshness.expired{border-color:#c74732;background:#c74732;color:#fff}
+.kw-food-flags{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;font-size:13px;font-weight:800;color:#6b584e}
+.kw-linked-meals h3{margin:0 0 8px;font-size:13px;font-weight:900;color:#6b584e}
+.kw-linked-meals>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.kw-linked-pill{border:2px solid #35251f;border-radius:12px;background:#fff;padding:4px 10px;font-size:12px;font-weight:900;color:#35251f;text-transform:capitalize}
+.kw-link-meal{border:2px dashed #c18b57;border-radius:12px;background:#fff8ef;padding:4px 10px;font-size:12px;font-weight:900;color:#c18b57}
+.kw-button.kw-danger{background:#fff;border-color:#c74732;color:#c74732}
+.kw-inventory-details{margin-top:24px}.kw-inventory-details>summary{cursor:pointer;color:#64734b;margin-bottom:14px}
+/* Recipes, frame 7:949 */
+.kw-sort{display:flex;align-items:center;gap:6px;border:3px solid #35251f;border-radius:16px;background:#fff;box-shadow:0 3px 0 #35251f;padding:5px 10px;font-size:14px;font-weight:900;white-space:nowrap}.kw-sort>span{color:#6b584e}.kw-sort>select{border:0;background:none;font-size:14px;font-weight:900;color:#35251f;font-family:inherit}.kw-recipe-title-button>small{font-weight:800;color:#6b584e}
+.kw-workspace .kw-recipe-filters{gap:16px;margin:24px 0 16px;align-items:center}.kw-workspace .kw-recipe-filters>.kw-label{flex:1;min-width:0}.kw-recipe-filters .kw-input{border-width:3px;border-radius:16px;height:44px}.kw-meal-filters{display:flex;gap:8px}.kw-meal-filters .kw-button{min-height:38px;padding:6px 12px;box-shadow:none;border-radius:14px;font-size:14px;white-space:nowrap}.kw-recipe-tags{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:24px;font-size:12px;color:#64734b}.kw-recipe-tags button{border:2px solid #35251f;background:#fff8ef;color:#35251f;border-radius:9px;font-size:12px;padding:3px 10px}.kw-recipe-tags button.active{background:#ffc3a0}.kw-workspace .kw-recipe-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 20px}.kw-workspace .kw-recipe-card{cursor:pointer;border:3px solid #35251f;border-radius:20px;box-shadow:0 4px 0 #35251f;overflow:hidden;padding:0;min-height:306px;position:relative}.kw-recipe-art{height:128px;background:#f5ddb5;display:grid;place-items:center;overflow:hidden}.kw-recipe-art{position:relative}.kw-recipe-art:before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:#c74732;z-index:1}.kw-recipe-card.accent-1 .kw-recipe-art:before{background:#f4af14}.kw-recipe-card.accent-2 .kw-recipe-art:before{background:#d4a574}.kw-recipe-card.accent-3 .kw-recipe-art:before{background:#7bcdf4}.kw-recipe-art>img{width:100%;height:100%;object-fit:cover}.kw-recipe-art>span{font-size:70px}.kw-recipe-content{padding:10px 9px 12px}.kw-recipe-content>.kw-row{justify-content:flex-start;gap:6px}.kw-recipe-content>.kw-row input{position:absolute;top:112px;left:12px;width:22px;height:22px;accent-color:#64734b}.kw-recipe-content h3{font-size:14px;line-height:20px}.kw-recipe-content>p{font-size:12px;margin:6px 0;color:#64734b}.kw-recipe-content .kw-support-tags{margin-top:6px;gap:4px}.kw-recipe-content .kw-pill{font-size:9px;padding:0 4px;border-width:1.5px;border-radius:5px}.kw-recipe-content .kw-support-details{margin-top:12px}.kw-recipe-content .kw-support-details summary{font-size:11px}.kw-recipe-content .kw-support-actions{gap:5px;margin-top:10px}.kw-recipe-content .kw-support-actions .kw-button{font-size:10px;border-width:1.5px;min-height:24px;padding:2px 6px;border-radius:7px}
+/* Prep, frame 7:800 */
+.kw-prep-stats{display:flex;gap:12px}.kw-prep-stats>div{display:flex;gap:8px;align-items:center;border:3px solid #35251f;border-radius:16px;background:#fff;box-shadow:0 4px 0 #35251f;padding:8px 12px}
+.kw-prep-stats span{font-size:11px;color:#64734b}.kw-prep-stats strong{display:block;color:#35251f;font-size:16px;font-weight:900}
+.kw-prep-toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:24px}
+.kw-prep-tabs{display:flex;gap:12px;flex-wrap:wrap}.kw-prep-tabs .kw-button{font-size:14px;min-height:36px;border-radius:12px;padding:5px 12px;box-shadow:0 2px 0 #35251f}
+.kw-prep-tabs .kw-button.is-active{background:#c74732;color:white}
+.kw-prep-tabs .kw-button>span{border:2px solid #35251f;background:#fff8ef;color:#35251f;font-size:12px;line-height:14px;border-radius:5px;padding:0 3px}
+.kw-prep-layout{display:grid;grid-template-columns:0.37fr 0.63fr;gap:24px;align-items:start}
+.kw-dish-list{display:flex;flex-direction:column;gap:10px;border:4px solid #35251f;border-radius:24px;box-shadow:0 6px 0 #35251f;background:#fff8ef;padding:18px}
+.kw-dish-list>header{display:flex;align-items:baseline;gap:12px}
+.kw-dish-list>header h2{margin:0;font-size:21px;font-weight:900}
+.kw-dish-list>header>span{margin-left:auto;font-size:13px;font-weight:800;color:#6b584e}
+.kw-dish-group{display:flex;flex-direction:column;gap:8px;border-radius:14px}
+.kw-dish-group.on{outline:3px dashed #c74732;outline-offset:6px}
+.kw-dish-chip{align-self:flex-start;border:2px solid #35251f;border-radius:12px;background:#fff;padding:2px 9px;font-size:12px;font-weight:900}
+.kw-dish-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:3px solid #35251f;border-radius:14px;background:#fff;box-shadow:0 3px 0 #35251f;color:#35251f;text-align:left}
+.kw-dish-row.on{border-color:#f4af14;box-shadow:0 3px 0 #f4af14}
+.kw-dish-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:#d4a574}
+.kw-dish-dot.type-Protein{background:#c74732}.kw-dish-dot.type-Carbs{background:#f4af14}.kw-dish-dot.type-Vegetables{background:#64734b}.kw-dish-dot.type-Baking{background:#c18b57}
+.kw-dish-row>strong{flex:1;min-width:0;font-size:15px;font-weight:900;overflow-wrap:anywhere}
+.kw-dish-badge{flex-shrink:0;border:2px solid #35251f;border-radius:10px;background:#f4af14;padding:1px 7px;font-size:10px;font-weight:900}
+.kw-dish-row:not(.on) .kw-dish-badge{background:#fff8ef}
+.kw-dish-add{margin-top:4px}
+.kw-workspace .kw-prep-current{min-height:560px;border-radius:24px;box-shadow:0 6px 0 #35251f;padding:22px;display:flex;flex-direction:column;gap:14px}
+.kw-prep-detail-head{display:flex;align-items:flex-start;gap:14px}
+.kw-prep-avatar{display:grid;place-items:center;flex-shrink:0;width:52px;height:52px;border:3px solid #35251f;border-radius:50%;background:#fff8ef;font-size:26px}
+.kw-prep-detail-title{min-width:0}
+.kw-prep-detail-title h3{margin:0;font-size:24px;font-weight:900}
+.kw-prep-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.kw-prep-chips>span{border:2px solid #35251f;border-radius:12px;background:#fff;padding:2px 9px;font-size:12px;font-weight:900}
+.kw-prep-chips>span.on{background:#f4af14}
+.kw-prep-detail-links{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px}
+.kw-prep-yield{display:inline-flex;align-items:center;gap:6px;border:2px solid #35251f;border-radius:14px;background:#fff8ef;padding:3px 8px;font-size:12px;font-weight:900}
+.kw-prep-yield .kw-step{width:26px;height:26px;border-width:2px;font-size:15px}
+.kw-prep-yield-value{width:48px;border:0;background:none;text-align:center;font-size:14px;font-weight:900;color:#35251f;padding:0}
+.kw-prep-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.kw-prep-step{display:flex;align-items:flex-start;gap:11px;padding:11px 13px;border:3px solid #35251f;border-radius:16px;background:#fff;box-shadow:0 3px 0 #35251f;cursor:pointer}
+.kw-prep-step.on{background:#f1f7ef}
+.kw-prep-step>input{flex-shrink:0;width:19px;height:19px;margin-top:2px;accent-color:#64734b}
+.kw-prep-step-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.kw-prep-step-body strong{font-size:15px;font-weight:900}
+.kw-prep-step-body>span{font-size:13px;color:#6b584e}
+.kw-prep-step.on .kw-prep-step-body>span{text-decoration:line-through}
+.kw-prep-step-times{display:flex;flex-shrink:0;gap:5px}
+.kw-prep-step-times em{border:2px solid #35251f;border-radius:10px;background:#f4af14;padding:1px 7px;font-size:11px;font-style:normal;font-weight:900}
+.kw-prep-step-times em.wait{background:#fff8ef}
+.kw-prep-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:auto}
+.kw-mark-all{border:3px solid #35251f;border-radius:16px;background:#c74732;color:#fff8ef;box-shadow:0 4px 0 #35251f;padding:9px 18px;font-size:16px;font-weight:900}
+.kw-mark-all:disabled{background:#d9b1a9;box-shadow:0 4px 0 #8a7671}
+.kw-prep-edit-actions{margin-left:auto;display:flex;gap:8px}
+.kw-prep-progress{display:flex;gap:24px;align-items:center;margin:40px -40px 0;padding:14px 40px;border-top:3px solid #35251f;background:#fff}
+.kw-prep-progress progress{height:16px;width:280px;accent-color:#64734b}
+.kw-prep-progress .kw-button{margin-left:auto;font-size:13px;min-height:34px;padding:5px 12px;border-width:2px;border-radius:12px;box-shadow:0 2px 0 #35251f}
+.kw-prep-diagnostics{margin-top:24px}.kw-prep-diagnostics>summary{color:#64734b;cursor:pointer;margin-bottom:16px}
+/* Settings, frame 7:1135; knowledge shares the same controls. */
+.kw-workspace .kw-settings-page>.kw-page-header{margin:-40px -40px 40px;padding:20px 40px;border-bottom:3px solid #35251f;background:white}.kw-workspace .kw-settings-page>.kw-page-header h1{font-size:28px}.kw-settings-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:32px}.kw-settings-nav{display:flex;flex-direction:column;gap:12px}.kw-settings-nav>a,.kw-settings-nav>button{display:block;border:3px solid #35251f;border-radius:16px;background:#fff;color:#35251f;text-decoration:none;padding:10px 17px;font-size:16px;font-weight:900;text-align:left}.kw-settings-nav .active{background:#f4af14;box-shadow:0 3px 0 #35251f}.kw-guidelines{border:3px solid #35251f;border-radius:24px;padding:20px;background:#fff}.kw-guidelines h2{font-size:20px;margin:0 0 16px}.kw-workspace .kw-guidance-list{display:flex;flex-direction:column;gap:10px}.kw-workspace .kw-guidance-list .kw-card{border:2px solid #35251f;border-radius:14px;background:#fff8ef;padding:10px;display:grid;grid-template-columns:1fr auto;gap:4px 10px}.kw-guidance-list .kw-row{display:contents}.kw-guidance-list h3{font-size:14px;grid-row:1;align-self:center}.kw-guidance-list .kw-support-toggle{grid-row:1;grid-column:2}.kw-guidance-list .kw-support-actions{grid-column:2;grid-row:2;margin:0;gap:6px}.kw-workspace .kw-guidance-list .kw-support-actions .kw-button{border:0;background:transparent;color:#35251f;padding:0;min-height:24px;box-shadow:none;min-width:24px}.kw-guidance-content{font-size:11px;grid-row:2;grid-column:1;color:#6b584e}.kw-guidance-content summary{cursor:pointer}.kw-guidance-content p{color:#35251f}.kw-add-guideline{width:100%;border:2px dashed #d4a574;border-radius:14px;color:#c18b57;background:white;padding:10px;margin-top:10px;font-size:14px}.kw-settings-summaries{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}.kw-settings-summaries h2{font-size:18px}.kw-settings-summaries p{font-size:13px}.kw-settings-summaries dl{margin:0;font-size:14px}.kw-settings-summaries dl>div{display:flex;justify-content:space-between;gap:12px;margin-top:8px}.kw-settings-summaries dd{margin:0;color:#64734b;text-align:right}.kw-settings-summaries dl>div:last-child dd{color:#c74732}.kw-settings-edit{margin-top:24px}.kw-settings-edit>summary{cursor:pointer;color:#64734b;margin-bottom:16px}.kw-knowledge-page .kw-card{border:3px solid #35251f;border-radius:24px}
+/* Drawer keeps the live calendar in place while matching the new surface language. */
+.kw-workspace .kw-drawer{position:fixed;right:0;top:0;width:400px;height:100dvh;border-left:4px solid #35251f;box-shadow:-12px 0 0 #35251f18;z-index:10;background:#fff8ef}.kw-workspace .kw-drawer-header{background:white;border-bottom:3px solid #35251f;margin-bottom:20px;padding:24px}.kw-workspace .kw-drawer-header h2{font-size:22px;font-weight:900}.kw-workspace .kw-drawer-body{padding:0 24px 20px}.kw-workspace .kw-drawer-footer{border-top:3px solid #35251f;padding:16px 24px 24px;background:#fff}.kw-workspace .kw-drawer-footer .kw-button{font-size:13px;min-height:38px;border-width:2px;border-radius:12px;box-shadow:0 2px 0 #35251f}.kw-workspace .kw-detail-section h3{font-size:12px;font-weight:900;color:#64734b}.kw-workspace .kw-stock-row{border:2px solid #35251f;border-radius:10px;background:#fff}.kw-workspace .kw-component-editor{border:2px solid #35251f;border-radius:16px;background:#fff}.kw-workspace .kw-replacement{border:2px solid #35251f;border-radius:14px}.kw-workspace .kw-drawer .kw-time{font-family:inherit;font-size:12px}
+@media(max-width:1200px){.kw-navigation{padding:16px 24px;gap:16px}.kw-navigation nav{gap:8px}.kw-navigation nav>button{padding:7px 12px}.kw-workspace .kw-main,.kw-workspace.has-drawer .kw-main{padding:28px}.kw-calendar-heading{flex-wrap:wrap}.kw-calendar-heading h1{font-size:30px}.kw-plan-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.kw-workspace .kw-recipe-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.kw-recipe-filters{flex-wrap:wrap}.kw-settings-layout{grid-template-columns:210px minmax(0,1fr);gap:24px}.kw-workspace .kw-settings-page>.kw-page-header{margin:-28px -28px 28px;padding:20px 28px}.kw-prep-progress{margin-left:-28px;margin-right:-28px;padding-left:28px;padding-right:28px}.kw-points{display:none}}
+@media(max-width:760px){.kw-navigation{height:auto;min-height:122px;padding:12px 16px 16px;gap:12px;flex-wrap:wrap}.kw-navigation .kw-brand{flex-basis:auto}.kw-navigation .kw-brand strong{font-size:25px;line-height:30px}.kw-navigation .kw-brand small{font-size:10px}.kw-navigation .kw-brand>img{height:40px;width:40px}.kw-navigation nav{order:3;flex:1 0 100%;justify-content:space-between;gap:6px}.kw-navigation nav>button{height:36px;min-width:0;padding:5px 8px;font-size:13px;border-radius:12px;flex:1;justify-content:center}.kw-navigation nav>button span{font-size:11px}.kw-workspace .kw-main,.kw-workspace.has-drawer .kw-main{padding:24px 16px;min-height:calc(100dvh - 132px)}.kw-workspace h1{font-size:28px}.kw-calendar-heading{gap:14px;margin-bottom:24px}.kw-calendar-heading h1{font-size:27px;flex-basis:100%}.kw-week-label{font-size:12px;padding:6px 8px}.kw-calendar-heading .kw-prep-link{font-size:12px;min-height:36px;padding:5px 8px;border-radius:12px}.kw-workspace .kw-weekbar{gap:5px}.kw-workspace .kw-calendar.kw-calendar-reference{grid-template-columns:repeat(7,184px);min-width:1360px;gap:12px}.kw-workspace .kw-calendar-scroll{scroll-snap-type:x proximity}.kw-planning-heading{flex-wrap:wrap;gap:12px}.kw-plan-stamp{font-size:11px;padding:4px 8px}.kw-planning-buttons{width:100%;margin:0}.kw-planning-buttons .kw-button{flex:1;font-size:13px;min-height:40px}.kw-plan-stats{gap:12px}.kw-plan-stats>div,.kw-plan-stats>button{gap:8px;padding:9px;min-height:86px}.kw-plan-stats>*>span{width:32px;height:32px;font-size:20px;border-width:2px}.kw-plan-stats p{font-size:11px}.kw-plan-stats strong{font-size:12px}.kw-workspace .kw-chat{padding:14px;min-height:350px}.kw-workspace .kw-chat h2{font-size:18px}.kw-workspace .kw-chat-message{max-width:100%;font-size:13px}.kw-workspace .kw-support-page .kw-page-header{gap:16px;align-items:flex-start}.kw-workspace .kw-page-header .kw-row{flex-wrap:wrap}.kw-workspace .kw-page-header>.kw-support-actions{gap:10px}.kw-workspace .kw-page-header .kw-button{font-size:13px;min-height:38px}.kw-fridge-body,.kw-fridge-body.wide{grid-template-columns:1fr;gap:8px}.kw-fridge-badge{padding:12px 14px}.kw-fridge-badge>span{width:38px;height:38px;font-size:20px}.kw-fridge-badge strong{font-size:18px}.kw-compartment{min-height:0}.kw-compartment>header{padding:10px 14px}.kw-compartment>header h2{font-size:18px}.kw-shelves{padding:10px;gap:10px}.kw-shelf{gap:8px;padding:8px 8px 0;grid-template-columns:repeat(2,minmax(0,1fr))!important}.kw-food-card,.kw-food-add,.kw-food-slot{min-height:104px}.kw-food-art{font-size:28px;padding:10px 0 8px}.kw-food-line h3,.kw-food-count{font-size:12px}.kw-modal-backdrop{padding:12px}.kw-food-pair{grid-template-columns:1fr}.kw-recipe-filters .kw-label{flex-basis:100%!important}.kw-meal-filters{width:100%;overflow:auto;gap:6px;padding-bottom:4px}.kw-meal-filters .kw-button{font-size:11px;padding:5px 8px;border-width:2px;min-height:32px}.kw-workspace .kw-recipe-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.kw-recipe-art{height:100px}.kw-recipe-content{padding:8px}.kw-recipe-content>.kw-row input{top:85px;left:9px;width:18px;height:18px}.kw-recipe-content h3{font-size:12px}.kw-recipe-content>p{font-size:10px!important}.kw-workspace .kw-recipe-card{min-height:280px;border-radius:16px}.kw-prep-stats{gap:8px;width:100%}.kw-prep-stats>div{flex:1;padding:8px 5px;gap:4px;border-radius:12px}.kw-prep-stats span{font-size:9px}.kw-prep-stats strong{font-size:12px}.kw-prep-toolbar{flex-wrap:wrap;gap:14px}.kw-prep-tabs{gap:8px}.kw-prep-tabs .kw-button{font-size:12px;min-height:32px;padding:4px 8px;border-width:2px}.kw-prep-layout{grid-template-columns:1fr;gap:20px}.kw-dish-list{padding:14px}.kw-dish-list>header h2{font-size:18px}.kw-dish-row{padding:7px 8px;gap:7px}.kw-dish-row>strong{font-size:13px}.kw-prep-detail-head{flex-wrap:wrap}.kw-prep-detail-links{margin-left:0;justify-content:flex-start;width:100%}.kw-prep-step{padding:9px 10px;gap:9px}.kw-prep-step-body strong{font-size:13px}.kw-prep-step-body>span{font-size:12px}.kw-mark-all{font-size:14px;padding:8px 14px}.kw-prep-edit-actions{margin-left:0;width:100%}.kw-workspace .kw-prep-current{min-height:0;padding:16px}.kw-prep-detail-title h3{font-size:20px}.kw-prep-progress{margin:24px -16px 0;padding:16px;gap:12px;flex-wrap:wrap}.kw-prep-progress strong{font-size:13px}.kw-prep-progress progress{width:120px}.kw-workspace .kw-settings-page>.kw-page-header{margin:-24px -16px 24px;padding:18px 16px}.kw-settings-layout{grid-template-columns:1fr;gap:24px}.kw-settings-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}.kw-settings-nav>a,.kw-settings-nav>button{font-size:12px;padding:9px;border-radius:12px}.kw-guidelines{padding:14px}.kw-settings-summaries{grid-template-columns:1fr}.kw-workspace .kw-guidance-list .kw-card{padding:10px;gap:7px}.kw-guidance-list h3{font-size:12px}.kw-workspace .kw-drawer{inset:0;width:100%;border-left:0}.kw-workspace .kw-drawer-footer{padding-bottom:max(20px,env(safe-area-inset-bottom))}.kw-workspace .kw-form-grid{grid-template-columns:1fr}.kw-support-table-wrap{max-width:100%}.kw-profile-menu{top:50px}.kw-demo-ribbon{font-size:9px}.kw-workspace .kw-toast{bottom:22px}.kw-page-notice{padding:0 0 16px}}
+.kw-planning .kw-calendar-scroll{margin-bottom:-6px}
+.kw-recipe-art-button{border:0;background:none;width:100%;padding:0;display:block}.kw-recipe-title-button{border:0;background:none;text-align:left;color:inherit;padding:0;font-size:inherit;font-weight:900!important}.kw-recipe-heart{position:absolute;top:111px;left:12px;width:32px;height:32px;border:2px solid #35251f;border-radius:50%;background:#fff;display:grid;place-items:center;color:#35251f}.kw-recipe-heart[aria-pressed=true]{color:#c74732}.kw-recipe-baby{position:absolute;top:6px;right:6px;padding:1px 5px;border:2px solid #35251f;border-radius:8px;background:#ffc3a0;font-size:10px;font-weight:900}.kw-workspace .kw-recipe-content>.kw-row input{top:10px;left:10px;opacity:0}.kw-recipe-card:hover .kw-recipe-content>.kw-row input,.kw-recipe-card:focus-within .kw-recipe-content>.kw-row input,.kw-workspace .kw-recipe-content>.kw-row input:checked{opacity:1}.kw-recipe-content h3{position:relative}.kw-recipe-content{padding-top:11px}.kw-recipe-heart{z-index:1}.kw-recipe-title-button:hover{text-decoration:underline}
+@media(max-width:760px){.kw-recipe-heart{top:84px;width:28px;height:28px;left:9px}.kw-workspace .kw-recipe-content>.kw-row input{opacity:1;top:9px;left:9px}}
+.kw-workspace .kw-guidance-list .kw-card{grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;min-height:56px}.kw-guidance-list .kw-guidance-content{grid-column:1;grid-row:1}.kw-guidance-content>summary{list-style:none;color:#35251f}.kw-guidance-content>summary::-webkit-details-marker{display:none}.kw-guidance-content>summary h3{font-size:14px;font-weight:800}.kw-guidance-list .kw-support-actions{grid-column:3;grid-row:1;flex-wrap:nowrap}.kw-guidance-list .kw-support-toggle{grid-column:2;grid-row:1}.kw-guidance-content[open]>summary{margin-bottom:10px}.kw-preference-stepper{display:flex;align-items:center;gap:12px}.kw-settings-summaries dl>div{align-items:center}.kw-preference-stepper strong{color:#35251f;font-size:20px}.kw-recipe-heart{top:104px}
+@media(max-width:760px){.kw-workspace .kw-guidance-list .kw-card{gap:8px}.kw-guidance-content>summary h3{font-size:12px}.kw-guidance-list .kw-support-actions{gap:2px}.kw-guidance-list .kw-support-toggle input{transform:scale(.85);transform-origin:right center;margin-left:-8px}.kw-recipe-heart{top:76px}}
+
+.kw-recipe-title-button{overflow-wrap:anywhere}
+
+/* Calendar refreshed against frame 59:2 "1b. Calendar - Redesigned", which
+   replaced the deleted frame 7:6. Selectors below intentionally follow the
+   earlier calendar rules in this file so they win on source order. */
+.kw-workspace .kw-calendar-reference .kw-day{padding:12px;gap:16px;height:auto;min-height:664px}
+.kw-workspace .kw-calendar-reference .kw-day:first-child{padding:12px}
+.kw-workspace .kw-calendar-reference .kw-day.is-today{border:5px solid #f4af14;padding:10px;box-shadow:0 6px 0 #35251f,0 0 16px #f4af14}
+.kw-workspace .kw-calendar-reference .kw-day-header{margin:0}
+.kw-workspace .kw-calendar-reference .kw-day-header strong{font-size:20px;font-weight:900;color:#35251f}
+.kw-workspace .kw-calendar-reference .kw-day-header>span:first-of-type{font-size:14px;font-weight:700;color:#6b584e}
+
+/* Cards stretch to fill the column; the action row is pinned to the bottom. */
+.kw-workspace .kw-calendar-reference .kw-day>.kw-meal-slot{flex:1 0 0;min-height:0;margin:0}
+.kw-workspace .kw-calendar-reference .kw-meal-card,.kw-workspace .kw-calendar-reference .kw-add-meal{height:100%;min-height:150px;display:flex;flex-direction:column;justify-content:space-between;padding:10px;overflow:hidden}
+.kw-workspace .kw-calendar-reference .kw-meal-open{height:auto;flex:0 0 auto;padding:0;gap:8px;overflow:hidden;border-radius:0}
+
+/* 59:49 draws the dish name as plain text, with no chip or border. */
+.kw-workspace .kw-calendar-reference .kw-meal-title{height:auto}
+.kw-workspace .kw-calendar-reference .kw-meal-title strong{border:0;background:none;border-radius:0;padding:4px 8px 0;font-size:13px;font-weight:700;line-height:17px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-height:38px;overflow:hidden;white-space:normal;overflow-wrap:anywhere}
+
+/* 59:56 action-icons: 24px circles with white glyphs, one colour per action. */
+.kw-workspace .kw-calendar-reference .kw-card-tools{position:static;padding:0;gap:8px;justify-content:center;min-height:24px}
+.kw-workspace .kw-calendar-reference .kw-card-tools button{width:24px;height:24px;padding:0;border:2px solid #35251f;border-radius:12px;font-size:14px;font-weight:800;line-height:1;color:#fff}
+.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-complete{background:#598c40}
+.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-skip{background:#998c80}
+.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-liked{background:#eb8c26}
+.kw-workspace .kw-calendar-reference .kw-card-tools button:disabled{opacity:1;cursor:not-allowed}
+
+/* 59:148 / 64:5 stamps: translucent, thin, rotated 15deg, letter-spaced. */
+.kw-workspace .kw-calendar-reference .kw-meal-state{position:absolute;left:auto;right:4px;top:8px;bottom:auto;transform:rotate(15deg);border-radius:4px;border:2.5px solid #389940;background:rgba(56,153,64,.08);color:#389940;opacity:.85;padding:3px 7px;line-height:15px;letter-spacing:1.5px}
+.kw-workspace .kw-calendar-reference .completed .kw-meal-state:after{content:"DONE";font-size:13px;font-weight:900}
+.kw-workspace .kw-calendar-reference .completed .kw-card-slot,.kw-workspace .kw-calendar-reference .skipped .kw-card-slot{padding-right:50px;overflow:hidden;white-space:nowrap}.kw-workspace .kw-calendar-reference .completed .kw-card-slot>span,.kw-workspace .kw-calendar-reference .skipped .kw-card-slot>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.kw-workspace .kw-calendar-reference .kw-meal-state{z-index:2}.kw-workspace .kw-calendar-reference .skipped .kw-meal-state{border-color:#8c8073;background:rgba(140,128,115,.08);color:#8c8073}
+.kw-workspace .kw-calendar-reference .skipped .kw-meal-state:after{content:"SKIP";font-size:13px;font-weight:900}
+
+/* 59:29 / 59:33 week stepper: bordered white buttons with solid triangles. */
+.kw-workspace .kw-weekbar .kw-week-step{display:grid;place-items:center;width:34px;height:34px;padding:8px;border:3px solid #35251f;border-radius:12px;background:#fff;box-shadow:0 3px 0 #35251f;color:#35251f;font-size:16px;font-weight:900;line-height:1}
+.kw-workspace .kw-weekbar .kw-week-step:hover{background:#fff8ef}
+
+/* Frame 110:5 fridge fields: English name, per-portion weight and freshness. */
+.kw-stock-en{font-weight:700;font-size:11px;color:#6b584e}
+.kw-stock-expiry{font-size:11px;font-weight:800;margin:2px 0 0}
+.kw-stock-expiry.fresh{color:#598c40}
+.kw-stock-expiry.soon{color:#eb8c26}
+.kw-stock-expiry.due{color:#c74732}
+.kw-stock-expiry.expired{color:#c74732;text-decoration:underline}
+.kw-support-editor .kw-span-2{grid-column:span 2}
+
+/* Frame 36:1030 recipe detail. */
+.kw-recipe-hero{width:100%;height:180px;object-fit:cover;border:3px solid #35251f;border-radius:16px}
+.kw-recipe-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px}
+.kw-recipe-en{font-size:13px;font-weight:700;color:#6b584e}
+.kw-recipe-stats{display:flex;flex-wrap:wrap;gap:12px;margin:4px 0;font-size:13px;font-weight:800;color:#35251f}
+.kw-rate-row{display:flex;align-items:center;gap:4px;margin:4px 0 8px}
+.kw-rate-star{border:0;background:none;font-size:20px;line-height:1;cursor:pointer;color:#f4af14;padding:0 2px}
+.kw-rate-clear{border:0;background:none;font-size:12px;font-weight:800;color:#6b584e;text-decoration:underline;margin-left:6px;cursor:pointer}
+.kw-nutrition{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px;margin:8px 0}
+.kw-nutrition dt{font-size:11px;font-weight:700;color:#6b584e}
+.kw-nutrition dd{margin:2px 0 0;font-size:16px;font-weight:900;color:#35251f}
+.kw-reheat{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.kw-reheat li{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.kw-reheat strong{font-weight:900;color:#35251f}
+
+/* Frame 105:513 plan analysis: three stat cards beside the warning. */
+.kw-analysis{margin-top:24px}
+.kw-analysis h2{font-size:22px;font-weight:900;margin:0 0 12px}
+
+/* Frame 47:195: a slot the household chose not to cook. */
+.kw-workspace .kw-calendar-reference .kw-not-planning{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;min-height:150px;padding:10px;border:2px dashed #998c80;border-radius:16px;background:#f4f1ec;color:#998c80}
+.kw-workspace .kw-calendar-reference .kw-not-planning:hover:enabled{border-color:#35251f;color:#6b584e}
+.kw-not-planning-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;font-size:13px;font-weight:800}
+.kw-not-planning-label span{font-size:20px}
+.kw-add-from-recipes{display:flex;align-items:center;justify-content:center;gap:3px;width:100%;margin-top:6px;padding:4px 2px;border:2px solid #35251f;border-radius:10px;background:#fff;font-size:10px;font-weight:800;color:#35251f;white-space:nowrap}
+.kw-add-from-recipes:hover{background:#fff8ef}
+
+/* ---------------------------------------------------------------------------
+   Responsive layout.
+   The week grid is the only thing here that used to scroll sideways. A plan you
+   have to drag to read is not a plan you check on a phone, so below the width
+   where seven columns still fit the week reflows into fewer, full-width days.
+   Every other fixed two/three-column layout collapses on the same ladder.
+--------------------------------------------------------------------------- */
+
+/* A meal card sizes to its content. Stretching three cards to fill a fixed day
+   height left a draft week — which has no action row — mostly empty. */
+.kw-workspace .kw-calendar-reference .kw-day>.kw-meal-slot{flex:0 0 auto;min-height:0}
+.kw-workspace .kw-calendar-reference .kw-day{min-height:0}
+.kw-workspace .kw-calendar-reference .kw-meal-card{min-height:112px}
+.kw-workspace .kw-calendar-reference .kw-add-meal{min-height:112px}
+
+@media(max-width:1100px){
+  .kw-workspace .kw-calendar.kw-calendar-reference,
+  .kw-workspace .kw-calendar.kw-calendar-reference.kw-calendar-plan{grid-template-columns:repeat(4,minmax(0,1fr));min-width:0}
+  .kw-calendar-scroll{overflow-x:visible;scroll-snap-type:none}
+  .kw-review-layout{grid-template-columns:1fr}
+  .kw-review-list{flex-direction:row;flex-wrap:wrap}
+  .kw-review-item{flex:1 1 210px}
+  .kw-fridge-body{grid-template-columns:1fr;gap:8px;padding:0 5px 12px}
+  .kw-compartment{min-height:0}
+  .kw-prep-layout{grid-template-columns:1fr}
+  .kw-workspace .kw-prep-current{min-height:0}
+}
+
+@media(max-width:900px){
+  .kw-workspace .kw-calendar.kw-calendar-reference,
+  .kw-workspace .kw-calendar.kw-calendar-reference.kw-calendar-plan{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kw-review-columns{grid-template-columns:1fr}
+  .kw-review-hero-body{flex-direction:column}
+  .kw-review-cover{width:100%}
+  .kw-page-header{flex-wrap:wrap}
+  .kw-prep-stats{flex-wrap:wrap;width:100%}
+  .kw-prep-stats>div{flex:1 1 140px}
+  .kw-shelf{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+
+@media(max-width:680px){
+  .kw-workspace .kw-calendar.kw-calendar-reference,
+  .kw-workspace .kw-calendar.kw-calendar-reference.kw-calendar-plan{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .kw-planning-heading{flex-wrap:wrap;row-gap:10px}
+  .kw-planning-heading h1{flex-basis:100%}
+  .kw-planning-buttons{margin-left:0;width:100%}
+  .kw-planning-buttons .kw-button{flex:1}
+  .kw-review-head{flex-wrap:wrap}
+  .kw-review-count{margin-left:0}
+  .kw-shelf{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+@media(max-width:520px){
+  .kw-workspace .kw-calendar.kw-calendar-reference,
+  .kw-workspace .kw-calendar.kw-calendar-reference.kw-calendar-plan{grid-template-columns:minmax(0,1fr)}
+
+  .kw-review-foot>div{width:100%}
+  .kw-review-foot .kw-button{flex:1}
+}
+
+/* A shelf's blank end cells only exist to keep the row looking like a shelf.
+   Once the row wraps they read as an empty second shelf, so they go. */
+@media(max-width:900px){.kw-food-slot{display:none}}
+/* On a phone a meal card carries a name and two badges; a desktop floor height
+   just pushes the rest of the week below the fold. */
+@media(max-width:680px){
+  .kw-workspace .kw-calendar-reference .kw-meal-card,
+  .kw-workspace .kw-calendar-reference .kw-add-meal{min-height:0}
+  .kw-workspace .kw-calendar-reference .kw-meal-open{padding-bottom:10px}
+}
+
+/* The nav bar stays put while the week scrolls under it: on a long plan the
+   day you are reading is far from the tabs you would use to leave it. It sits
+   below the drawer (z-index 10) and any modal (60), so those still cover it. */
+.kw-workspace .kw-navigation{position:sticky;top:0;z-index:6}
+html{scroll-padding-top:96px}
+@media(max-width:760px){html{scroll-padding-top:134px}}
+.kw-workspace .kw-chat{min-height:0}
+@media(max-width:680px){.kw-brief-strip>p{white-space:normal}}
+
+
+/* ===========================================================================
+   Plan page, soft layer. One quiet surface per idea: thin warm borders, white
+   panels, no black outlines or drop shadows. Emphasis is reserved for the one
+   thing to do next (the yellow call to action) and for state (yellow dots).
+=========================================================================== */
+.kw-planning{gap:20px}
+.kw-planning .kw-planning-heading{gap:12px}
+.kw-workspace .kw-planning .kw-week-step{width:32px;height:32px;padding:0;border:1.5px solid #e4d7c5;border-radius:9px;box-shadow:none;background:#fff;font-size:12px;color:#6b584e}
+.kw-workspace .kw-planning .kw-week-step:hover{background:#fbf6ee}
+.kw-workspace .kw-planning .kw-week-label{border:1.5px solid #e4d7c5;border-radius:10px;box-shadow:none;background:#fff;padding:5px 14px;font-size:14px;font-weight:800}
+.kw-planning .kw-plan-stamp{transform:none;border:0;box-shadow:none;border-radius:999px;background:#fbe3a6;color:#6b4a0a;padding:5px 14px;font-size:13px;font-weight:900;letter-spacing:.04em}
+.kw-planning .kw-plan-stamp.confirmed{background:#dfeccf;color:#3f5030}
+.kw-planning .kw-planning-buttons .kw-button{border:1.5px solid #f0c75e;box-shadow:none;background:#fff4d6;border-radius:12px}
+
+/* Rail: every step is a dot and a label of the same size; only state changes.
+   A step you can follow is underlined like every other link on the page. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Shared pieces */
+.kw-panel{background:#fff;border:1px solid #eee3d4;border-radius:14px;box-shadow:0 1px 2px #35251f0a;padding:18px 20px}
+.kw-panel h3{margin:0;font-size:17px;font-weight:900;color:#35251f}
+.kw-link{align-self:flex-start;border:0;background:none;padding:0;font:inherit;font-size:14px;font-weight:800;color:#b8641a;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:4px;cursor:pointer}
+.kw-link:hover{color:#8c4a10}
+.kw-check{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:#35251f;cursor:pointer}
+.kw-check input{appearance:none;-webkit-appearance:none;display:grid;place-items:center;flex-shrink:0;width:18px;height:18px;margin:0;border:1.5px solid #cdbfae;border-radius:5px;background:#fff;cursor:pointer;transition:background .12s,border-color .12s}
+.kw-check input:checked{background:#f4af14;border-color:#e9a20e}
+.kw-check input:checked:after{content:"";width:5px;height:9px;margin-top:-2px;border:solid #35251f;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.kw-check input:focus-visible{outline:2px solid #f4af14;outline-offset:2px}
+.kw-check input:not(:checked)+span{color:#a2938a}
+.kw-cta{border:0;border-radius:12px;background:#f4af14;color:#35251f;box-shadow:0 2px 0 #d99a0b;padding:12px 18px;font:inherit;font-size:16px;font-weight:900;cursor:pointer}
+.kw-cta:hover{background:#f6bb33}
+.kw-cta:disabled{background:#efdcb0;box-shadow:none;color:#8d7d70;cursor:default}
+.kw-outline{border:1.5px solid #e0d2bf;border-radius:12px;background:#fff;color:#35251f;padding:10px 16px;font:inherit;font-size:14px;font-weight:800;white-space:nowrap;cursor:pointer}
+.kw-outline:hover{border-color:#c9b69f}
+.kw-outline:disabled{cursor:default;color:#6b584e;background:#fbf8f3}
+.kw-cta.small,.kw-outline.small{font-size:13px;padding:7px 12px}
+
+/* Step 1 */
+.kw-setup{display:flex;flex-direction:column;gap:14px}
+.kw-setup-title{margin:8px 0 0;font-size:20px;font-weight:900;color:#35251f}
+.kw-setup-head{display:flex;flex-direction:column;gap:6px}
+.kw-week-picker{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:16px 0}
+.kw-week-col{display:flex;flex-direction:column;align-items:center;gap:13px;padding:0 8px}
+.kw-week-col+.kw-week-col{border-left:1px solid #f1e8dc}
+.kw-week-col h3{display:flex;align-items:baseline;gap:6px;margin:0 0 3px;font-size:16px}
+.kw-week-col h3 span{font-size:12px;font-weight:700;color:#a2938a}
+.kw-week-col .kw-check span{min-width:70px}
+.kw-setup-pair{display:grid;grid-template-columns:minmax(0,.42fr) minmax(0,.58fr);gap:20px;align-items:stretch}
+.kw-goals,.kw-stu{display:flex;flex-direction:column;gap:14px;min-height:340px}
+.kw-goal-list{display:flex;flex-direction:column;gap:13px;flex:1}
+.kw-goals>.kw-link{margin-top:auto}
+/* The Stu panel keeps one height: the cooking state covers the prompt box
+   instead of pushing the buttons down. */
+.kw-stu-box{position:relative;flex:1;display:flex;flex-direction:column;min-height:170px;border:1px solid #e4d7c5;border-radius:12px;background:#fff;overflow:hidden;transition:border-color .12s}
+.kw-stu-box:focus-within{border-color:#f4af14}
+.kw-stu-box textarea{flex:1;min-height:96px;border:0;background:none;resize:none;padding:12px 14px;font:inherit;font-size:15px;font-weight:700;color:#35251f;outline:none}
+.kw-stu-box textarea:focus-visible{outline:none}
+.kw-planning .kw-quick-chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 12px}
+.kw-planning .kw-quick-chips>button{display:inline-flex;align-items:center;gap:6px;border:1px solid #efe3d3;border-radius:10px;background:#fbf6ee;padding:5px 10px;font-size:13px;font-weight:700;color:#6b584e;cursor:pointer}
+.kw-planning .kw-quick-chips>button:hover{background:#f7eddc;color:#35251f}
+.kw-stu-cooking{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#fffaf2f0}
+.kw-stu-cooking>span{display:grid;place-items:center;width:44px;height:44px;border:1px solid #eadfce;border-radius:50%;background:#fff;font-size:22px}
+.kw-stu-cooking>p{margin:0;font-size:14px;font-weight:800;color:#6b584e}
+.kw-stu-cooking progress{width:180px;height:8px;accent-color:#f4af14}
+.kw-stu-actions{display:flex;gap:12px;align-items:stretch}
+.kw-stu-actions .kw-cta{flex:1}
+
+/* Step 2: the week, softened */
+.kw-workspace .kw-calendar-plan .kw-day{border:1px solid #eadfce;box-shadow:none;background:#fff;border-radius:16px}
+.kw-workspace .kw-calendar-plan .kw-day:first-child{border-left:1px solid #eadfce}
+.kw-workspace .kw-calendar-plan .kw-day.is-today{border:2px solid #f4af14;box-shadow:none}
+.kw-workspace .kw-calendar-plan .kw-meal-card{border:1px solid #efe6d8;border-left:1px solid #efe6d8;background:#faf7f2;box-shadow:none;border-radius:12px}
+.kw-workspace .kw-calendar-plan .kw-meal-card.is-selected{border-color:#f4af14;box-shadow:0 0 0 1px #f4af14}
+.kw-workspace .kw-calendar-plan.is-confirmed .kw-meal-card{border:1px solid #d5e3c6;background:#f6faf1}
+.kw-workspace .kw-calendar-plan .kw-day-total{border:1px solid #eadfce;box-shadow:none;background:#faf7f2}
+.kw-workspace .kw-calendar-plan .kw-add-from-recipes{border:1px solid #e4d7c5;box-shadow:none;background:#fff;border-radius:8px;color:#6b584e}
+.kw-workspace .kw-calendar-plan .kw-not-planning.is-static,.kw-workspace .kw-calendar-plan .kw-add-meal.is-static{cursor:default;border:1px dashed #e4d7c5;background:#fbf8f3;box-shadow:none}
+.kw-workspace .kw-calendar-plan .kw-add-meal.is-static .kw-add-meal-label{color:#cdbfae}
+
+/* Chat: no outlined boxes, no red focus ring while typing */
+.kw-workspace .kw-planning .kw-chat{margin:0;min-height:0;border:1px solid #eadfce;border-radius:16px;box-shadow:none;background:#fff;padding:18px 20px}
+.kw-workspace .kw-planning .kw-chat>h2{margin:0;font-size:17px;font-weight:900}
+.kw-workspace .kw-planning .kw-chat-history{min-height:0;max-height:420px;overflow-y:auto;margin:12px 0 0;padding-right:4px;display:flex;flex-direction:column;gap:8px}
+.kw-workspace .kw-planning .kw-chat-message{border:0;border-radius:12px;background:#eef5ec;padding:9px 12px;max-width:80%}
+.kw-workspace .kw-planning .kw-chat-message.user{align-self:flex-end;background:#fbf3e3}
+.kw-workspace .kw-planning .kw-chat-message>span{font-size:11px;color:#8d7d70}
+.kw-workspace .kw-planning .kw-proposal{margin-top:12px;border:1px solid #eadfce;border-radius:12px;background:#fffaf2;padding:12px 14px}
+.kw-workspace .kw-planning .kw-chat-composer{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:14px;min-height:0;padding:0;border:0;border-radius:0;background:none}
+.kw-workspace .kw-planning .kw-contexts{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.kw-workspace .kw-planning .kw-context{display:inline-flex;align-items:center;gap:4px;border:0;border-radius:999px;background:#fdf0dc;color:#6b584e;padding:3px 6px 3px 10px;font-size:12px;font-weight:800}
+.kw-workspace .kw-planning .kw-context .kw-icon{border:0;background:none;padding:2px;color:#a2938a}
+.kw-workspace .kw-planning .kw-message-meals{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;max-width:100%}
+.kw-workspace .kw-planning .kw-message-meals .kw-context{border:1px solid #e4c98e;background:#fff7e6;padding:3px 9px;line-height:1.4;white-space:normal}
+.kw-chat-input{display:flex;align-items:flex-end;gap:8px;border:1px solid #e4d7c5;border-radius:12px;background:#fff;padding:8px 8px 8px 12px;transition:border-color .12s}
+.kw-chat-input:focus-within{border-color:#f4af14}
+.kw-workspace .kw-planning .kw-chat-input textarea{flex:1;height:auto;min-height:44px;padding:2px 0;border:0;outline:none;background:none;resize:none;font:inherit;font-size:14px;font-weight:700;line-height:1.5;color:#35251f}
+.kw-chat-input textarea:focus-visible{outline:none}
+.kw-send{display:grid;place-items:center;flex-shrink:0;width:32px;height:32px;border:0;border-radius:9px;background:#f4af14;color:#35251f;cursor:pointer}
+.kw-send:disabled{background:#efe3cf;color:#b3a595;cursor:default}
+
+/* Analysis: a list of this week's issues, not a dashboard */
+.kw-planning .kw-analysis{margin:0}
+.kw-planning .kw-analysis>h2{margin:0;font-size:18px;font-weight:900}
+
+
+
+
+
+
+.kw-issue-fix{margin-top:8px;border:1px solid #cfdcc0;border-radius:999px;background:#f1f7ea;color:#3f5030;padding:5px 12px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.kw-issue-fix:hover{background:#e6f1db}
+
+/* Footer: prep link, then the reasoning as quiet grey text */
+.kw-plan-foot{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+.kw-reference{font-size:13px;color:#8d7d70}
+.kw-reference summary{display:inline-flex;align-items:center;gap:6px;list-style:none;cursor:pointer;font-weight:700;color:#8d7d70}
+.kw-reference summary::-webkit-details-marker{display:none}
+.kw-reference>summary:after{content:"›";font-size:15px;transition:transform .15s}
+.kw-reference[open]>summary:after{transform:rotate(90deg)}
+.kw-reference p{margin:6px 0}
+.kw-reference h3{margin:12px 0 4px;font-size:13px;font-weight:800;color:#6b584e}
+.kw-reference details summary{font-weight:600}
+.kw-reference details summary:after{content:none}
+
+/* Step 3 */
+.kw-workspace .kw-planning .kw-next-step{flex-direction:row;align-items:center;gap:16px;border:1px solid #eadfce;border-radius:16px;box-shadow:none;background:#fff;padding:14px 18px}
+.kw-planning .kw-next-label{font-size:13px;font-weight:900;letter-spacing:.06em;color:#b8641a}
+.kw-planning .kw-next-step .kw-cta{margin-left:auto}
+
+/* Meal drawer: effort, source and meta read as three different kinds of fact */
+.kw-effort{display:inline-flex;align-items:center;gap:6px;border-radius:12px;background:#fdecc0;padding:5px 11px;color:#35251f}
+.kw-effort strong{font-size:14px;font-weight:900}
+.kw-effort small{font-size:12px;font-weight:700;color:#8a6a2a}
+.kw-source{border-radius:999px;background:#eef5ec;padding:4px 10px;font-size:12px;font-weight:800;color:#3f5030}
+.kw-source.fridge{background:#e6f1f8;color:#2f5a7a}
+.kw-meta{font-size:12px;font-weight:700;color:#8d7d70;text-transform:capitalize}
+.kw-meta+.kw-meta:before{content:"·";margin-right:6px}
+
+@media(max-width:1100px){
+  .kw-week-picker{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:18px}
+  .kw-week-col+.kw-week-col{border-left:0}
+  .kw-setup-pair{grid-template-columns:1fr}
+  .kw-goals,.kw-stu{min-height:0}
+}
+@media(max-width:520px){
+  .kw-week-picker{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kw-stu-actions{flex-direction:column}
+
+
+  .kw-workspace .kw-planning .kw-next-step{flex-direction:column;align-items:stretch}
+  .kw-planning .kw-next-step .kw-cta{margin-left:0}
+}
+
+/* ===========================================================================
+   Plan page, round 3.
+   Hierarchy: every section is a bold box (3px ink + a 4px drop), and what sits
+   inside a section stays light. The step control is the boldest element on the
+   page after the week grid, because it is where the week moves forward.
+=========================================================================== */
+
+/* Sections get a bold box again */
+.kw-workspace .kw-planning .kw-panel{border:3px solid #35251f;border-radius:18px;box-shadow:0 4px 0 #35251f}
+.kw-workspace .kw-planning .kw-chat{border:3px solid #35251f;border-radius:18px;box-shadow:0 4px 0 #35251f}
+.kw-workspace .kw-planning .kw-analysis{border:3px solid #35251f;border-radius:18px;box-shadow:0 4px 0 #35251f;background:#fff;padding:18px 20px}
+.kw-workspace .kw-calendar-plan .kw-day,.kw-workspace .kw-calendar-plan .kw-day:first-child{border:3px solid #35251f;box-shadow:0 4px 0 #35251f;border-radius:18px;padding:10px}
+.kw-workspace .kw-calendar-plan .kw-day.is-today{border:3px solid #f4af14;box-shadow:0 4px 0 #35251f,0 0 0 3px #fde7a8;padding:10px}
+
+/* Breakfast, lunch and dinner line up across the week, filled or not: each
+   day spans five shared rows (header, three meals, total) of the week grid. */
+.kw-workspace .kw-calendar.kw-calendar-reference{grid-auto-rows:auto;row-gap:18px}
+.kw-workspace .kw-calendar.kw-calendar-reference .kw-day{grid-row:span 5;display:grid;grid-template-rows:subgrid;row-gap:10px;gap:10px 0;height:auto;min-height:0}
+.kw-workspace .kw-calendar.kw-calendar-reference .kw-day>.kw-meal-slot{display:flex;flex-direction:column;margin:0}
+.kw-workspace .kw-calendar.kw-calendar-reference .kw-meal-slot>.kw-meal-card,.kw-workspace .kw-calendar.kw-calendar-reference .kw-meal-slot>.kw-add-meal,.kw-workspace .kw-calendar.kw-calendar-reference .kw-meal-slot>.kw-not-planning{flex:1;height:auto}
+.kw-workspace .kw-calendar.kw-calendar-reference .kw-day-total{margin-top:0;align-self:end}
+
+/* Step control: one bold segmented bar. Same height, badge and type in every
+   segment; the fill alone says what a segment is. */
+.kw-stepper{align-self:flex-start;display:inline-flex;flex-wrap:wrap;list-style:none;margin:-4px 0 0;padding:0;border:3px solid #35251f;border-radius:14px;background:#fff;box-shadow:0 4px 0 #35251f;overflow:hidden}
+.kw-stepper>li{display:flex}
+.kw-stepper>li+li{border-left:3px solid #35251f}
+.kw-stepper button,.kw-stepper-static{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 18px;border:0;background:none;font:inherit;font-size:15px;font-weight:900;color:#35251f}
+.kw-stepper button{cursor:pointer;transition:background .12s}
+.kw-stepper-n{display:grid;place-items:center;flex-shrink:0;width:26px;height:26px;border:2.5px solid #35251f;border-radius:50%;background:#fff;font-size:13px;line-height:1}
+.kw-stepper-go{font-size:17px;transition:transform .12s}
+.kw-stepper>li.is-current{background:#f4af14}
+.kw-stepper>li.is-link button:hover{background:#fff4d6}
+.kw-stepper>li.is-link button:hover .kw-stepper-go{transform:translateX(3px)}
+.kw-stepper>li.is-action,.kw-stepper>li.is-done{background:#64734b}
+.kw-stepper>li.is-action button,.kw-stepper>li.is-done .kw-stepper-static{color:#fff}
+.kw-stepper>li.is-action .kw-stepper-n,.kw-stepper>li.is-done .kw-stepper-n{border-color:#fff;background:#fff;color:#35251f}
+.kw-stepper>li.is-action button:hover{background:#56643f}
+.kw-stepper>li.is-action button:hover .kw-stepper-go{transform:translateX(3px)}
+.kw-stepper>li.is-action button:disabled{background:#c7cdba;color:#f6f7f2;cursor:not-allowed}
+.kw-stepper button:disabled .kw-stepper-go{opacity:.5}
+.kw-stepper button:focus-visible{outline:3px solid #f4af14;outline-offset:-6px}
+.kw-stepper.is-stamping>li.is-done{animation:kw-stepper-flash 1.4s ease-out}
+@keyframes kw-stepper-flash{0%,30%{background:#f4af14}100%{background:#64734b}}
+
+/* Why confirming is blocked, next to the control that is blocked */
+.kw-confirm-block{margin-top:-6px;border:3px solid #c74732;border-radius:14px;background:#fdf0ec;padding:10px 14px;color:#8c2f1c}
+.kw-confirm-block strong{font-size:14px;font-weight:900}
+.kw-confirm-block ul{margin:4px 0 0;padding-left:18px;font-size:13px;font-weight:700}
+.kw-confirm-block p{margin:4px 0 0;font-size:13px;font-weight:700}
+
+/* The status stamp: DRAFT lifts away and CONFIRMED stamps down in its place */
+.kw-stamp-slot{display:inline-grid}
+.kw-stamp-slot>.kw-plan-stamp{grid-area:1/1;position:relative}
+.kw-workspace .kw-planning .kw-plan-stamp.confirmed{background:#64734b;color:#fff;transform:rotate(-4deg)}
+.kw-plan-stamp.is-leaving{animation:kw-stamp-out .45s ease-in forwards}
+.kw-plan-stamp.is-stamping{animation:kw-stamp-in .7s cubic-bezier(.2,1.5,.45,1) .2s both}
+.kw-plan-stamp.is-stamping:after{content:"";position:absolute;inset:-6px;border:3px solid #64734b;border-radius:999px;animation:kw-stamp-ring .9s ease-out .65s both;pointer-events:none}
+@keyframes kw-stamp-out{to{opacity:0;transform:translateY(-10px) scale(.8)}}
+@keyframes kw-stamp-in{0%{opacity:0;transform:scale(2.6) rotate(-18deg)}60%{opacity:1;transform:scale(.92) rotate(-3deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
+@keyframes kw-stamp-ring{from{opacity:.9;transform:scale(.92)}to{opacity:0;transform:scale(1.5)}}
+@media(prefers-reduced-motion:reduce){.kw-plan-stamp.is-leaving{display:none}.kw-plan-stamp.is-stamping,.kw-plan-stamp.is-stamping:after,.kw-stepper.is-stamping>li.is-done{animation:none}}
+
+/* A referenced meal is marked where it sits; the page does not move */
+.kw-workspace .kw-calendar-reference .kw-meal-card.is-referenced{border:2px solid #f4af14;box-shadow:0 0 0 2px #fde7a8}
+.kw-ref-badge{position:absolute;top:6px;right:7px;z-index:2;font-size:13px;line-height:1}
+
+/* A stock shortage says what is short instead of a bare red dot */
+.kw-workspace .kw-calendar-reference .kw-shortage,.kw-workspace .kw-calendar-reference .kw-meal-card:hover .kw-shortage,.kw-workspace .kw-calendar-reference .kw-meal-card:focus-within .kw-shortage,.kw-workspace .kw-calendar-reference .kw-meal-card.is-selected .kw-shortage{position:static;display:block;width:auto;height:auto;margin-top:6px;padding:3px 7px;overflow:visible;opacity:1;border-radius:7px;background:#fdf0ec;color:#8c2f1c;font-size:11px;font-weight:800;line-height:1.35;text-align:left}
+
+/* Plan Analysis: one row per chosen metric */
+.kw-workspace .kw-planning .kw-analysis>header{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+.kw-workspace .kw-planning .kw-analysis>header h2{margin:0;font-size:18px;font-weight:900}
+.kw-workspace .kw-planning .kw-analysis>header .kw-link{margin-left:auto;font-size:13px}
+.kw-analysis-empty{margin:0;color:#8d7d70}
+.kw-metrics{margin:0;display:flex;flex-direction:column}
+.kw-metrics>div{display:grid;grid-template-columns:170px minmax(0,1fr);gap:16px;padding:12px 0;border-top:1px solid #efe6d8}
+.kw-metrics>div:first-child{border-top:0}
+.kw-metrics dt{font-size:14px;font-weight:900;color:#35251f}
+.kw-metrics dd{margin:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+.kw-metric-value{display:flex;gap:8px;font-size:14px;font-weight:700;color:#35251f}
+.kw-metric-mark{flex-shrink:0;width:18px;text-align:center}
+.kw-metrics .is-ok .kw-metric-mark{color:#4f6138;font-weight:900}
+.kw-metrics .is-info .kw-metric-mark{color:#a2938a}
+.kw-metrics .is-warn .kw-metric-value{color:#8c2f1c}
+.kw-metric-issue{padding-left:26px}
+.kw-metric-issue strong{font-size:13px;font-weight:900;color:#35251f}
+.kw-metric-issue p{margin:2px 0 0;font-size:13px;color:#8d7d70}
+
+/* Settings → Planning Guidance: guidance and metrics side by side */
+.kw-guidance-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.kw-metric-settings{display:flex;flex-direction:column;gap:10px}
+.kw-metric-setting{display:flex;align-items:flex-start;gap:10px;border:2px solid #35251f;border-radius:14px;background:#fff8ef;padding:10px 12px;cursor:pointer}
+.kw-metric-setting input{flex-shrink:0;width:17px;height:17px;margin-top:3px;accent-color:#f4af14}
+.kw-metric-setting>span{display:flex;flex-direction:column;gap:2px}
+.kw-metric-setting strong{font-size:14px;font-weight:900}
+.kw-metric-setting small{font-size:12px;color:#6b584e}
+
+@media(max-width:900px){.kw-guidance-columns{grid-template-columns:1fr}}
+@media(max-width:680px){
+  .kw-stepper button,.kw-stepper-static{min-height:40px;padding:0 12px;font-size:13px;gap:7px}
+  .kw-stepper-n{width:22px;height:22px;font-size:11px}
+  .kw-metrics>div{grid-template-columns:1fr;gap:6px}
+}
+
+/* Round 4: fix options, what a change settled, and a shortage as a prep need */
+.kw-fix-options{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
+.kw-fix-options>span{margin-right:2px;font-size:12px;font-weight:800;color:#8d7d70}
+.kw-fix-options .kw-issue-fix{margin-top:0}
+.kw-analysis-outcome{position:relative;margin:6px 0 10px;border:2px solid #64734b;border-radius:12px;background:#f1f7ea;padding:10px 40px 10px 14px}
+.kw-analysis-outcome strong{font-size:13px;font-weight:900;color:#3f5030}
+.kw-analysis-outcome ul{list-style:none;margin:4px 0 0;padding:0;font-size:13px;font-weight:700}
+.kw-analysis-outcome li.is-resolved{color:#3f5030}
+.kw-analysis-outcome li.is-open{color:#8a6a2a}
+.kw-analysis-outcome .kw-icon{position:absolute;top:6px;right:8px;border:0;background:none;color:#6b584e}
+.kw-stu-cooking small{font-size:12px;font-weight:700;color:#8d7d70}
+.kw-stu-cooking p strong{font-variant-numeric:tabular-nums;color:#35251f}
+.kw-workspace .kw-calendar-reference .kw-shortage,.kw-workspace .kw-calendar-reference .kw-meal-card:hover .kw-shortage,.kw-workspace .kw-calendar-reference .kw-meal-card:focus-within .kw-shortage,.kw-workspace .kw-calendar-reference .kw-meal-card.is-selected .kw-shortage{background:#fdf1d6;color:#7a5406}
+
+/* ─── Round 5: chat that acts, before/after review, notes in place ───────── */
+/* The message on its way and Stu's typing dots. */
+.kw-workspace .kw-planning .kw-chat-message.is-pending{opacity:.72}
+.kw-workspace .kw-planning .kw-chat-message.is-typing p{display:flex;gap:4px;align-items:center;height:18px;margin:2px 0 0}
+.kw-chat-message.is-typing i{width:6px;height:6px;border-radius:50%;background:#8d7d70;animation:kw-typing 1s infinite ease-in-out}
+.kw-chat-message.is-typing i:nth-child(2){animation-delay:.15s}.kw-chat-message.is-typing i:nth-child(3){animation-delay:.3s}
+@keyframes kw-typing{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.kw-chat-message.is-typing i{animation:none;opacity:.6}}
+/* One question from Stu: its answers are chips to tap. */
+.kw-workspace .kw-planning .kw-proposal.is-question{display:flex;flex-wrap:wrap;gap:8px;background:transparent;border:0;padding:0;margin:10px 0 0}
+.kw-option{border:2px solid #35251f;border-radius:999px;background:#fff;color:#35251f;font:inherit;font-size:13px;font-weight:800;padding:6px 14px;cursor:pointer;transition:background .15s,transform .15s}
+.kw-option:hover:not(:disabled){background:#f4af14;transform:translateY(-1px)}
+.kw-option:disabled{opacity:.5;cursor:default}
+/* Now → After, per meal. */
+.kw-workspace .kw-planning .kw-proposal ul.kw-diff-list{display:flex;flex-direction:column;gap:10px;margin:0 0 12px;padding:0;list-style:none}
+.kw-workspace .kw-planning .kw-proposal li.kw-diff{display:block;border:0;padding:0}
+.kw-diff h4{margin:0 0 6px;font-size:13px;font-weight:900;color:#35251f}
+.kw-diff-sides{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:stretch}
+.kw-diff-side{border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kw-diff-side.is-before{background:#f6efe6;color:#6b584e}
+.kw-diff-side.is-after{background:#eef5ec;color:#35251f;box-shadow:inset 0 0 0 2px #64734b}
+.kw-diff-tag{font-size:10px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:#8d7d70}
+.kw-diff-side.is-after .kw-diff-tag{color:#64734b}
+.kw-workspace .kw-planning .kw-proposal .kw-diff-side ul{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0;list-style:none}
+.kw-workspace .kw-planning .kw-proposal .kw-diff-side li{display:inline-block;border:0;padding:1px 8px;border-radius:8px;background:#fff;font-size:13px;font-weight:800}
+.kw-workspace .kw-planning .kw-proposal .kw-diff-side li.is-removed{background:transparent;color:#a3796a}
+.kw-diff-side li.is-removed s{text-decoration-thickness:2px;text-decoration-color:#c74732}
+.kw-workspace .kw-planning .kw-proposal .kw-diff-side li.is-added{background:#f4af14;color:#35251f}
+.kw-diff-side small{font-size:11px;color:#8d7d70;font-weight:700}
+.kw-diff-side small.is-changed{color:#35251f;font-weight:900}
+.kw-diff-empty{margin:0;font-size:12px;color:#a3998f}
+.kw-diff-arrow{align-self:center;font-size:18px;font-weight:900;color:#8d7d70}
+.kw-diff-prep{margin:0 0 12px;font-size:12px;color:#8d7d70}
+@media(max-width:520px){.kw-diff-sides{grid-template-columns:1fr}.kw-diff-arrow{justify-self:center;transform:rotate(90deg);line-height:1}}
+/* Errors said where they happened, never as a page banner. */
+.kw-inline-error{margin:8px 0 0;padding:8px 12px;border-radius:10px;background:#fdecea;color:#9b2c1c;font-size:13px;font-weight:800}
+/* A card's own note: the result of its quick action, with Undo. */
+.kw-workspace .kw-calendar .kw-meal-slot{position:relative}
+.kw-card-note{position:absolute;left:6px;right:6px;top:6px;z-index:4;margin:0;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:10px;background:#35251f;color:#fff;font-size:11px;font-weight:800;box-shadow:0 2px 0 #00000026;animation:kw-note-in .18s ease-out}
+.kw-card-note>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kw-card-note.is-error{background:#fdecea;color:#9b2c1c;box-shadow:inset 0 0 0 2px #c74732}
+.kw-card-note.is-error>span{white-space:normal}
+.kw-card-note button{border:0;background:transparent;color:inherit;font:inherit;text-decoration:underline;padding:0 2px;cursor:pointer}
+@keyframes kw-note-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+/* A day's cards never grow past the day: a DONE stamp's padding or a long
+ * source chip is clipped inside the card instead of widening the column. */
+.kw-workspace .kw-calendar.kw-calendar-reference .kw-day{grid-template-columns:minmax(0,1fr)}
+.kw-workspace .kw-calendar.kw-calendar-reference .kw-day>*,.kw-workspace .kw-calendar-reference .kw-meal-card,.kw-workspace .kw-calendar-reference .kw-meal-open{min-width:0}
+
+/* ─── Round 6: Stu's work survives refreshes; planning an empty week ──────── */
+/* Step 1 while editing: the latest exchange with Stu, above the box. */
+.kw-stu-latest{display:flex;flex-direction:column;gap:6px;margin:0;padding:10px 14px;border-bottom:1px dashed #eadfce;max-height:132px;overflow-y:auto}
+.kw-stu-latest p{margin:0;font-size:13px;font-weight:700;color:#35251f;display:flex;gap:6px;align-items:baseline;line-height:1.4}
+.kw-stu-latest p>span{flex:0 0 auto;font-size:11px;font-weight:800;color:#8d7d70}
+.kw-stu-latest p.user{color:#6b584e}
+.kw-stu-latest p.is-typing{align-items:center}
+.kw-stu-latest p.is-typing i{width:5px;height:5px;border-radius:50%;background:#8d7d70;animation:kw-typing 1s infinite ease-in-out}
+.kw-stu-latest p.is-typing i:nth-child(3){animation-delay:.15s}.kw-stu-latest p.is-typing i:nth-child(4){animation-delay:.3s}
+.kw-stu-latest .kw-link{align-self:flex-start;font-size:13px}
+/* A chosen, empty slot in a hand-made week: fill it from recipes. */
+.kw-workspace .kw-calendar-reference .kw-add-meal.kw-add-slot{border:2px dashed #c9b8a4;border-radius:14px;background:#fffdf9;color:#6b584e;cursor:pointer;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:7px}
+.kw-workspace .kw-calendar-reference .kw-add-meal.kw-add-slot:hover{border-color:#35251f;background:#fff8ef;color:#35251f}
+.kw-add-slot .kw-add-meal-label{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:800}
+/* A failed draft can be put away. */
+.kw-stu .kw-confirm-block{position:relative;padding-right:36px}
+.kw-stu .kw-confirm-block>.kw-icon{position:absolute;top:8px;right:8px}
+
+/* Dish list: each dish shows how far it has got as a thin bar along its foot
+   (steps ticked; full and green when done), not a checkbox it cannot take. */
+.kw-dish-row{position:relative;padding-bottom:17px}
+.kw-dish-progress{position:absolute;left:12px;right:12px;bottom:6px;height:5px;border-radius:3px;background:#efe6da;overflow:hidden}
+.kw-dish-progress>span{display:block;height:100%;border-radius:3px;background:#f4af14;transition:width .3s ease}
+.kw-dish-progress.completed>span{background:#598c40}
+.kw-dish-progress.skipped{background:repeating-linear-gradient(135deg,#e4ddd2 0 4px,#f3eee7 4px 8px)}
+.kw-dish-row:has(.kw-dish-progress.completed)>strong{color:#598c40}
+.kw-dish-row:has(.kw-dish-progress.skipped)>strong{color:#a19486;text-decoration:line-through}
+@media(prefers-reduced-motion:reduce){.kw-dish-progress>span{transition:none}}

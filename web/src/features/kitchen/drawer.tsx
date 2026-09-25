@@ -1,0 +1,10 @@
+"use client";
+import { X } from "@phosphor-icons/react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
+
+export function Drawer({title,subtitle,lead,onClose,children,footer,notice}:{title:string;subtitle?:string;lead?:ReactNode;onClose:()=>void;children:ReactNode;footer?:ReactNode;notice?:ReactNode}) {
+  const id=useId(), ref=useRef<HTMLElement>(null), closeRef=useRef(onClose);
+  useEffect(()=>{closeRef.current=onClose;},[onClose]);
+  useEffect(()=>{const previous=document.activeElement as HTMLElement|null;const node=ref.current;node?.querySelector<HTMLElement>("button")?.focus();function key(e:KeyboardEvent){if(e.key==="Escape"){e.preventDefault();closeRef.current();}if(e.key==="Tab"&&node){const items=[...node.querySelectorAll<HTMLElement>("*")].filter(el=>el.matches('button,input,select,textarea,a[href],[tabindex]')&&!el.matches(":disabled")&&el.tabIndex>=0);const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}document.addEventListener("keydown",key);function outside(e:PointerEvent){const target=e.target as Element|null;if(!node||!target||node.contains(target))return;if(target.closest(".kw-meal-open,.kw-modal,.kw-modal-backdrop,[role=dialog],.kw-navigation"))return;closeRef.current();}document.addEventListener("pointerdown",outside);return()=>{document.removeEventListener("keydown",key);document.removeEventListener("pointerdown",outside);previous?.focus();};},[]);
+  return <aside ref={ref} className="kw-drawer" role="dialog" aria-modal="true" aria-labelledby={id}><header className="kw-drawer-header"><div><h2 id={id}>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="kw-icon" aria-label="Close drawer" onClick={onClose}><X size={18}/></button></header>{lead&&<div className="kw-drawer-lead">{lead}</div>}{notice&&<div className="kw-drawer-notice">{notice}</div>}<div className="kw-drawer-body">{children}</div>{footer&&<footer className="kw-drawer-footer">{footer}</footer>}</aside>;
+}

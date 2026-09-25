@@ -1,0 +1,181 @@
+/* Shared calendar style; only execution controls vary between Plan and Calendar. */
+.kw-workspace .kw-calendar-plan .kw-not-planning{border:1px dashed #e4d7c5;background:#fbf8f3;box-shadow:none;border-radius:12px}
+.kw-workspace .kw-calendar-plan .kw-meal-quick-actions{gap:8px}
+.kw-calendar-heading .kw-weekbar{flex-wrap:wrap}
+.kw-version-control{position:relative;display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:2px solid #35251f;border-radius:12px;background:#fff;box-shadow:0 2px 0 #35251f;min-height:36px;color:#35251f}
+.kw-version-dot{width:8px;height:8px;border-radius:50%;background:#f4af14;flex-shrink:0}
+.kw-version-control.confirmed .kw-version-dot{background:#64734b}
+.kw-version-caption{font-size:9px;letter-spacing:.07em;font-weight:900;color:#847568}
+.kw-workspace .kw-version-control .kw-version-select{appearance:none;max-width:190px;padding:7px 21px 7px 0;border:0;border-radius:0;box-shadow:none;background:transparent;font:inherit;font-size:12px;font-weight:800;color:#35251f;cursor:pointer}
+.kw-version-control:focus-within{outline:3px solid #f4af14;outline-offset:3px}
+.kw-version-chevron{position:absolute;right:12px;pointer-events:none;font-size:18px}
+.kw-view-calendar{margin-left:auto}
+.kw-journey{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.kw-journey .kw-stepper{margin:0}
+.kw-stepper>li.is-disabled{color:#9b8c80;background:#faf7f2}
+.kw-stepper>li.is-disabled .kw-stepper-static{color:inherit}
+.kw-stepper>li.is-disabled .kw-stepper-n{border-color:#d9cebf;color:#9b8c80;background:transparent}
+.kw-shopping-prep{min-width:0}
+.kw-fulfilment-intro{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 22px}
+.kw-fulfilment-intro h2{margin:0;font-size:24px;font-weight:900}
+.kw-fulfilment-intro p{margin:4px 0 0;color:#847568;font-size:14px}
+.kw-fulfilment-intro>.kw-button{display:none}
+.kw-fulfilment-panels{display:grid;gap:20px;align-items:stretch;grid-template-columns:minmax(250px,3fr) minmax(250px,1fr);transition:grid-template-columns .35s cubic-bezier(.22,1,.36,1)}
+.kw-fulfilment-panels.focus-prep{grid-template-columns:minmax(250px,1fr) minmax(250px,3fr)}
+.kw-shopping-panel,.kw-prep-panel{display:flex;flex-direction:column;min-height:620px;min-width:0;border:2px solid #35251f;border-radius:18px;background:#fff;box-shadow:0 4px 0 #35251f;overflow:hidden}
+.kw-panel-toggle{flex-shrink:0;transition:background .25s;display:flex;align-items:center;gap:12px;width:100%;min-height:90px;text-align:left;padding:16px 20px;border:0;border-bottom:1px solid #eadfce;background:#faf7f2;color:#35251f;cursor:pointer;font:inherit}
+.is-expanded>.kw-panel-toggle{background:#fff1ce}
+.kw-prep-panel.is-expanded>.kw-panel-toggle{background:#eef4e5}
+.kw-panel-toggle:focus-visible{outline:3px solid #f4af14;outline-offset:-5px}
+.kw-panel-indicator{margin-left:auto;width:8px;height:8px;border-radius:50%;background:#cfc7bc;flex-shrink:0;transition:background .25s,box-shadow .25s}.is-expanded>.kw-panel-toggle .kw-panel-indicator{background:#64734b;box-shadow:0 0 0 5px #64734b18}
+.kw-panel-toggle strong{display:block;font-size:21px;font-weight:900}
+.kw-panel-toggle small{display:block;font-size:12px;color:#847568;margin-top:3px}
+.kw-panel-symbol{display:grid;place-items:center;width:44px;height:44px;background:#fff;border:1px solid #eadfce;border-radius:14px;font-size:25px;flex-shrink:0}
+.kw-shopping-body{display:flex;flex-direction:column;flex:1;padding:18px 22px}
+.kw-shopping-body>progress{width:100%;height:7px;accent-color:#64734b}
+.kw-shopping-group>h3{margin:22px 0 6px;font-size:11px;color:#64734b;text-transform:uppercase;letter-spacing:.08em}
+.kw-shopping-item{display:flex;align-items:flex-start;gap:12px;padding:16px 0;border-bottom:1px solid #f0e7db;cursor:pointer}
+.kw-shopping-item>input{margin-top:4px;width:18px;height:18px;accent-color:#64734b;flex-shrink:0}
+.kw-shopping-item>span{flex:1;min-width:0}
+.kw-shopping-item strong{display:block;font-size:16px;overflow-wrap:anywhere}
+.kw-shopping-item small{display:block;font-size:12px;font-weight:600;color:#918074;line-height:1.6;margin-top:3px}
+.kw-shopping-item>b{white-space:nowrap;font-size:16px;font-weight:900;color:#64734b}
+.kw-shopping-item>b small{display:inline}
+.kw-shopping-item.is-picked>span strong{text-decoration:line-through;color:#a09486}
+.kw-shopping-item.is-picked>b{opacity:.55}
+.kw-shopping-review{margin-top:18px;border-radius:12px;background:#fff7e5;padding:14px 16px;font-size:12px;color:#796042}
+.kw-shopping-review h3{margin:0;font-size:13px}.kw-shopping-review ul{padding-left:18px;margin:8px 0 0;display:grid;gap:5px}
+.kw-shopping-body footer{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto;padding-top:24px;border-top:1px solid #eadfce}
+.kw-shopping-actions{justify-content:flex-start;align-items:center}.kw-shopping-actions .kw-button,.kw-shopping-actions .kw-cta{min-height:42px}
+.kw-shopping-body footer .kw-cta{margin-left:0}
+.kw-stock-covered{font-size:13px;margin-top:22px;color:#64734b}
+.kw-stock-covered summary{cursor:pointer;font-weight:800}.kw-stock-covered p{display:flex;justify-content:space-between}
+.kw-shopping-empty{padding:30px 0;text-align:center;color:#847568;font-size:13px}
+.kw-shopping-empty>span{display:block;font-size:32px;color:#64734b;margin-bottom:12px}.kw-shopping-empty strong{font-size:18px;color:#35251f}
+.kw-shopping-panel.is-collapsed .kw-panel-toggle{padding:16px 12px;gap:8px}
+.kw-shopping-panel.is-collapsed .kw-panel-toggle strong{font-size:16px}
+.kw-shopping-panel.is-collapsed .kw-panel-symbol{width:34px;height:34px;font-size:20px}
+.kw-shopping-panel.is-collapsed .kw-shopping-body{padding:4px 14px 16px}
+.kw-shopping-panel.is-collapsed .kw-shopping-item{gap:8px;padding:12px 0}
+.kw-shopping-panel.is-collapsed .kw-shopping-item strong,.kw-shopping-panel.is-collapsed .kw-shopping-item>b{font-size:12px}
+.kw-workspace .kw-prep-page.is-embedded{padding:18px;margin:0}
+.kw-prep-page.is-embedded>.kw-page-header{display:none}
+.kw-prep-page.is-embedded .kw-prep-layout{grid-template-columns:minmax(180px,.38fr) minmax(0,.62fr);gap:14px}
+.kw-workspace .kw-prep-page.is-embedded .kw-dish-list,.kw-workspace .kw-prep-page.is-embedded .kw-prep-current{padding:14px;border:1px solid #eadfce;border-radius:12px;box-shadow:none;min-width:0;min-height:0}
+.kw-prep-page.is-embedded .kw-dish-row{padding:10px 6px 17px;gap:6px;flex-wrap:wrap}
+.kw-prep-page.is-embedded .kw-dish-row strong{font-size:13px;overflow-wrap:anywhere}
+.kw-prep-page.is-embedded .kw-dish-badge{font-size:9px;margin-left:auto}
+.kw-prep-page.is-embedded .kw-prep-toolbar{gap:10px;flex-wrap:wrap}
+.kw-prep-page.is-embedded .kw-prep-toolbar .kw-button{font-size:11px;padding:4px 8px;min-height:30px;border-width:1px;box-shadow:none}
+.kw-prep-page.is-embedded .kw-prep-progress{margin:18px 0 0;padding:12px 0;flex-wrap:wrap;gap:8px;border-top:1px solid #eadfce}
+.kw-prep-page.is-embedded .kw-prep-progress strong{font-size:12px}
+.kw-prep-page.is-embedded .kw-prep-progress>.kw-button{display:none}
+.kw-prep-page.is-embedded .kw-prep-detail-links{width:100%;margin:8px 0 0;justify-content:flex-start}
+.kw-prep-page.is-embedded .kw-prep-detail-head{flex-wrap:wrap}
+.kw-prep-page.is-embedded .kw-prep-detail-title h3{font-size:20px}
+.kw-prep-page.is-embedded .kw-prep-avatar{height:40px;width:40px;font-size:26px}
+.kw-prep-page.is-embedded .kw-prep-yield{flex-wrap:wrap}
+.kw-prep-page.is-compact .kw-prep-layout{display:block}
+.kw-prep-page.is-compact .kw-prep-toolbar,.kw-prep-page.is-compact .kw-prep-current,.kw-prep-page.is-compact .kw-prep-progress,.kw-prep-page.is-compact .kw-prep-diagnostics,.kw-prep-page.is-compact .kw-dish-add{display:none}
+.kw-workspace .kw-prep-page.is-compact .kw-dish-list{padding:0;border:0}
+.kw-prep-ingredients{margin:18px 0;padding:14px;background:#f6faf1;border:1px solid #dbe6cf;border-radius:12px}
+.kw-prep-ingredients h4{margin:0 0 10px;font-size:14px}.kw-prep-ingredients h4 span{display:block;margin-top:3px;font-size:11px;font-weight:600;color:#847568}
+.kw-prep-ingredients ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.kw-prep-ingredients li{display:flex;gap:12px;justify-content:space-between;font-size:13px}.kw-prep-ingredients li strong{white-space:nowrap}
+@media(min-width:761px) and (max-width:1200px){.kw-fulfilment-panels{grid-template-columns:minmax(0,1fr) 260px}.kw-fulfilment-panels.focus-prep{grid-template-columns:220px minmax(0,1fr)}.kw-prep-page.is-embedded .kw-prep-layout{grid-template-columns:1fr}.kw-journey .kw-stepper button,.kw-journey .kw-stepper-static{font-size:12px;padding:0 10px;gap:6px}}
+@media(max-width:760px){.kw-journey .kw-stepper{display:grid;grid-template-columns:1fr 1fr;width:100%}.kw-journey .kw-stepper>li{border:0}.kw-journey .kw-stepper>li:nth-child(even){border-left:2px solid #35251f}.kw-journey .kw-stepper>li:nth-child(n+3){border-top:2px solid #35251f}.kw-journey .kw-stepper button,.kw-journey .kw-stepper-static{padding:9px 10px;font-size:12px;gap:7px;min-height:48px}.kw-journey .kw-stepper-n{width:22px;height:22px;font-size:11px}.kw-view-calendar{margin-left:0}.kw-fulfilment-panels,.kw-fulfilment-panels.focus-prep{grid-template-columns:1fr;gap:16px}.kw-fulfilment-panels.focus-prep>.kw-prep-panel{grid-row:1}.kw-shopping-panel.is-collapsed .kw-shopping-body{max-height:240px;overflow:auto}.kw-prep-panel.is-collapsed #prep-panel-content{max-height:280px;overflow:auto}.kw-prep-page.is-embedded .kw-prep-layout{grid-template-columns:1fr}.kw-panel-toggle{min-height:76px;padding:12px 16px}.kw-panel-toggle strong{font-size:19px}.kw-shopping-body{padding:14px 16px}.kw-fulfilment-intro h2{font-size:22px}.kw-shopping-body footer .kw-cta{margin:0}.kw-version-caption{display:none}.kw-calendar-heading .kw-weekbar{row-gap:12px}.kw-shopping-item>b{font-size:14px}}
+
+.kw-prep-feedback{margin:0 0 16px}.kw-workspace .kw-prep-feedback .kw-toast{position:static;transform:none;width:auto;max-width:none;background:#fff7e5;border:1px solid #e4d7c5;border-radius:12px;padding:12px 16px;box-shadow:none;color:#35251f}
+
+/* Navigation steps and the circular state transition share one quiet rail. */
+.kw-journey{gap:24px;margin:4px 0 14px;flex-wrap:nowrap}
+.kw-journey .kw-stepper{border:0;border-radius:0;box-shadow:none;background:transparent;overflow:visible;align-items:center;gap:12px;flex-wrap:nowrap;align-self:center}
+.kw-journey .kw-stepper>li{border:1px solid #d9cbb9;border-radius:12px;background:#fffaf4;flex-shrink:0}
+.kw-journey .kw-stepper>li+li{border-left:1px solid #d9cbb9}
+.kw-journey .kw-stepper button,.kw-journey .kw-stepper-static{min-height:42px;padding:0 14px;font-size:13px;gap:8px;border-radius:11px}
+.kw-journey .kw-stepper .kw-stepper-n{width:21px;height:21px;border-width:1px;font-size:11px;background:transparent}
+.kw-journey .kw-stepper>li.is-current{background:#ffb511;border-color:#b37a00}
+.kw-journey .kw-stepper>li.is-done{background:#eff2e7;border-color:#d3dac4}
+.kw-journey .kw-stepper>li.is-done .kw-stepper-static{color:#64734b}
+.kw-journey .kw-stepper>li.is-disabled{color:#a19486;background:transparent;border-color:#e8dece}
+.kw-journey .kw-stepper>li.kw-state-transition{display:flex;flex-direction:column;gap:5px;border:0;background:transparent;margin:0 6px;min-width:86px}
+.kw-journey .kw-state-transition>button{display:grid;place-items:center;width:52px;height:52px;min-height:52px;padding:0;border:1.5px solid #35251f;border-radius:50%;background:#64734b;color:#fff8ef;box-shadow:0 3px 0 #35251f;font-size:23px;transition:transform .18s,box-shadow .18s,background .18s}
+.kw-journey .kw-state-transition>button:hover:not(:disabled){background:#53633d;transform:translateY(-2px);box-shadow:0 5px 0 #35251f}
+.kw-journey .kw-state-transition>button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #35251f}
+.kw-journey .kw-state-transition>button:disabled{background:#d8dccf;color:#8b927f;border-color:#b0b5a7;box-shadow:0 2px 0 #b0b5a7;cursor:not-allowed}
+.kw-transition-label{font-size:11px;font-weight:800;white-space:nowrap;color:#64734b}
+.kw-view-calendar{display:inline-flex;align-items:center;gap:8px;flex-shrink:0;padding:8px 0;border:0;box-shadow:none;border-radius:0;background:transparent;font:inherit;font-size:13px;font-weight:800;color:#64734b;cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#bcc4aa}
+.kw-view-calendar:hover{text-decoration-color:currentColor}.kw-view-calendar:focus-visible{outline:2px solid #64734b;outline-offset:4px}
+.kw-fulfilment-panels #prep-panel-content{flex:1;min-width:0}
+.kw-shopping-group:last-of-type{margin-bottom:24px}
+@media(min-width:761px) and (max-width:1200px){.kw-fulfilment-panels{grid-template-columns:minmax(220px,3fr) minmax(220px,1fr)}.kw-fulfilment-panels.focus-prep{grid-template-columns:minmax(220px,1fr) minmax(220px,3fr)}.kw-journey{gap:14px}.kw-journey .kw-stepper{gap:7px}.kw-journey .kw-stepper button,.kw-journey .kw-stepper-static{font-size:11px;padding:0 9px}.kw-journey .kw-state-transition>button{padding:0}.kw-journey .kw-stepper>li.kw-state-transition{min-width:76px;margin:0}}
+@media(max-width:760px){.kw-journey{gap:14px;align-items:center}.kw-journey .kw-stepper{display:flex;overflow-x:auto;overflow-y:hidden;min-width:0;width:auto;padding-bottom:5px;gap:8px}.kw-journey .kw-stepper>li:nth-child(n){border:1px solid #d9cbb9}.kw-journey .kw-stepper>li.kw-state-transition{border:0;margin:0}.kw-journey .kw-stepper button,.kw-journey .kw-stepper-static{font-size:11px;padding:0 10px;min-height:38px}.kw-journey .kw-state-transition>button{padding:0;min-height:52px}.kw-view-calendar{font-size:11px;gap:4px;max-width:100px}.kw-fulfilment-panels,.kw-fulfilment-panels.focus-prep{grid-template-columns:1fr}.kw-shopping-panel,.kw-prep-panel{min-height:0}.kw-shopping-body footer{margin-top:20px}.kw-fulfilment-panels.focus-prep>.kw-prep-panel{grid-row:auto}}
+@media(prefers-reduced-motion:reduce){.kw-fulfilment-panels,.kw-panel-toggle,.kw-panel-indicator,.kw-journey .kw-state-transition>button{transition:none}}
+.kw-confirm-generating{position:relative;overflow:hidden;display:flex;align-items:center;gap:24px;border:2px solid #35251f;border-radius:20px;padding:22px 28px;margin:18px 0;background:#fff1dc;box-shadow:0 4px 0 #35251f}
+.kw-confirm-generating strong{font-size:20px}.kw-confirm-generating p{margin:5px 0}.kw-confirm-generating span{font-size:13px}
+.kw-confirm-orbit{display:flex;gap:12px}.kw-confirm-orbit span{font-size:32px;animation:kw-preparing 1.6s ease-in-out infinite}.kw-confirm-orbit span:nth-child(2){animation-delay:.2s}.kw-confirm-orbit span:nth-child(3){animation-delay:.4s}
+.kw-confirm-progress{position:absolute;bottom:0;left:0;height:4px;background:#64734b;width:30%;animation:kw-confirm-sweep 2s ease-in-out infinite alternate}
+@keyframes kw-preparing{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-9px) rotate(6deg)}}
+@keyframes kw-confirm-sweep{to{left:70%}}
+.kw-meal-chips .kw-edit-meal{width:100%;justify-content:center;min-height:42px;margin-top:4px;background:#ffb511;color:#35251f;border:2px solid #35251f;box-shadow:0 3px 0 #35251f;font-weight:800}
+.kw-meal-lock{display:inline-flex;align-items:center;justify-content:center;background:#64734b;color:white;border:1px solid #35251f;border-radius:50%;width:23px;height:23px;cursor:pointer;margin-left:auto}
+.kw-full-recipe{text-decoration:none;display:flex;justify-content:center;align-items:center;gap:8px}
+.kw-full-recipe.is-recipe-saved{animation:kw-recipe-saved .8s ease-out}.kw-recipe-saved-check{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;width:24px;height:24px;background:#64734b;color:white;animation:kw-recipe-saved .8s ease-out}
+@keyframes kw-recipe-saved{0%{transform:scale(.92);background:#d9e7c4}55%{transform:scale(1.035)}100%{transform:scale(1)}}
+.kw-recipe-page-main{max-width:1080px;margin:36px auto;padding:0 24px}.kw-recipe-page-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:30px}.kw-recipe-page-main .kw-meal-hero{height:240px}.kw-recipe-detail-page .kw-topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:2px solid #35251f;background:white}
+@media(max-width:700px){.kw-recipe-page-grid{grid-template-columns:1fr}.kw-confirm-generating{gap:14px;padding:20px 16px}.kw-confirm-orbit{gap:3px}.kw-confirm-orbit span{font-size:24px}.kw-stepper .kw-state-transition{margin:5px}}
+@media(prefers-reduced-motion:reduce){.kw-confirm-orbit span,.kw-confirm-progress,.kw-full-recipe.is-recipe-saved,.kw-recipe-saved-check{animation:none}}
+.kw-recipe-detail-page .kw-brand{margin:0}.kw-recipe-detail-page .kw-brand strong{font-size:26px}.kw-recipe-detail-page .kw-brand small{letter-spacing:.4px;color:#64734b}
+.kw-recipe-page-main .kw-recipe-art{height:100%;max-height:none}.kw-recipe-page-main .kw-recipe-art img,.kw-recipe-detail-photo{width:100%;height:100%;object-fit:cover}
+
+.kw-step-short{display:none}
+@media(max-width:760px){
+  .kw-journey{gap:10px}
+  .kw-journey .kw-stepper{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));flex:1;overflow:visible;gap:6px}
+  .kw-journey .kw-stepper>li{min-width:0;justify-content:center}
+  .kw-journey .kw-stepper>li.kw-state-transition{min-width:0}
+  .kw-journey .kw-stepper button,.kw-journey .kw-stepper-static{flex-direction:column;justify-content:center;padding:5px 2px;min-height:54px;gap:4px;width:100%}
+  .kw-journey .kw-state-transition>button{width:46px;height:46px;min-height:46px;padding:0;font-size:22px}
+  .kw-step-label{display:none}.kw-step-short{display:inline;font-size:10px}
+  .kw-transition-label{font-size:9px;white-space:normal;text-align:center;line-height:1.2}
+  .kw-view-calendar{max-width:82px;line-height:1.4}
+}
+
+@media(max-width:760px){.kw-shopping-body footer.kw-shopping-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch}.kw-workspace .kw-shopping-actions button{width:100%;min-height:42px;padding:9px 8px;font-size:11px;white-space:normal}}
+
+/* The confirm step between "Adjust plan" and "Shopping & prep": a smaller
+   circle, centred between its neighbours on the row. Its label hangs below it,
+   so it neither widens the gap on one side nor lifts the circle off-centre. */
+.kw-journey{padding-bottom:16px}
+.kw-journey .kw-stepper>li.kw-state-transition{position:relative;flex-direction:row;align-items:center;justify-content:center;min-width:0;margin:0 4px}
+.kw-journey .kw-state-transition>button{width:40px;height:40px;min-height:40px;font-size:18px;border-width:1.5px;box-shadow:0 2px 0 #35251f}
+.kw-journey .kw-state-transition>button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 0 #35251f}
+.kw-journey .kw-state-transition>button:active:not(:disabled){transform:translateY(1px);box-shadow:0 1px 0 #35251f}
+.kw-journey .kw-state-transition .kw-transition-label{position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);white-space:nowrap;line-height:1.2;text-align:center}
+
+/* Shopping cart: the progress bar with a one-tap "Mark all picked up". */
+.kw-shopping-progress{display:flex;align-items:center;gap:12px}
+.kw-shopping-progress>progress{flex:1;min-width:0;height:7px;accent-color:#64734b}
+.kw-shopping-all{flex-shrink:0;border:1.5px solid #64734b;border-radius:999px;background:#fff;color:#4d5a38;font:inherit;font-size:12px;font-weight:800;padding:5px 12px;cursor:pointer;transition:background .15s,color .15s}
+.kw-shopping-all:hover:not(:disabled){background:#64734b;color:#fff}
+.kw-shopping-all:disabled{opacity:.55;cursor:default}
+
+/* Editing: no red focus box on fields; a field in use warms its border instead. Other controls ring in amber, not red. */
+.kw-workspace input:not([type=checkbox]):not([type=radio]):focus-visible,.kw-workspace select:focus-visible,.kw-workspace textarea:focus-visible{outline:none}
+.kw-workspace .kw-input:focus,.kw-workspace input.kw-input:focus-visible,.kw-workspace textarea.kw-input:focus-visible,.kw-workspace select.kw-input:focus-visible{border-color:#f4af14}
+.kw-workspace button:focus-visible,.kw-workspace a:focus-visible{outline-color:#f4af14}
+
+/* A folded panel opens from anywhere in it, not just its title. */
+.kw-fulfilment-panels>.is-collapsed{cursor:pointer}
+
+/* Prep: which meals a dish is for, as small labels rather than links. */
+.kw-meal-date-tag{border:1.5px solid #cfc2b3;border-radius:999px;background:#faf7f2;padding:1px 8px;font-size:11px;font-weight:800;line-height:1.5;color:#6b5b4f;text-transform:capitalize;white-space:nowrap}
+
+/* Calendar: the chosen state of a finished meal (done or skipped) grows; the other fades. */
+.kw-workspace .kw-calendar-reference .kw-card-tools button{transition:transform .18s ease,opacity .18s ease}
+.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-complete.selected,.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-skip.selected{transform:scale(1.4);box-shadow:0 1px 0 #35251f}
+.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-complete.selected{background:#598c40;color:#fff}
+.kw-workspace .kw-calendar-reference .kw-card-tools button.kw-skip.selected{background:#998c80;color:#fff}
+.kw-workspace .kw-calendar-reference .kw-card-tools button:disabled:not(.selected){opacity:.35}
+.kw-card-note.is-success{background:#598c40;color:#fff}
+@media(prefers-reduced-motion:reduce){.kw-workspace .kw-calendar-reference .kw-card-tools button{transition:none}}

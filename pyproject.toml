@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "family-recipe-agent"
+version = "0.1.0"
+description = "A chat-first household recipe memory and planning agent."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.18,<2",
+  "asyncpg>=0.31,<1",
+  "celery>=5.6,<6",
+  "cryptography>=46,<47",
+  "email-validator>=2.3,<3",
+  "fastapi>=0.139,<0.140",
+  "httpx>=0.28,<0.29",
+  "litellm>=1.90.4,<1.91",
+  "pydantic>=2.13,<2.14",
+  "pydantic-settings>=2.10,<3",
+  "psycopg[binary]>=3.2,<4",
+  "redis>=6,<7",
+  "sqlalchemy[asyncio]>=2.0.51,<2.1",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[dependency-groups]
+dev = [
+  "aiosqlite>=0.22,<1",
+  "mypy>=1.17,<2",
+  "pytest>=9,<10",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/recipe_agent"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
+markers = [
+  "live: opt-in tests that call configured external providers",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+allowed-confusables = ["："]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["recipe_agent"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "uvicorn.*"]
+ignore_missing_imports = true

@@ -1,0 +1,139 @@
+{
+  "brand": "Family Table",
+  "tagline": "Your household recipe memory",
+  "nav": {
+    "chat": "Assistant",
+    "recipes": "Recipes",
+    "plan": "Weekly plan",
+    "shopping": "Shopping",
+    "imports": "Imports",
+    "shares": "Shares",
+    "settings": "Settings"
+  },
+  "language": { "label": "Language", "english": "English", "chinese": "中文" },
+  "shell": {
+    "primaryNavigation": "Primary navigation",
+    "household": "Yu household",
+    "recipeCount": "12 recipes remembered",
+    "larkConnected": "Lark connected"
+  },
+  "chat": {
+    "eyebrow": "TONIGHT'S TABLE",
+    "title": "What should we cook?",
+    "subtitle": "Ask for ideas, save a recipe, or turn this week into a plan.",
+    "placeholder": "Try “three quick dinners with tomatoes”",
+    "send": "Ask assistant",
+    "attachments": "URL · image · spreadsheet",
+    "quickOne": "Recommend dinner",
+    "quickTwo": "Save a recipe",
+    "quickThree": "Plan this week"
+  },
+  "pages": {
+    "recipes": {
+      "eyebrow": "HOUSEHOLD MEMORY",
+      "title": "Household recipes",
+      "body": "Every recipe your family saves, with its source and version history.",
+      "action": "Import recipe",
+      "metric": "12 saved recipes",
+      "items": [
+        { "title": "Tomato & egg stir-fry", "detail": "15 min · Weeknight favorite", "meta": "Updated yesterday" },
+        { "title": "Grandma's braised beef", "detail": "90 min · Family recipe", "meta": "3 versions" },
+        { "title": "Scallion oil noodles", "detail": "20 min · Pantry staple", "meta": "Made 8 times" }
+      ]
+    },
+    "recipe": {
+      "eyebrow": "FAMILY RECIPE",
+      "title": "Tomato & egg stir-fry",
+      "body": "A quick, balanced favorite saved from your Lark conversation.",
+      "action": "Cook this recipe",
+      "metric": "Version 3",
+      "items": [
+        { "title": "Ingredients", "detail": "3 tomatoes · 4 eggs · scallions · salt", "meta": "Serves 3" },
+        { "title": "Method", "detail": "Cook eggs softly, stir-fry tomatoes, then fold together.", "meta": "15 minutes" },
+        { "title": "Family note", "detail": "Use less sugar when cooking for grandparents.", "meta": "Added by Yu" }
+      ]
+    },
+    "plan": {
+      "eyebrow": "JULY 13 – 19",
+      "title": "Weekly meal plan",
+      "body": "Seven days of practical choices, ready to replace one meal at a time.",
+      "action": "Refresh one meal",
+      "metric": "5 dinners planned",
+      "items": [
+        { "title": "Monday", "detail": "Tomato & egg stir-fry", "meta": "15 min" },
+        { "title": "Wednesday", "detail": "Steamed fish with ginger", "meta": "30 min" },
+        { "title": "Friday", "detail": "Chicken mushroom rice", "meta": "45 min" }
+      ]
+    },
+    "shopping": {
+      "eyebrow": "THIS WEEK",
+      "title": "Shopping list",
+      "body": "Compatible quantities are combined while different units stay separate.",
+      "action": "Share to Lark",
+      "metric": "9 items remaining",
+      "items": [
+        { "title": "Produce", "detail": "Tomatoes · scallions · ginger · mushrooms", "meta": "4 items" },
+        { "title": "Protein", "detail": "Eggs · sea bass · chicken thighs", "meta": "3 items" },
+        { "title": "Pantry", "detail": "Jasmine rice · light soy sauce", "meta": "2 items" }
+      ]
+    },
+    "imports": {
+      "eyebrow": "SOURCE INBOX",
+      "title": "Recipe imports",
+      "body": "Text, images, spreadsheets and links are preserved before extraction.",
+      "action": "New import",
+      "metric": "All sources preserved",
+      "items": [
+        { "title": "Lark image", "detail": "Tomato & egg stir-fry", "meta": "Ready" },
+        { "title": "Web link", "detail": "Grandma's braised beef", "meta": "Ready" },
+        { "title": "Spreadsheet", "detail": "Summer family recipes", "meta": "Processing" }
+      ]
+    },
+    "shares": {
+      "eyebrow": "PRIVACY CONTROL",
+      "title": "Private shares",
+      "body": "Create expiring, revocable recipe links with a strict privacy allowlist.",
+      "action": "Create private link",
+      "metric": "2 active links",
+      "items": [
+        { "title": "Grandma's braised beef", "detail": "Expires in 6 days", "meta": "Active" },
+        { "title": "Tomato & egg stir-fry", "detail": "Expires tomorrow", "meta": "Active" },
+        { "title": "Scallion oil noodles", "detail": "Revoked on July 10", "meta": "Revoked" }
+      ]
+    },
+    "settings": {
+      "eyebrow": "YOUR HOUSEHOLD",
+      "title": "Household settings",
+      "body": "Manage language, dietary needs, ages and connected Lark identity.",
+      "action": "Save changes",
+      "metric": "Profile complete",
+      "items": [
+        { "title": "Dietary preferences", "detail": "Mild spice · Lower sodium", "meta": "Household-wide" },
+        { "title": "Family members", "detail": "2 adults · 1 child · 1 grandparent", "meta": "4 people" },
+        { "title": "Lark identity", "detail": "Connected securely", "meta": "Verified" }
+      ]
+    },
+    "publicShare": {
+      "eyebrow": "SHARED RECIPE",
+      "title": "Grandma's braised beef",
+      "body": "A private recipe shared with you by the Yu household.",
+      "action": "Save a copy",
+      "metric": "Link expires in 6 days",
+      "items": [
+        { "title": "Ingredients", "detail": "Beef chuck · ginger · star anise · light soy sauce", "meta": "Serves 6" },
+        { "title": "Method", "detail": "Brown, season and simmer slowly until tender.", "meta": "90 minutes" },
+        { "title": "Privacy", "detail": "Only recipe details approved for sharing are shown.", "meta": "Private link" }
+      ]
+    }
+  },
+  "progress": {
+    "understanding": "Understanding",
+    "planning": "Plan",
+    "acting": "Act",
+    "checking": "Check",
+    "continuing": "Continue",
+    "checkedHouseholdRecipes": "Checked household recipes",
+    "savedRecipe": "Saved recipe",
+    "createdPlan": "Created weekly plan"
+  }
+}

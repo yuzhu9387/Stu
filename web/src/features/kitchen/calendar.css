@@ -1,0 +1,45 @@
+/* Weekly calendar follows the supplied seven-column, meal-tinted reference. */
+.kw-calendar.kw-calendar-reference{grid-template-columns:repeat(7,minmax(136px,1fr));gap:8px;min-width:1040px;color:var(--stu-ink)}
+.kw-calendar-reference .kw-day{min-width:0;border-left:1px solid var(--stu-line);padding-left:8px}
+.kw-calendar-reference .kw-day:first-child{border-left:0;padding-left:0}
+.kw-calendar-reference .kw-day-header{min-height:49px;padding:2px 9px 12px;margin-bottom:5px;gap:0;border-radius:0}
+.kw-calendar-reference .kw-day-header>span:first-child{font-size:11px;line-height:16px;color:var(--stu-ink);font-weight:650}
+.kw-calendar-reference .kw-day-header strong{font-size:16px;line-height:21px;font-weight:450;letter-spacing:-.35px}
+.kw-calendar-reference .kw-day.is-today .kw-day-header{background:transparent}
+.kw-calendar-reference .kw-calendar-today{position:absolute;right:7px;top:5px;font-size:9px;color:var(--stu-accent)}
+.kw-calendar-reference .kw-meal-slot{--meal-bg:var(--stu-cream-soft);--meal-accent:var(--stu-cream-line);--meal-icon:var(--stu-warm-accent);margin-bottom:7px}
+.kw-calendar-reference .kw-slot-lunch{--meal-bg:var(--stu-olive-soft);--meal-accent:var(--stu-olive-line);--meal-icon:var(--stu-accent)}
+.kw-calendar-reference .kw-slot-dinner{--meal-bg:var(--stu-brick-soft);--meal-accent:var(--stu-brick-line);--meal-icon:var(--stu-primary)}
+.kw-calendar-reference .kw-meal-card{position:relative;min-height:124px;height:auto;border:1.5px solid var(--stu-surface);border-left:3px solid var(--meal-accent);border-radius:11px;background:var(--meal-bg);box-shadow:none;overflow:hidden;transition:border-color .15s,background .15s}
+.kw-calendar-reference .kw-meal-card:hover{border-top-color:var(--stu-line);border-right-color:var(--stu-line);border-bottom-color:var(--stu-line)}
+.kw-calendar-reference .kw-meal-card.is-selected{border:1.5px solid var(--stu-primary);border-left-width:3px;box-shadow:0 0 0 1px #c747320a}
+.kw-calendar-reference .kw-meal-open{display:flex;gap:3px;align-items:flex-start;padding:8px 10px 24px;min-height:100%;height:100%;width:100%;font-weight:400;overflow:hidden}
+.kw-calendar-reference .kw-card-slot{display:flex;align-items:center;gap:9px;min-width:0;color:var(--stu-muted);font-size:10px;line-height:20px;margin-bottom:1px;flex-shrink:0}
+.kw-calendar-reference .kw-card-slot svg{flex-shrink:0;color:var(--meal-icon)}
+.kw-calendar-reference .kw-meal-title{display:block;min-width:0;max-width:100%;line-height:16px}
+.kw-calendar-reference .kw-meal-open strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:16px;font-weight:550;white-space:normal;overflow-wrap:anywhere;text-overflow:ellipsis}
+.kw-calendar-reference .kw-meal-title:has(.kw-meal-subtitle) strong{-webkit-line-clamp:1}
+.kw-calendar-reference .kw-meal-subtitle{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;line-height:15px;margin-top:1px;color:var(--stu-muted)}
+.kw-calendar-reference .kw-meal-open .kw-meal-meta{display:block;max-width:100%;color:var(--stu-muted);white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:11px;line-height:15px;flex-shrink:0}
+.kw-calendar-reference .kw-card-tools{position:absolute;left:7px;right:6px;bottom:3px;display:flex;align-items:center;min-height:22px;padding:0;gap:3px;color:var(--stu-muted);pointer-events:none}
+.kw-calendar-reference .kw-meal-quick-actions{margin-left:auto;display:flex;align-items:center;gap:0;pointer-events:auto;opacity:0;transition:opacity .12s}
+.kw-calendar-reference .kw-meal-card:hover .kw-meal-quick-actions,.kw-calendar-reference .kw-meal-card:focus-within .kw-meal-quick-actions,.kw-calendar-reference .kw-meal-card.is-selected .kw-meal-quick-actions{opacity:1}
+.kw-calendar-reference .kw-card-tools button{width:22px;height:22px;padding:3px;border-radius:4px;color:var(--stu-muted);background:transparent}
+.kw-calendar-reference .kw-card-tools button:hover{background:#ffffffb0;color:var(--stu-ink)}
+.kw-calendar-reference .kw-card-tools button.selected{background:var(--stu-olive-soft);color:var(--stu-accent)}
+.kw-calendar-reference .kw-meal-state{color:var(--stu-accent);font-size:9px;line-height:22px;text-transform:capitalize;margin:0}
+.kw-calendar-reference .kw-meal-state,.kw-calendar-reference .kw-card-tools>svg{position:absolute;left:2px;bottom:0}
+.kw-calendar-reference .kw-card-tools>svg{bottom:5px}
+.kw-calendar-reference .kw-meal-card:hover .kw-meal-state,.kw-calendar-reference .kw-meal-card:focus-within .kw-meal-state,.kw-calendar-reference .kw-meal-card.is-selected .kw-meal-state,.kw-calendar-reference .kw-meal-card:hover .kw-card-tools>svg,.kw-calendar-reference .kw-meal-card:focus-within .kw-card-tools>svg,.kw-calendar-reference .kw-meal-card.is-selected .kw-card-tools>svg{opacity:0}
+.kw-calendar-reference .kw-meal-card.skipped{opacity:.67;background:var(--meal-bg)}
+.kw-calendar-reference .kw-meal-card.completed{background:var(--meal-bg)}
+.kw-calendar-reference .kw-shortage{font-size:9px;line-height:11px;color:var(--stu-warm-accent);position:absolute;bottom:7px;left:11px;max-width:100%;pointer-events:none}
+.kw-calendar-reference .kw-meal-card:hover .kw-shortage,.kw-calendar-reference .kw-meal-card:focus-within .kw-shortage,.kw-calendar-reference .kw-meal-card.is-selected .kw-shortage{opacity:0}
+.kw-calendar-reference .kw-add-meal{height:auto;min-height:124px;padding:9px 10px;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:9px;border:1px dashed var(--meal-accent);border-left:3px solid var(--meal-accent);border-radius:11px;background:var(--meal-bg);color:var(--stu-muted)}
+.kw-calendar-reference .kw-add-meal:hover{background:#ffffff80}
+.kw-calendar-reference .kw-add-meal-label{display:flex;gap:5px;align-items:center;justify-content:center;flex:1;font-size:11px;padding-bottom:18px}
+.kw-calendar-reference .kw-day-total{font-size:9px;padding:5px 9px 0;color:var(--stu-muted)}
+.kw-calendar-reference .kw-day-total span{color:var(--stu-accent)}
+.kw-calendar-reference .kw-day-total.over-budget,.kw-calendar-reference .kw-day-total.over-budget span{color:var(--stu-primary)}
+@media(hover:none){.kw-calendar-reference .kw-meal-quick-actions{opacity:1}.kw-calendar-reference .kw-shortage{bottom:26px;background:var(--meal-bg)}}
+@media(max-width:700px){.kw-calendar.kw-calendar-reference{grid-template-columns:repeat(7,168px);min-width:1224px;gap:8px}.kw-calendar-reference .kw-day-header{padding-left:10px}.kw-calendar-reference .kw-day-header strong{font-size:16px}.kw-calendar-reference .kw-meal-card,.kw-calendar-reference .kw-add-meal{height:134px;min-height:134px}.kw-calendar-reference .kw-card-tools button{width:28px;height:28px}.kw-calendar-reference .kw-meal-open{padding-bottom:31px}.kw-calendar-reference .kw-meal-quick-actions{opacity:1}.kw-calendar-reference .kw-shortage{bottom:31px;background:var(--meal-bg)}}

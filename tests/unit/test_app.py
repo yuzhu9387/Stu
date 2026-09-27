@@ -133,3 +133,38 @@ def test_public_share_endpoint_returns_only_allowlisted_recipe_fields(
 
     assert response.status_code == 200
     assert set(response.json()) == {"id", "name", "ingredients", "steps"}
+
+
+def production_settings(**overrides: object) -> Settings:
+    return Settings(
+        _env_file=None,
+        environment="production",
+        session_signing_key="s" * 32,
+        metrics_token="m" * 32,
+        action_signing_key="a" * 32,
+        openai_api_key="sk-test-only",
+        **overrides,
+    )
+
+
+def test_production_offers_passwords_and_no_passwordless_shortcut(client_factory) -> None:
+    client = client_factory(create_app(production_settings()))
+    assert client.get("/api/v1/auth/methods").json() == {
+        "password": True,
+        "developmentLink": False,
+    }
+    assert client.post("/api/v1/auth/magic-links", json={"email": "a@b.co"}).status_code == 404
+    assert client.post("/api/v1/auth/sessions", json={"token": "x"}).status_code == 404
+
+
+def test_behind_the_worker_only_relayed_requests_reach_the_api(client_factory) -> None:
+    client = client_factory(create_app(production_settings(edge_proxy_token="e" * 48)))
+    assert client.get("/api/v1/auth/methods").status_code == 404
+    assert (
+        client.get("/api/v1/auth/methods", headers={"X-Stu-Proxy-Token": "wrong"}).status_code
+        == 404
+    )
+    relayed = client.get("/api/v1/auth/methods", headers={"X-Stu-Proxy-Token": "e" * 48})
+    assert relayed.status_code == 200
+    # Cloud Run's own health probes do not pass through the Worker.
+    assert client.get("/health/live").json() == {"status": "alive"}

@@ -1,5 +1,6 @@
 """Shared request limits, correlation identifiers, and upload validation."""
 
+import hmac
 import re
 from pathlib import PurePath
 from uuid import uuid4
@@ -100,3 +101,22 @@ def _is_oversized(raw_length: str, limit: int) -> bool:
         return int(raw_length) > limit
     except ValueError:
         return True
+
+
+EDGE_EXEMPT_PATHS = frozenset({"/health/live", "/health/ready"})
+
+
+class EdgeProxyMiddleware(BaseHTTPMiddleware):
+    """Admit only requests relayed by the Cloudflare Worker, which adds a shared
+    token; health probes from Cloud Run itself are the exception."""
+
+    def __init__(self, app: object, *, token: str) -> None:
+        super().__init__(app)  # type: ignore[arg-type]
+        self._token = token.encode("utf-8")
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.url.path not in EDGE_EXEMPT_PATHS:
+            supplied = request.headers.get("x-stu-proxy-token", "").encode("utf-8")
+            if not hmac.compare_digest(supplied, self._token):
+                return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return await call_next(request)

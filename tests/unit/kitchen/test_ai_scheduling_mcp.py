@@ -345,8 +345,7 @@ async def test_mcp_endpoint_requires_scope_and_rejects_foreign_origin():
     import httpx
     from fastapi import FastAPI
 
-    from recipe_agent.api.dependencies import get_household_scope
-    from recipe_agent.api.v1.kitchen_mcp import router
+    from recipe_agent.api.v1.kitchen_mcp import mcp_scope, router
 
     app = FastAPI()
     app.include_router(router)
@@ -357,14 +356,14 @@ async def test_mcp_endpoint_requires_scope_and_rejects_foreign_origin():
     ) as client:
         message = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
         assert (await client.post("/api/v1/kitchen/mcp", json=message)).status_code == 401
-        app.dependency_overrides[get_household_scope] = lambda: "household"
+        app.dependency_overrides[mcp_scope] = lambda: "household"
         response = await client.post(
             "/api/v1/kitchen/mcp", json=message, headers={"Origin": "https://evil.example"}
         )
         assert response.status_code == 403
         response = await client.post("/api/v1/kitchen/mcp", json=message)
         assert response.status_code == 200
-        assert len(response.json()["result"]["tools"]) == 5
+        assert len(response.json()["result"]["tools"]) == 8
         assert (await client.get("/api/v1/kitchen/mcp")).status_code == 405
 
 

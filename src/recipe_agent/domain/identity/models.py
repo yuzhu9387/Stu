@@ -24,6 +24,10 @@ class Account(TimestampMixin, Base):
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    # Set when the account signs up with a password; empty for older accounts.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    failed_sign_ins: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Household(TimestampMixin, Base):
@@ -117,6 +121,24 @@ class WebSession(TimestampMixin, Base):
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class McpToken(TimestampMixin, Base):
+    """A personal access token an AI client (an MCP client) uses to act for one
+    account in its household. Only the hash is stored; the token is shown once."""
+
+    __tablename__ = "mcp_tokens"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("accounts.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    household_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Conversation(TimestampMixin, Base):

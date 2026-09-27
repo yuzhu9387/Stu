@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "stu-db": {
+      "command": ".venv/bin/python",
+      "args": ["scripts/stu_db_mcp.py", "--target", "cloud"]
+    },
+    "stu-db-local": {
+      "command": ".venv/bin/python",
+      "args": ["scripts/stu_db_mcp.py", "--target", "local"]
+    }
+  }
+}

@@ -179,3 +179,55 @@
 .kw-workspace .kw-calendar-reference .kw-card-tools button:disabled:not(.selected){opacity:.35}
 .kw-card-note.is-success{background:#598c40;color:#fff}
 @media(prefers-reduced-motion:reduce){.kw-workspace .kw-calendar-reference .kw-card-tools button{transition:none}}
+
+/* Settings → AI Access: personal access tokens for MCP clients. */
+.kw-mcp-access{margin-top:24px}
+.kw-mcp-access>p{max-width:760px}
+.kw-mcp-create{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:14px 0}
+.kw-mcp-create .kw-label{flex:1;min-width:220px;max-width:360px}
+.kw-mcp-fresh{margin:12px 0;padding:14px 16px;border:2px dashed #f4af14;border-radius:14px;background:#fffaf0}
+.kw-mcp-fresh p{margin:4px 0}
+.kw-mcp-secret{display:flex;align-items:center;gap:10px;margin:6px 0 10px}
+.kw-mcp-secret code{flex:1;min-width:0;overflow-wrap:anywhere;padding:8px 10px;border-radius:8px;background:#35251f;color:#fff8ef;font-size:12px}
+.kw-mcp-list{list-style:none;margin:8px 0 0;padding:0}
+.kw-mcp-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 4px;border-bottom:1px solid #eadfce}
+.kw-mcp-list li:last-child{border-bottom:0}
+.kw-mcp-list small{display:block;color:#8d7d70;font-size:12px;font-weight:700}
+.kw-mcp-confirm{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#c74732}
+.kw-link-button{border:0;background:none;padding:0;color:#64734b;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
+
+/* Week picker: the date box opens a month calendar; a day picks its whole week. */
+.kw-week-picker{position:relative;display:inline-flex}
+.kw-week-picker>.kw-week-label{display:inline-flex;align-items:center;gap:8px;color:#35251f;font:inherit;font-weight:800;cursor:pointer}
+.kw-workspace .kw-weekbar .kw-week-picker>.kw-week-label:hover{background:#fff8ef}
+.kw-week-caret{font-size:11px;color:#8d7d70;transition:transform .15s}
+.kw-week-label[aria-expanded=true] .kw-week-caret{transform:rotate(180deg)}
+.kw-week-popover{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:30;width:292px;padding:12px;border:3px solid #35251f;border-radius:16px;background:#fff;box-shadow:0 6px 0 #35251f,0 16px 32px rgba(53,37,31,.18)}
+.kw-week-popover header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.kw-week-popover header strong{font-size:15px;font-weight:900}
+.kw-week-popover header button{width:30px;height:30px;border:1.5px solid #e4d7c5;border-radius:9px;background:#fff;color:#35251f;font-size:16px;font-weight:900;cursor:pointer}
+.kw-week-popover header button:hover{background:#fff8ef}
+.kw-week-grid{display:flex;flex-direction:column;gap:2px}
+.kw-week-row{display:grid;grid-template-columns:repeat(7,1fr);border-radius:10px}
+.kw-week-row.is-head span{padding:4px 0;text-align:center;font-size:11px;font-weight:900;color:#a19486}
+.kw-week-row:not(.is-head):hover{background:#fff4d6}
+.kw-week-row.is-current{box-shadow:inset 0 0 0 1.5px #f4af14}
+.kw-week-row.is-chosen,.kw-week-row.is-chosen:hover{background:#f4af14}
+.kw-week-row button{height:34px;border:0;background:none;color:#35251f;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.kw-week-row button.is-outside{color:#c3b6a8}
+.kw-week-row.is-chosen button,.kw-week-row.is-chosen button.is-outside{color:#35251f}
+.kw-week-popover footer{display:flex;justify-content:flex-end;margin-top:8px;padding-top:8px;border-top:1px solid #eadfce}
+.kw-week-popover footer button{border:0;background:none;color:#64734b;font:inherit;font-size:13px;font-weight:900;text-decoration:underline;cursor:pointer}
+
+/* Plan: this week and next, one tap away. */
+.kw-week-shortcuts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.kw-week-shortcut{display:grid;grid-template-columns:auto auto;align-items:center;column-gap:8px;row-gap:1px;padding:7px 12px;border:1.5px solid #e4d7c5;border-radius:12px;background:#fff;color:#35251f;font:inherit;text-align:left;cursor:pointer;transition:background .12s,border-color .12s}
+.kw-week-shortcut:hover{background:#fff8ef}
+.kw-week-shortcut.is-on{border-color:#35251f;background:#fff4d6;box-shadow:0 2px 0 #35251f}
+.kw-week-shortcut strong{font-size:13px;font-weight:900}
+.kw-week-shortcut small{grid-column:1;font-size:11px;font-weight:700;color:#8d7d70}
+.kw-week-status{grid-column:2;grid-row:1/span 2;justify-self:end;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:900;letter-spacing:.02em;white-space:nowrap}
+.kw-week-status.confirmed{background:#e3eed8;color:#4d6b37}
+.kw-week-status.draft{background:#fbe7b3;color:#8a5d00}
+.kw-week-status.none{background:#f1ebe3;color:#8d7d70}
+@media(max-width:760px){.kw-week-shortcuts{margin-left:0;width:100%}.kw-week-shortcut{flex:1}.kw-week-popover{left:0;transform:none}}

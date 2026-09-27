@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     litellm_max_retries: int = Field(default=2, ge=0, le=5)
     react_max_iterations: int = Field(default=5, ge=1, le=5)
     suggested_action_lifetime_seconds: int = Field(default=900, ge=60, le=86_400)
+    # Set when a Cloudflare Worker fronts the API: requests without it are refused.
+    edge_proxy_token: SecretStr | None = None
     lark_enabled: bool = False
     lark_api_base_url: str = "https://open.larksuite.com"
     lark_app_id: str | None = None
@@ -69,7 +71,7 @@ class Settings(BaseSettings):
             raise ValueError("Runtime secrets must contain at least 16 nonblank characters")
         return value.strip()
 
-    @field_validator("openai_api_key", mode="before")
+    @field_validator("openai_api_key", "edge_proxy_token", mode="before")
     @classmethod
     def normalize_optional_openai_key(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():

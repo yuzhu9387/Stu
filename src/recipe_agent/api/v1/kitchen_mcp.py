@@ -1,22 +1,26 @@
-"""Stateless MCP Streamable HTTP, JSON responses, authenticated web-session transport.
+"""Stateless MCP Streamable HTTP with JSON responses, for AI clients acting in
+one household.
 
-Connect POST /api/v1/kitchen/mcp with the app's authenticated session cookie.
-JSON content type, Origin validation and SameSite cookie provide browser CSRF defenses.
-There is no CSRF-token header, OAuth discovery or bearer-token authentication.
-GET deliberately returns 405 (no server-initiated SSE). Protocol 2025-03-26.
+Connect POST /api/v1/kitchen/mcp with `Authorization: Bearer stu_…`, a personal
+access token made in Settings (or, from the web app itself, the session cookie).
+Every tool acts only in that account's household and goes through the kitchen
+engine, so validation, revisions and undo history hold as in the app.
+A cookie request also needs a JSON content type and an allowed Origin (CSRF);
+a bearer token carries no ambient authority. GET returns 405 (no SSE).
+Protocol 2025-03-26.
 """
 
 import json
-from typing import Any
+from typing import Annotated, Any, Literal
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
 
-from recipe_agent.api.dependencies import ScopeDependency
-from recipe_agent.api.v1.kitchen_ai import service
+from recipe_agent.api.v1.kitchen_ai import service, tasks
 from recipe_agent.config import get_settings
-from recipe_agent.domain.identity.service import HouseholdScope
+from recipe_agent.domain.identity.service import HouseholdScope, IdentityService
 from recipe_agent.domain.kitchen.ai import (
     AIUnavailable,
     ChatRequest,
@@ -56,13 +60,55 @@ COMMANDS = [
     "prep.delete",
     "prep.status",
     "prep.like",
+    "meal.include",
+    "plan.chat",
+    "plan.presets",
+    "preset.save",
+    "recipe.rate",
     "change.undo",
+]
+# Not offered: plan.fulfill, the confirmed shopping snapshot, which only the
+# confirmation task writes after checking it.
+
+
+class TaskRef(BaseModel):
+    taskId: UUID
+
+
+class LatestTask(BaseModel):
+    kind: Literal["chat", "generate", "fulfillment"]
+    planId: str | None = None
+    weekStart: str | None = None
+
+
+TASK_TOOLS: list[tuple[str, str, type[BaseModel]]] = [
+    (
+        "kitchen_task",
+        "Status and result of a background AI task (drafting a week, a chat answer, "
+        "confirmation). Poll until status is done or failed.",
+        TaskRef,
+    ),
+    (
+        "kitchen_task_latest",
+        "The latest AI task of a kind, e.g. one the web app started.",
+        LatestTask,
+    ),
+    (
+        "kitchen_task_apply",
+        "Apply a finished chat task's proposed changes to the plan.",
+        TaskRef,
+    ),
 ]
 
 
 def tool_definitions() -> list[dict[str, Any]]:
     ai_tools: list[tuple[str, str, type[BaseModel]]] = [
-        ("kitchen_generate", "Generate and save a validated seven-day draft.", GenerateRequest),
+        (
+            "kitchen_generate",
+            "Start drafting a validated seven-day plan in the background (minutes). "
+            "Returns the task; poll it with kitchen_task.",
+            GenerateRequest,
+        ),
         (
             "kitchen_chat",
             "Preview changes within selected meal IDs; does not apply edits.",
@@ -100,7 +146,7 @@ def tool_definitions() -> list[dict[str, Any]]:
         },
         *[
             {"name": name, "description": description, "inputSchema": model.model_json_schema()}
-            for name, description, model in ai_tools
+            for name, description, model in [*ai_tools, *TASK_TOOLS]
         ],
     ]
 
@@ -110,8 +156,10 @@ def rpc_error(rpc_id: Any, code: int, message: str) -> dict[str, Any]:
 
 
 async def dispatch(
-    message: dict[str, Any], ai: KitchenAI, scope: HouseholdScope
+    message: dict[str, Any], ai: KitchenAI, scope: HouseholdScope, background: Any = None
 ) -> dict[str, Any] | None:
+    """`background` runs AI work as stored tasks (KitchenAITasks); without it,
+    drafting a week runs inline."""
     rpc_id = message.get("id")
     if (
         message.get("jsonrpc") != "2.0"
@@ -156,7 +204,32 @@ async def dispatch(
                     raise ValueError("Unsupported command")
                 data = await ai.repository.command(scope, command)
             elif name == "kitchen_generate":
-                data = await ai.generate(scope, GenerateRequest.model_validate(args))
+                request = GenerateRequest.model_validate(args)
+                data = (
+                    await background.start_generate(scope, request)
+                    if background is not None
+                    else await ai.generate(scope, request)
+                )
+            elif name in {"kitchen_task", "kitchen_task_latest", "kitchen_task_apply"}:
+                if background is None:
+                    raise ValueError("Background AI tasks are not available here")
+                if name == "kitchen_task_latest":
+                    latest = LatestTask.model_validate(args)
+                    data = {
+                        "task": await background.latest(
+                            scope,
+                            latest.kind,
+                            plan_id=latest.planId,
+                            week_start=latest.weekStart,
+                        )
+                    }
+                else:
+                    ref = TaskRef.model_validate(args)
+                    data = (
+                        {"task": await background.get(scope, ref.taskId)}
+                        if name == "kitchen_task"
+                        else await background.apply(scope, ref.taskId)
+                    )
             elif name == "kitchen_chat":
                 data = await ai.chat(scope, ChatRequest.model_validate(args))
             else:
@@ -186,14 +259,37 @@ def validate_origin(request: Request) -> None:
         raise HTTPException(403, "Origin is not allowed")
 
 
+async def mcp_scope(request: Request) -> HouseholdScope:
+    """A bearer access token, else the web session; either names one household."""
+    authorization = request.headers.get("authorization", "")
+    scope: HouseholdScope | None = None
+    if authorization:
+        kind, _, token = authorization.partition(" ")
+        if kind.lower() == "bearer" and token.strip():
+            identity: IdentityService = request.app.state.identity_service
+            scope = await identity.resolve_mcp_token(token.strip())
+    else:
+        scope = getattr(request.state, "household_scope", None)
+    if scope is None:
+        raise HTTPException(
+            401,
+            "Sign in, or send Authorization: Bearer with an access token from Settings",
+            headers={"WWW-Authenticate": 'Bearer realm="stu"'},
+        )
+    return scope
+
+
+McpScope = Annotated[HouseholdScope, Depends(mcp_scope)]
+
+
 @router.get("/mcp")
-async def no_stream(request: Request, scope: ScopeDependency) -> Response:
+async def no_stream(request: Request, scope: McpScope) -> Response:
     validate_origin(request)
     return Response(status_code=405, headers={"Allow": "POST"})
 
 
 @router.post("/mcp")
-async def mcp(request: Request, scope: ScopeDependency) -> Response:
+async def mcp(request: Request, scope: McpScope) -> Response:
     validate_origin(request)
     if request.headers.get("content-type", "").split(";", 1)[0].strip() != "application/json":
         raise HTTPException(415, "Content-Type must be application/json")
@@ -206,9 +302,11 @@ async def mcp(request: Request, scope: ScopeDependency) -> Response:
     if not messages or len(messages) > 32 or any(not isinstance(m, dict) for m in messages):
         return JSONResponse(rpc_error(None, -32600, "Invalid request"), status_code=400)
     responses = []
+    # Background tasks need the database; a bare test app runs AI work inline.
     ai = service(request)
+    background = tasks(request) if hasattr(request.app.state, "session_factory") else None
     for message in messages:
-        result = await dispatch(message, ai, scope)
+        result = await dispatch(message, ai, scope, background)
         if result is not None:
             responses.append(result)
     if not responses:

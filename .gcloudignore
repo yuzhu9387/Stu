@@ -1,0 +1,25 @@
+# Only what the images need goes to Cloud Build. Never upload secrets.
+.gcloudignore
+.git
+.gitignore
+#!include:.dockerignore
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+.gstack/
+.superpowers/
+.design-qa/
+/.*.png
+design-qa.md
+docs/
+tests/
+web/tests/
+web/test-results/
+deploy/
+scripts/
+.github/
+.venv/
+node_modules/
+.mcp.json

@@ -5,6 +5,7 @@ from uuid import uuid4
 import httpx
 
 from recipe_agent.api.dependencies import get_household_scope
+from recipe_agent.api.v1.kitchen_mcp import mcp_scope
 from recipe_agent.app import create_app
 from recipe_agent.config import Settings
 from recipe_agent.domain.identity.service import HouseholdScope
@@ -20,6 +21,7 @@ async def test_registered_http_and_mcp_share_scope_and_revisions(session_factory
         ) as client:
             assert (await client.get("/api/v1/kitchen")).status_code == 401
             app.dependency_overrides[get_household_scope] = lambda: scope
+            app.dependency_overrides[mcp_scope] = lambda: scope
             state = (await client.get("/api/v1/kitchen")).json()
             assert state["revision"] == 0
             command = {

@@ -21,6 +21,11 @@ function apiBaseURL() {
   return API_BASE_URL;
 }
 
+/** The absolute address of an API path, as the browser reaches it. */
+export function apiUrl(path: string) {
+  return new URL(`${apiBaseURL()}${path}`, typeof window === "undefined" ? "http://localhost" : window.location.href).toString();
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("content-type")) {

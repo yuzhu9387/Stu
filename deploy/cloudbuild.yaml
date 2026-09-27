@@ -1,0 +1,28 @@
+# Builds both images for Cloud Run. Run from the repository root:
+#   gcloud builds submit --region=us-west2 --config=deploy/cloudbuild.yaml --substitutions=_TAG=<release> .
+steps:
+  - id: api
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "infra/Dockerfile.api", "-t", "${_REPO}/api:${_TAG}", "."]
+  - id: web
+    name: gcr.io/cloud-builders/docker
+    waitFor: ["-"]
+    args:
+      - build
+      - -f
+      - infra/Dockerfile.web
+      - --build-arg
+      - NEXT_PUBLIC_API_BASE_URL=${_PUBLIC_URL}
+      - -t
+      - ${_REPO}/web:${_TAG}
+      - .
+images:
+  - ${_REPO}/api:${_TAG}
+  - ${_REPO}/web:${_TAG}
+substitutions:
+  _REPO: us-west2-docker.pkg.dev/leonas-friends/stu
+  _PUBLIC_URL: https://stu.dodofamily.com
+  _TAG: manual
+options:
+  machineType: E2_HIGHCPU_8
+timeout: 1800s

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from recipe_agent.api.lark import router as lark_router
-from recipe_agent.api.security import RequestSecurityMiddleware
+from recipe_agent.api.security import EdgeProxyMiddleware, RequestSecurityMiddleware
 from recipe_agent.api.session import SessionScopeMiddleware
 from recipe_agent.api.v1.actions import router as actions_router
 from recipe_agent.api.v1.agent import router as agent_router
@@ -96,6 +96,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         SessionScopeMiddleware,
         identity=runtime.identity_service,
     )
+    # Added last, so it runs first: behind the Worker, nothing else is reachable.
+    if resolved_settings.edge_proxy_token is not None:
+        app.add_middleware(
+            EdgeProxyMiddleware,
+            token=resolved_settings.edge_proxy_token.get_secret_value(),
+        )
     app.include_router(auth_router)
     app.include_router(agent_router)
     app.include_router(actions_router)

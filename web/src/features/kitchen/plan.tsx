@@ -2,7 +2,8 @@
 import { ArrowUp, X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { api } from "@/lib/api";
-import { dayLabel, slots, weekDays, weekLabel } from "./data";
+import { dayLabel, mondayOf, shiftWeek, slots, weekDays, weekLabel, weeksBetween } from "./data";
+import { WeekPicker } from "./week-picker";
 import { ANALYSIS_METRICS, planMetrics, type MetricResult, type PlanWarning } from "./analysis";
 import { planRuleWarnings } from "./plan-rules";
 import type { ChatTurn } from "./ai-tasks";
@@ -85,11 +86,19 @@ interface Props {
   turn?: ChatTurn | null;
   onChat: (text: string, answering: boolean) => Promise<void>; onApply: () => Promise<void>; onKeep?: () => Promise<void>;
   onConfirm: () => Promise<string | null>; onEdit: () => Promise<void>; focusTick: number; onPrep: () => void; onGuidance: () => void; onWeek: (delta: number) => void;
+  /** The Monday of the week we are in now; planning mostly looks at it and the next. */
+  thisWeek?: string;
   shoppingContent?: ReactNode; onCalendar?: () => void;
   children: ReactNode; demo: boolean; busy: boolean;
 }
 
-export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot, onGoal, onSavePreferences, onGenerate, confirmingSince = null, fulfillmentError = null, generatingSince = null, generationError = null, onDismissGenerationError, onPlanMyself, onApplyFix, selected, onSelect, turn = null, onChat, onApply, onKeep, onConfirm, onEdit, focusTick, onPrep, onGuidance, onWeek, onCalendar, shoppingContent, children, demo, busy }: Props) {
+/** Where a week's planning stands: confirmed, a draft, or nothing yet. */
+function weekStatus(state: KitchenState, monday: string) {
+  const plans = state.plans.filter(p => p.weekStart === monday);
+  return plans.some(p => p.status === "confirmed") ? "confirmed" : plans.length ? "draft" : "none";
+}
+
+export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot, onGoal, onSavePreferences, onGenerate, confirmingSince = null, fulfillmentError = null, generatingSince = null, generationError = null, onDismissGenerationError, onPlanMyself, onApplyFix, selected, onSelect, turn = null, onChat, onApply, onKeep, onConfirm, onEdit, focusTick, onPrep, onGuidance, onWeek, thisWeek = mondayOf(), onCalendar, shoppingContent, children, demo, busy }: Props) {
   const confirmationElapsed = useElapsed(confirmingSince);
   const [confirmPosting,setConfirmPosting] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
@@ -208,8 +217,15 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
   return <div className={`kw-planning is-${stage}`}>
     <header className="kw-planning-heading">
       <h1 aria-label="Plan">Weekly Plan 🍽️</h1>
-      <div className="kw-weekbar"><button className="kw-week-step" aria-label="Previous week" onClick={() => onWeek(-1)}><span aria-hidden="true">◀</span></button><span className="kw-week-label">{weekLabel(week)}</span><button className="kw-week-step" aria-label="Next week" onClick={() => onWeek(1)}><span aria-hidden="true">▶</span></button></div>
+      <div className="kw-weekbar"><button className="kw-week-step" aria-label="Previous week" onClick={() => onWeek(-1)}><span aria-hidden="true">◀</span></button><WeekPicker week={week} thisWeek={thisWeek} onPick={target => onWeek(weeksBetween(week, target))} /><button className="kw-week-step" aria-label="Next week" onClick={() => onWeek(1)}><span aria-hidden="true">▶</span></button></div>
       {plan && <span className="kw-stamp-slot">{stamping && <span className="kw-plan-stamp draft is-leaving" aria-hidden="true">DRAFT</span>}<span className={`kw-plan-stamp ${plan.status} ${stamping ? "is-stamping" : ""}`}>{plan.status === "draft" ? (plan.basePlanId ? "EDITING" : "DRAFT") : "CONFIRMED"}</span></span>}
+      {/* This week and next are the ones being planned: one tap to either. */}
+      <div className="kw-week-shortcuts" role="group" aria-label="Weeks to plan">{[{ label: "This week", monday: thisWeek }, { label: "Next week", monday: shiftWeek(thisWeek, 1) }].map(({ label, monday }) => {
+        const status = weekStatus(state, monday);
+        return <button key={monday} type="button" aria-pressed={monday === week} className={`kw-week-shortcut ${monday === week ? "is-on" : ""}`} onClick={() => onWeek(weeksBetween(week, monday))}>
+          <strong>{label}</strong><small>{weekLabel(monday).replace(/, \d{4}/g, "")}</small><span className={`kw-week-status ${status}`}>{status === "confirmed" ? "Confirmed" : status === "draft" ? "Draft" : "Not planned"}</span>
+        </button>;
+      })}</div>
     </header>
     <StepRail onCalendar={plan ? onCalendar : undefined} stage={stage} hasDraft={plan?.status === "draft"} editing={editing} busy={busy || waiting || confirmPosting || confirmingSince !== null} blocked={false} stamping={stamping} onStep={goToStep} onConfirm={() => void confirm()} onEdit={() => void edit()} />
     {generating && stage !== "setup" && <div className="kw-panel" role="status">Stu is drafting your week… {clock(elapsed)}</div>}

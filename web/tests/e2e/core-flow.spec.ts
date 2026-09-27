@@ -47,7 +47,7 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
   await page.goto(`/calendar?week=${week}`);
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav.getByRole("button").first()).toHaveText(/Plan/);
+  await expect(nav.getByRole("button").first()).toHaveText(/Calendar/);
   await nav.getByRole("button", { name: "Plan", exact: true }).click();
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
   await page.getByRole("button", { name: "Go to step 2, adjust", exact: true }).click();

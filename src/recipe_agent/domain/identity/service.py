@@ -1,5 +1,6 @@
-"""Passwordless account and Lark identity linking services."""
+"""Account sign-up and sign-in, web sessions, and Lark identity linking."""
 
+import asyncio
 import hashlib
 import secrets
 from collections.abc import Callable
@@ -7,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -15,12 +17,40 @@ from recipe_agent.domain.identity.models import (
     FamilyMembership,
     Household,
     LarkIdentity,
+    McpToken,
+)
+from recipe_agent.domain.identity.passwords import (
+    DUMMY_HASH,
+    check_password,
+    hash_password,
+    verify_password,
 )
 from recipe_agent.domain.identity.repository import IdentityRepository
+
+# Ten wrong passwords in a row lock the account for fifteen minutes.
+MAX_FAILED_SIGN_INS = 10
+LOCKOUT = timedelta(minutes=15)
+# MCP access tokens: a recognisable prefix, a cap per account, and "last used"
+# refreshed at most every few minutes rather than on every call.
+MCP_TOKEN_PREFIX = "stu_"
+MAX_MCP_TOKENS = 10
+MCP_TOUCH_INTERVAL = timedelta(minutes=5)
 
 
 class InvalidTokenError(ValueError):
     """A token is unknown, expired, or already consumed."""
+
+
+class InvalidCredentialsError(ValueError):
+    """The email and password do not match an account."""
+
+
+class AccountExistsError(ValueError):
+    """An account already uses this email."""
+
+
+class AccountLockedError(ValueError):
+    """Too many wrong passwords; the account is locked for a while."""
 
 
 class IdentityConflictError(ValueError):
@@ -54,6 +84,14 @@ class LinkCodeDelivery:
 class ExpiringCodeDelivery:
     code: str
     expires_at: datetime
+
+
+@dataclass(frozen=True)
+class McpTokenView:
+    id: UUID
+    name: str
+    created_at: datetime
+    last_used_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -116,6 +154,70 @@ class IdentityService:
             await session.commit()
         return TokenDelivery(token=token)
 
+    async def register(self, email: str, password: str) -> AuthenticatedIdentity:
+        """Anyone may sign up: a new account with its own household."""
+        check_password(password)
+        normalized_email = email.strip().casefold()
+        password_hash = await asyncio.to_thread(hash_password, password)
+        now = self._now()
+        async with self._session_factory() as session:
+            repository = IdentityRepository(session)
+            if await repository.get_account_by_email(normalized_email) is not None:
+                raise AccountExistsError("An account already uses this email")
+            account, household = await repository.create_account_and_household(normalized_email)
+            account.password_hash = password_hash
+            identity = await self._open_session(repository, account, household, now)
+            try:
+                await session.commit()
+            except IntegrityError as error:
+                raise AccountExistsError("An account already uses this email") from error
+            return identity
+
+    async def sign_in(self, email: str, password: str) -> AuthenticatedIdentity:
+        normalized_email = email.strip().casefold()
+        now = self._now()
+        async with self._session_factory() as session:
+            repository = IdentityRepository(session)
+            account = await repository.get_account_by_email(normalized_email)
+            locked_until = account.locked_until if account is not None else None
+            if locked_until is not None and not _expired(locked_until, now):
+                raise AccountLockedError("Too many attempts")
+            stored = account.password_hash if account is not None else None
+            matches = await asyncio.to_thread(verify_password, password, stored or DUMMY_HASH)
+            if account is None or stored is None:
+                raise InvalidCredentialsError("Email or password is incorrect")
+            if not matches:
+                account.failed_sign_ins += 1
+                if account.failed_sign_ins >= MAX_FAILED_SIGN_INS:
+                    account.failed_sign_ins = 0
+                    account.locked_until = now + LOCKOUT
+                await session.commit()
+                raise InvalidCredentialsError("Email or password is incorrect")
+            account.failed_sign_ins = 0
+            account.locked_until = None
+            household = await repository.get_household_for_account(account.id)
+            if household is None:
+                raise RuntimeError("Account has no household")
+            identity = await self._open_session(repository, account, household, now)
+            await session.commit()
+            return identity
+
+    async def _open_session(
+        self,
+        repository: IdentityRepository,
+        account: Account,
+        household: Household,
+        now: datetime,
+    ) -> AuthenticatedIdentity:
+        raw_session_token = secrets.token_urlsafe(32)
+        await repository.create_web_session(
+            account_id=account.id,
+            household_id=household.id,
+            token_hash=_hash_token(raw_session_token),
+            expires_at=now + timedelta(days=30),
+        )
+        return AuthenticatedIdentity(account, household, raw_session_token)
+
     async def consume_magic_link(self, token: str) -> AuthenticatedIdentity:
         now = self._now()
         async with self._session_factory() as session:
@@ -141,6 +243,72 @@ class IdentityService:
             )
             await session.commit()
             return AuthenticatedIdentity(account, household, raw_session_token)
+
+    async def create_mcp_token(self, scope: HouseholdScope, name: str) -> tuple[McpTokenView, str]:
+        """A new access token for an AI client; the raw token is returned once."""
+        label = name.strip()
+        if not 1 <= len(label) <= 80:
+            raise ValueError("Name the token in 1-80 characters")
+        raw = MCP_TOKEN_PREFIX + secrets.token_urlsafe(32)
+        async with self._session_factory() as session:
+            count = await session.scalar(
+                select(func.count())
+                .select_from(McpToken)
+                .where(McpToken.account_id == scope.account_id)
+            )
+            if (count or 0) >= MAX_MCP_TOKENS:
+                raise ValueError(f"An account can hold {MAX_MCP_TOKENS} tokens; revoke one first")
+            record = McpToken(
+                account_id=scope.account_id,
+                household_id=scope.household_id,
+                name=label,
+                token_hash=_hash_token(raw),
+                created_at=self._now(),
+            )
+            session.add(record)
+            await session.commit()
+            return _token_view(record), raw
+
+    async def list_mcp_tokens(self, scope: HouseholdScope) -> list[McpTokenView]:
+        async with self._session_factory() as session:
+            records = await session.scalars(
+                select(McpToken)
+                .where(McpToken.account_id == scope.account_id)
+                .order_by(McpToken.created_at)
+            )
+            return [_token_view(record) for record in records]
+
+    async def revoke_mcp_token(self, scope: HouseholdScope, token_id: UUID) -> bool:
+        async with self._session_factory() as session:
+            result = await session.execute(
+                delete(McpToken).where(
+                    McpToken.id == token_id, McpToken.account_id == scope.account_id
+                )
+            )
+            await session.commit()
+            return bool(getattr(result, "rowcount", 0))
+
+    async def resolve_mcp_token(self, token: str) -> HouseholdScope | None:
+        """The account and household a token acts for, while both still hold."""
+        if not token.startswith(MCP_TOKEN_PREFIX):
+            return None
+        now = self._now()
+        async with self._session_factory() as session:
+            record = await session.scalar(
+                select(McpToken).where(McpToken.token_hash == _hash_token(token))
+            )
+            if record is None:
+                return None
+            membership = await IdentityRepository(session).get_membership_for_account(
+                record.account_id
+            )
+            if membership is None or membership.household_id != record.household_id:
+                return None
+            last = record.last_used_at
+            if last is None or _expired(last + MCP_TOUCH_INTERVAL, now):
+                record.last_used_at = now
+                await session.commit()
+            return HouseholdScope(record.account_id, record.household_id)
 
     async def resolve_web_session(self, token: str) -> HouseholdScope | None:
         now = self._now()
@@ -342,6 +510,10 @@ class IdentityService:
             if membership is None:
                 return None
             return HouseholdScope(identity.account_id, membership.household_id)
+
+
+def _token_view(record: McpToken) -> McpTokenView:
+    return McpTokenView(record.id, record.name, record.created_at, record.last_used_at)
 
 
 def _expired(expires_at: datetime, now: datetime) -> bool:

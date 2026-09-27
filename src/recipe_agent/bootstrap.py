@@ -260,6 +260,9 @@ class ReadinessService:
     async def check(self) -> None:
         async with self._session_factory() as session:
             await session.execute(sql_text("SELECT 1"))
+        # A deployment without the broker (the web kitchen alone) checks the database only.
+        if not self._redis_url:
+            return
         redis = Redis.from_url(self._redis_url, socket_connect_timeout=2, socket_timeout=2)
         try:
             if not await redis.ping():

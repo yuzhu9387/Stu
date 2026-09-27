@@ -117,15 +117,19 @@ def test_delete_session_invalidates_server_record_and_clears_cookie(
 
 
 def test_magic_link_token_is_exposed_only_in_development(client_factory, tmp_path) -> None:
-    for environment in ("test", "production"):
-        database_url = f"sqlite+aiosqlite:///{tmp_path / f'{environment}.db'}"
-        asyncio.run(_create_schema(database_url))
-        client = client_factory(create_app(_settings(database_url, environment=environment)))
-        response = client.post(
-            "/api/v1/auth/magic-links", json={"email": f"{environment}@example.com"}
-        )
-        assert response.status_code == 202
-        assert response.json() == {"status": "accepted"}
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'test.db'}"
+    asyncio.run(_create_schema(database_url))
+    client = client_factory(create_app(_settings(database_url, environment="test")))
+    response = client.post("/api/v1/auth/magic-links", json={"email": "test@example.com"})
+    assert response.status_code == 202
+    assert response.json() == {"status": "accepted"}
+
+    # Nothing delivers a link in production, so the shortcut does not exist there.
+    database_url = f"sqlite+aiosqlite:///{tmp_path / 'production.db'}"
+    asyncio.run(_create_schema(database_url))
+    client = client_factory(create_app(_settings(database_url, environment="production")))
+    response = client.post("/api/v1/auth/magic-links", json={"email": "prod@example.com"})
+    assert response.status_code == 404
 
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'development.db'}"
     asyncio.run(_create_schema(database_url))
@@ -287,12 +291,12 @@ def test_session_cookie_security_attributes_follow_environment(client_factory, t
     production_url = f"sqlite+aiosqlite:///{tmp_path / 'cookie-production.db'}"
     asyncio.run(_create_schema(production_url))
     production_app = create_app(_settings(production_url, environment="production"))
-    production_delivery = asyncio.run(
-        production_app.state.identity_service.request_magic_link("production@example.com")
-    )
     production_cookie = (
         client_factory(production_app)
-        .post("/api/v1/auth/sessions", json={"token": production_delivery.token})
+        .post(
+            "/api/v1/auth/register",
+            json={"email": "production@example.com", "password": "correct horse"},
+        )
         .headers["set-cookie"]
     )
 

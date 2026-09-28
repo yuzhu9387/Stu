@@ -51,6 +51,15 @@ export function removeComponent(meal: Meal, componentId: string): Meal {
   return { ...meal, components, steps: joinSteps(kept, components) };
 }
 
+/** The meal with one more dish (or `replacing` one), the dish's steps after
+ * the other dishes' and before those for the whole meal. */
+export function withDish(meal: Meal, dish: Component, steps: string[], replacing?: string): Meal {
+  const components = [...meal.components.filter(c => c.id !== replacing), dish];
+  const kept = stepGroups(meal).filter(group => !replacing || group.componentId !== replacing);
+  const groups = [...kept.filter(g => g.componentId), { componentId: dish.id, label: dish.name, steps }, ...kept.filter(g => !g.componentId)];
+  return { ...meal, components, steps: joinSteps(groups, components) };
+}
+
 /** One dish's steps replaced (from a textarea, one step per line). */
 export function setDishSteps(meal: Meal, componentId: string | undefined, text: string): Meal {
   const groups = stepGroups(meal);

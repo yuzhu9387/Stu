@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { ArrowsClockwise, ChatCircleDots, LockSimple, Plus } from "@phosphor-icons/react";
 import { foodEmoji } from "./food-art";
 import { dayLabel, slots, weekDays } from "./data";
+import type { CalendarBoard } from "./plan-board";
 import { projectedMealShortages } from "./schedule";
 import type { KitchenState, Meal, MealSlot, WeeklyPlan } from "./types";
 import "./calendar.css";
@@ -28,6 +29,8 @@ interface CalendarProps {
   /** Meals currently referenced in the Stu chat, marked on their cards. */
   referencedIds?: string[];
   onAddToMeal?: (meal: Meal) => void;
+  /** Adjusting a draft beside the fridge: meals and empty slots take food. */
+  board?: CalendarBoard;
   planning?: boolean;
   /** On the plan page, what an empty slot offers: "add" (chosen, fill it from
    * recipes), "off" (left out in step 1) or nothing. */
@@ -64,7 +67,7 @@ function mealSource(meal: Meal, state: KitchenState, plan: WeeklyPlan | null): s
   return sources.includes("fresh") ? "Fridge + fresh" : "From fridge";
 }
 
-export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect, onAdd, onStatus, onLike, onReplace, onReference, onInclude, onAddToMeal, referencedIds = [], planning = false, slotState, note = null, onUndo, onDismissNote }: CalendarProps) {
+export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect, onAdd, onStatus, onLike, onReplace, onReference, onInclude, onAddToMeal, referencedIds = [], planning = false, slotState, note = null, onUndo, onDismissNote, board }: CalendarProps) {
   const days = weekDays(week);
   const dateFormat = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: state.settings.timezone }), [state.settings.timezone]);
   const today = dateFormat.format(new Date());
@@ -86,8 +89,8 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
           return <div className={`kw-meal-slot kw-slot-${slot}`} key={slot}>
             {cardNote && <p className={`kw-card-note ${cardNote.error ? "is-error" : cardNote.success ? "is-success" : ""}`} role={cardNote.error ? "alert" : "status"}><span>{cardNote.text}</span>{!cardNote.error && cardNote.undo && onUndo && <button type="button" onClick={() => onUndo(cardNote)}>Undo</button>}{cardNote.error && onDismissNote && <button type="button" aria-label="Dismiss" onClick={onDismissNote}>×</button>}</p>}
             {meal && meal.included === false ? (planning ? <div className="kw-not-planning is-static">{slotHeader}<span className="kw-not-planning-label"><span aria-hidden="true">💤</span>Not Planning</span></div> : <button className="kw-not-planning" onClick={() => onInclude?.(meal, true)} disabled={!onInclude} aria-label={`Plan ${label} ${slot} after all`}>{slotHeader}<span className="kw-not-planning-label"><span aria-hidden="true">💤</span>Not Planning</span></button>)
-            : meal ? <article className={`kw-meal-card ${selectedId === meal.id ? "is-selected" : ""} ${referencedIds.includes(meal.id) ? "is-referenced" : ""} ${meal.status}`}>{referencedIds.includes(meal.id) && <span className="kw-ref-badge" title="Referenced in the Stu chat">💬</span>}
-              <button className="kw-meal-open" onClick={event => { if ((event.metaKey || event.ctrlKey) && onReference) onReference(meal); else onSelect(meal); }} aria-label={`Open ${label} ${slot}`} aria-pressed={selectedId === meal.id} title={`${meal.components.map(component => component.name).join(" + ")} · ${Math.max(0, ...meal.components.map(component => component.portions))} portions · ${meal.activeMinutes} min hands-on · ${meal.elapsedMinutes} min elapsed`}>
+            : meal ? <article data-food-drop={board ? `meal:${meal.id}` : undefined} className={`kw-meal-card ${selectedId === meal.id ? "is-selected" : ""} ${referencedIds.includes(meal.id) ? "is-referenced" : ""} ${board?.over === `meal:${meal.id}` ? "is-drop-over" : ""} ${meal.status}`}>{referencedIds.includes(meal.id) && <span className="kw-ref-badge" title="Referenced in the Stu chat">💬</span>}
+              <button className="kw-meal-open" onClick={event => { if (board?.picked && meal.status === "planned" && !meal.locked) board.onPlace({ kind: "meal", mealId: meal.id }); else if ((event.metaKey || event.ctrlKey) && onReference) onReference(meal); else onSelect(meal); }} aria-label={`Open ${label} ${slot}`} aria-pressed={selectedId === meal.id} title={`${meal.components.map(component => component.name).join(" + ")} · ${Math.max(0, ...meal.components.map(component => component.portions))} portions · ${meal.activeMinutes} min hands-on · ${meal.elapsedMinutes} min elapsed`}>
                 {slotHeader}
                 <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.map(c=>c.name).join(" + ") || "Untitled meal"}</strong></span>
                 <small className="kw-meal-meta"><span>{meal.activeMinutes} min</span><span>{source.replace("Prepare fresh","Fresh")} {source.includes("fridge")?"🧊":"🌿"}</span></small>
@@ -107,9 +110,12 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
                   {!planning && onInclude && meal.status === "planned" && <button className="kw-secondary-action" aria-label={`Do not plan ${label} ${slot}`} onClick={() => onInclude(meal, false)} title="Do not plan this slot"><span aria-hidden="true">💤</span></button>}
                 </div>
               </div>
+              {board && meal.status === "planned" && !meal.locked && <FridgeDishes meal={meal} where={`${label} ${slot}`} board={board} />}
               {planning && plan?.status === "draft" && onAddToMeal && <button className="kw-add-from-recipes" onClick={() => onAddToMeal(meal)} aria-label={`Add a dish to ${label} ${slot}`}><Plus size={12}/>Add from recipes</button>}
             </article> : planning ? (slotState?.(day, slot) === "add"
-              ? <button className="kw-add-meal kw-add-slot" onClick={() => onAdd(day, slot)} aria-label={`Add ${label} ${slot} from recipes`}>{slotHeader}<span className="kw-add-meal-label"><Plus size={13} />Add from recipes</span></button>
+              ? board?.picked
+                ? <button data-food-drop={`slot:${day}:${slot}`} className={`kw-add-meal kw-add-slot is-placing ${board.over === `slot:${day}:${slot}` ? "is-drop-over" : ""}`} onClick={() => board.onPlace({ kind: "slot", day, slot })} aria-label={`Put ${board.picked.name} in ${label} ${slot}`}>{slotHeader}<span className="kw-add-meal-label"><Plus size={13} />{board.picked.name}</span></button>
+                : <button data-food-drop={board ? `slot:${day}:${slot}` : undefined} className={`kw-add-meal kw-add-slot ${board?.over === `slot:${day}:${slot}` ? "is-drop-over" : ""}`} onClick={() => onAdd(day, slot)} aria-label={`Add ${label} ${slot} from recipes`}>{slotHeader}<span className="kw-add-meal-label"><Plus size={13} />Add from recipes</span></button>
               : slotState?.(day, slot) === "off"
                 ? <div className="kw-not-planning is-static">{slotHeader}<span className="kw-not-planning-label"><span aria-hidden="true">💤</span>Not Planning</span></div>
                 : <div className="kw-add-meal is-static">{slotHeader}<span className="kw-add-meal-label">—</span></div>) : <button className="kw-add-meal" onClick={() => onAdd(day, slot)} aria-label={`Add ${label} ${slot}`}>{slotHeader}<span className="kw-add-meal-label"><Plus size={15}/>Add</span></button>}
@@ -119,4 +125,19 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
       </section>;
     })}
   </div></div>;
+}
+
+/** A meal's dishes served from fridge batches: each can be dragged off (back to
+ * the fridge or to another meal), or lose a portion with "−". With a food
+ * picked in the fridge, the meal offers to take it. */
+function FridgeDishes({ meal, where, board }: { meal: Meal; where: string; board: CalendarBoard }) {
+  const dishes = meal.components.filter(c => c.inventoryId && !c.prepId);
+  if (!dishes.length && !board.picked) return null;
+  return <div className="kw-card-foods">
+    {dishes.map(c => <span key={c.id} className="kw-card-food" onPointerDown={event => board.onDragDish(event, meal, c)} title={`${c.name} ×${c.portions} · drag to the fridge or another meal`}>
+      <span aria-hidden="true">{foodEmoji(c.name, c.type)}</span><span className="kw-card-food-name">{c.name}</span><span>×{c.portions}</span>
+      <button type="button" aria-label={`Take one ${c.name} off ${where}`} onClick={() => board.onTakeOne(meal, c.id)}>−</button>
+    </span>)}
+    {board.picked && <button type="button" className="kw-card-place" onClick={() => board.onPlace({ kind: "meal", mealId: meal.id })} aria-label={`Add ${board.picked.name} to ${where}`}>+ {board.picked.name}</button>}
+  </div>;
 }

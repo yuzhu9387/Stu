@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { uid } from "./data";
 import { foodEmoji } from "./food-art";
-import { joinSteps, stepGroups } from "./meal-steps";
+import { withDish } from "./meal-steps";
 import { RecipeEditor } from "./recipe-editor";
 import type { FoodType, InventoryItem, KitchenState, Meal, MealComponent, Recipe, StockUse } from "./types";
 import "./basket.css";
@@ -38,15 +38,12 @@ export function demoComposition(foods: InventoryItem[], slot: Meal["slot"], peop
 export function addComposedDish(meal: Meal, { recipe, uses }: ComposedDish, keep: boolean): Meal {
   const placeholder = meal.components.find(c => !c.name.trim());
   const component: MealComponent = { id: placeholder?.id ?? uid(), name: recipe.name, type: recipe.type, portions: recipe.servings, uses, ...(keep ? { recipeId: recipe.id } : {}) };
-  const others = meal.components.filter(c => c !== placeholder);
-  const components = [...others, component];
   const amounts = recipe.ingredients.map(i => `${i.name} ${i.quantity}${i.unit}`).join("、");
-  const dishSteps = keep ? recipe.steps : [`食材 Ingredients: ${amounts}`, ...recipe.steps];
-  const kept = stepGroups(meal).filter(group => !placeholder || group.componentId !== placeholder.id);
-  const steps = joinSteps([...kept.filter(g => g.componentId), { componentId: component.id, label: recipe.name, steps: dishSteps }, ...kept.filter(g => !g.componentId)], components);
-  const activeMinutes = others.length ? meal.activeMinutes + recipe.activeMinutes : recipe.activeMinutes;
-  const elapsedMinutes = others.length ? Math.max(meal.elapsedMinutes, recipe.elapsedMinutes, activeMinutes) : Math.max(recipe.elapsedMinutes, activeMinutes);
-  return { ...meal, components, steps, activeMinutes, elapsedMinutes };
+  const next = withDish(meal, component, keep ? recipe.steps : [`食材 Ingredients: ${amounts}`, ...recipe.steps], placeholder?.id);
+  const others = next.components.length > 1;
+  const activeMinutes = others ? meal.activeMinutes + recipe.activeMinutes : recipe.activeMinutes;
+  const elapsedMinutes = others ? Math.max(meal.elapsedMinutes, recipe.elapsedMinutes, activeMinutes) : Math.max(recipe.elapsedMinutes, activeMinutes);
+  return { ...next, activeMinutes, elapsedMinutes };
 }
 
 interface Props { state: KitchenState; meal: Meal; demo: boolean; onCancel: () => void; onAdd: (dish: ComposedDish, keep: boolean) => void }

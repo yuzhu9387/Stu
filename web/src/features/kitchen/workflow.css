@@ -1,6 +1,13 @@
 /* Shared calendar style; only execution controls vary between Plan and Calendar. */
 .kw-workspace .kw-calendar-plan .kw-not-planning{border:1px dashed #e4d7c5;background:#fbf8f3;box-shadow:none;border-radius:12px}
 .kw-workspace .kw-calendar-plan .kw-meal-quick-actions{gap:8px}
+/* On a phone each of these buttons carries a 44px invisible tap square
+   (figma.css). 30px buttons 16px apart put the centres 46px apart, so no
+   square reaches its neighbour and a thumb cannot hit the wrong one. */
+@media(max-width:680px){
+  .kw-workspace .kw-calendar-reference .kw-meal-quick-actions,
+  .kw-workspace .kw-calendar-plan .kw-meal-quick-actions{gap:16px}
+}
 .kw-calendar-heading .kw-weekbar{flex-wrap:wrap}
 .kw-version-control{position:relative;display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:2px solid #35251f;border-radius:12px;background:#fff;box-shadow:0 2px 0 #35251f;min-height:36px;color:#35251f}
 .kw-version-dot{width:8px;height:8px;border-radius:50%;background:#f4af14;flex-shrink:0}

@@ -425,6 +425,26 @@
     font-size:16px;line-height:23px;max-height:46px}
 }
 
+/* Done, skipped and liked are the actions this screen exists for, and they
+   were the smallest things on it: 24px circles, a bit over half the 44px a
+   fingertip needs. A thumb misses them, or hits the neighbour. The circle
+   keeps its drawn size; the button around it grows to meet the finger. */
+@media(max-width:680px){
+  .kw-workspace .kw-calendar-reference .kw-card-tools{min-height:44px}
+  .kw-workspace .kw-calendar-reference .kw-card-tools button{
+    position:relative;width:30px;height:30px;padding:4px}
+  /* The drawn circle stays small so it does not outshout the dish; an
+     invisible square centred on it gives the finger its 44px. Keeping two
+     of those squares from touching is the gap's job, set in workflow.css
+     where it can beat the plan calendar's own. */
+  .kw-workspace .kw-calendar-reference .kw-card-tools button::after{
+    content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;
+    transform:translate(-50%,-50%)}
+  .kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action{
+    width:30px;height:30px;top:-90px}
+  .kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action:last-child{right:44px}
+}
+
 /* The nav bar stays put while the week scrolls under it: on a long plan the
    day you are reading is far from the tabs you would use to leave it. It sits
    below the drawer (z-index 10) and any modal (60), so those still cover it. */

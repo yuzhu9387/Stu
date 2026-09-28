@@ -139,3 +139,24 @@ describe("cooking from the fridge in the meal drawer", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+it("offers to make your own dish first when filling an empty slot", async () => {
+  const { state, plan } = household();
+  const fresh: Meal = { id: "new-meal", day: "2026-09-21", slot: "dinner", components: [{ id: "blank", name: "", type: "Other", portions: 1 }], activeMinutes: 0, elapsedMinutes: 0, steps: [], status: "planned", liked: false, locked: false };
+  const onSave = vi.fn().mockResolvedValue(true);
+  render(<MealDrawer state={state} plan={plan} meal={fresh} demo initialReplace onClose={vi.fn()} onDirty={vi.fn()} onSave={onSave} onAction={vi.fn()} onReference={vi.fn()} onRecipe={vi.fn()} busy={false} />);
+  expect(screen.getByRole("heading", { name: "Add a meal" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Make your own dish/ }));
+  expect(screen.getByRole("group", { name: "Fridge foods" })).toBeInTheDocument();
+  // Back returns to the choice it came from.
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  fireEvent.click(screen.getByRole("button", { name: /Make your own dish/ }));
+  fireEvent.click(within(screen.getByRole("group", { name: "Fridge foods" })).getByRole("button", { name: /鸡蛋/ }));
+  fireEvent.click(screen.getByRole("button", { name: "✨ Make a dish from 1 food" }));
+  await screen.findByRole("heading", { name: "Stu’s dish" });
+  fireEvent.click(screen.getByRole("button", { name: "Add to meal" }));
+  await screen.findByLabelText("Source for 鸡蛋小炒");
+  fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  expect((onSave.mock.calls[0][0] as Meal).components.map(c => c.name)).toEqual(["鸡蛋小炒"]);
+});

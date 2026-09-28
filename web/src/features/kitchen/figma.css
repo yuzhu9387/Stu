@@ -341,8 +341,6 @@
 .kw-workspace .kw-calendar-reference .kw-not-planning:hover:enabled{border-color:#35251f;color:#6b584e}
 .kw-not-planning-label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;font-size:13px;font-weight:800}
 .kw-not-planning-label span{font-size:20px}
-.kw-add-from-recipes{display:flex;align-items:center;justify-content:center;gap:3px;width:100%;margin-top:6px;padding:4px 2px;border:2px solid #35251f;border-radius:10px;background:#fff;font-size:10px;font-weight:800;color:#35251f;white-space:nowrap}
-.kw-add-from-recipes:hover{background:#fff8ef}
 
 /* ---------------------------------------------------------------------------
    Responsive layout.
@@ -554,7 +552,6 @@ html{scroll-padding-top:96px}
 .kw-workspace .kw-calendar-plan .kw-meal-card.is-selected{border-color:#f4af14;box-shadow:0 0 0 1px #f4af14}
 .kw-workspace .kw-calendar-plan.is-confirmed .kw-meal-card{border:1px solid #d5e3c6;background:#f6faf1}
 .kw-workspace .kw-calendar-plan .kw-day-total{border:1px solid #eadfce;box-shadow:none;background:#faf7f2}
-.kw-workspace .kw-calendar-plan .kw-add-from-recipes{border:1px solid #e4d7c5;box-shadow:none;background:#fff;border-radius:8px;color:#6b584e}
 .kw-workspace .kw-calendar-plan .kw-not-planning.is-static,.kw-workspace .kw-calendar-plan .kw-add-meal.is-static{cursor:default;border:1px dashed #e4d7c5;background:#fbf8f3;box-shadow:none}
 .kw-workspace .kw-calendar-plan .kw-add-meal.is-static .kw-add-meal-label{color:#cdbfae}
 

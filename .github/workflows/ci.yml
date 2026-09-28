@@ -34,7 +34,19 @@ jobs:
       - run: uv run ruff format --check src tests migrations
       - run: uv run ruff check src tests migrations
       - run: uv run mypy src
-      - run: uv run pytest
+      - run: uv run pytest --junitxml=pytest-report.xml
+      - name: Name the failing tests
+        if: failure()
+        # Each failure becomes an annotation, readable on the run page and via the API.
+        run: |
+          python3 - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          if os.path.exists("pytest-report.xml"):
+              for case in ET.parse("pytest-report.xml").iter("testcase"):
+                  for bad in [*case.findall("failure"), *case.findall("error")]:
+                      message = " ".join((bad.get("message") or "").split())[:400]
+                      print(f"::error title={case.get('classname')}::{case.get('name')}: {message}")
+          PY
       - name: Migrations apply to an empty PostgreSQL database
         run: |
           PGPASSWORD=recipe psql -h localhost -U recipe -d recipe -c "CREATE DATABASE migration_check"

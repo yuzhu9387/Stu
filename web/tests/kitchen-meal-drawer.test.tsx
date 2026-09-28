@@ -10,10 +10,10 @@ function setup() {
 }
 describe("meal drawer persistence",()=>{
   it("preserves other components and instructions when replacing one part",()=>{
-    const {state,meal}=setup();const replaced=replaceMealComponent(meal,state.recipes[3],meal.components[0].id,state);
+    const {state,meal}=setup();const recipe=state.recipes[3];const replaced=replaceMealComponent(meal,recipe,meal.components[0].id,state);
     expect(replaced.components.slice(1)).toEqual(meal.components.slice(1));
-    expect(replaced.steps.slice(0,meal.steps.length)).toEqual(meal.steps);
-    expect(replaced.steps.at(-1)).toContain(state.recipes[3].steps.at(-1));
+    // The new dish brings its own steps, named for it; the whole meal's steps stay.
+    expect(replaced.steps).toEqual([...recipe.steps.map(step=>`${recipe.name}: ${step}`),...meal.steps]);
     expect(replaced.components[0].inventoryId).toBeUndefined();
     expect(replaced.activeMinutes).toBeGreaterThanOrEqual(meal.activeMinutes);
   });

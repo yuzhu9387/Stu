@@ -10,6 +10,7 @@ import { useStored } from "./browser-store";
 import { CalendarGrid } from "./calendar";
 import { createDemoState, mondayOf, shiftWeek, uid, weekDays } from "./data";
 import { WeekPicker } from "./week-picker";
+import { useNumberFieldTidying } from "./number-fields";
 import { Drawer } from "./drawer";
 import { FridgePage } from "./fridge";
 import { GuidancePage } from "./guidance";
@@ -53,6 +54,7 @@ function preferredPlan(plans:WeeklyPlan[],target:Page,week:string){
 
 export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:routeRecipe}:{initialPage?:Page;demo?:boolean;recipeId?:string}){
   const router=useRouter(),params=useSearchParams(),kitchen=useKitchen(demo);
+  useNumberFieldTidying();
   const page=demo&&pages.includes(params.get("page") as Page)?params.get("page") as Page:initialPage;
   const defaultWeek=demo?"2026-09-21":mondayOf();
   const rawWeek=params.get("week"),week=rawWeek&&/^\d{4}-\d{2}-\d{2}$/.test(rawWeek)&&!Number.isNaN(Date.parse(rawWeek))?rawWeek:defaultWeek;

@@ -415,6 +415,16 @@
   .kw-workspace .kw-calendar-reference .kw-meal-open{padding-bottom:10px}
 }
 
+/* The dish is what you open the week to read, yet on a phone it was the
+   smallest text on the screen: 13px under a 20px day name, barely above the
+   badges beside it. A card is the full width here, so the room is already
+   there. Chinese carries more strokes per em than Latin and needs the size
+   more, not less. Two lines still fit. */
+@media(max-width:680px){
+  .kw-workspace .kw-calendar-reference .kw-meal-title strong{
+    font-size:16px;line-height:23px;max-height:46px}
+}
+
 /* The nav bar stays put while the week scrolls under it: on a long plan the
    day you are reading is far from the tabs you would use to leave it. It sits
    below the drawer (z-index 10) and any modal (60), so those still cover it. */

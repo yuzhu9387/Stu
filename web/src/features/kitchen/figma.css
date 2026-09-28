@@ -857,3 +857,16 @@ html{scroll-padding-top:96px}
    left 80px of blank card under the tags to meet a desktop floor height.
    The row still lines its two cards up. */
 @media(max-width:520px){.kw-workspace .kw-recipe-card{min-height:0}}
+
+/* Every dish name gets three lines, whether it needs them or not, so the
+   time and source badges under it sit on one line across the whole week,
+   and a long "糙米饭 + 虾仁豆腐 + 蒸西兰花" is not cut short. */
+@media(min-width:681px){
+  .kw-workspace .kw-calendar-reference .kw-meal-title{min-height:55px;align-items:flex-start;gap:5px;padding:0 2px}
+  .kw-workspace .kw-calendar-reference .kw-meal-title .kw-food-emoji{font-size:17px;line-height:21px;flex-basis:18px}
+  /* The name takes the card's width: no side padding of its own. */
+  .kw-workspace .kw-calendar-reference .kw-meal-title strong{-webkit-line-clamp:3;max-height:55px;padding:2px 0 0}
+  /* A source badge that does not fit beside the time goes under it, whole. */
+  .kw-workspace .kw-calendar-reference .kw-meal-meta{flex-wrap:wrap;row-gap:3px;height:auto;padding:0 2px}
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{max-width:100%}
+}

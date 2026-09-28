@@ -1,12 +1,9 @@
 "use client";
-import { Fragment, useMemo } from "react";
-import { AlsoMark } from "./also-contains";
-import { componentGroups } from "./food-groups";
+import { useMemo } from "react";
 import { ArrowsClockwise, ChatCircleDots, LockSimple, Plus } from "@phosphor-icons/react";
 import { foodEmoji } from "./food-art";
 import { dayLabel, slots, weekDays } from "./data";
 import type { CalendarBoard } from "./plan-board";
-import { projectedMealShortages } from "./schedule";
 import type { KitchenState, Meal, MealSlot, WeeklyPlan } from "./types";
 import "./calendar.css";
 
@@ -72,7 +69,6 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
   const days = weekDays(week);
   const dateFormat = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: state.settings.timezone }), [state.settings.timezone]);
   const today = dateFormat.format(new Date());
-  const shortages = useMemo(() => new Map(plan ? projectedMealShortages(state, plan).map(row => [row.meal.id, row.missing]) : []), [state, plan]);
 
   return <div className="kw-calendar-scroll"><div className={`kw-calendar kw-calendar-reference kw-calendar-plan ${plan?.status==="confirmed"?"is-confirmed":""}`} role="region" aria-label="Weekly meal calendar">
     {days.map((day, dayIndex) => {
@@ -83,7 +79,6 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
         {slots.map(slot => {
           const meal = plan?.meals.find(candidate => candidate.day === day && candidate.slot === slot);
           const source = meal ? mealSource(meal, state, plan) : "";
-          const missing = meal?.status === "planned" ? shortages.get(meal.id) : undefined;
           const { label: slotLabel, emoji } = mealStyles[slot];
           const slotHeader = <span className="kw-card-slot"><span>{slotLabel} <span aria-hidden="true">{emoji}</span></span></span>;
           const cardNote = note && meal && note.mealId === meal.id ? note : null;
@@ -93,9 +88,8 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
             : meal ? <article data-food-drop={board ? `meal:${meal.id}` : undefined} className={`kw-meal-card ${selectedId === meal.id ? "is-selected" : ""} ${referencedIds.includes(meal.id) ? "is-referenced" : ""} ${board?.over === `meal:${meal.id}` ? "is-drop-over" : ""} ${meal.status}`}>{referencedIds.includes(meal.id) && <span className="kw-ref-badge" title="Referenced in the Stu chat">💬</span>}
               <button className="kw-meal-open" onClick={event => { if (board?.picked && meal.status === "planned" && !meal.locked) board.onPlace({ kind: "meal", mealId: meal.id }); else if ((event.metaKey || event.ctrlKey) && onReference) onReference(meal); else onSelect(meal); }} aria-label={board?.picked && meal.status === "planned" && !meal.locked ? `Add ${board.picked.name} to ${label} ${slot}` : `Open ${label} ${slot}`} aria-pressed={selectedId === meal.id} title={`${meal.components.map(component => component.name).join(" + ")} · ${Math.max(0, ...meal.components.map(component => component.portions))} portions · ${meal.activeMinutes} min hands-on · ${meal.elapsedMinutes} min elapsed`}>
                 {slotHeader}
-                <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.length ? meal.components.map((c, i) => <Fragment key={c.id}>{i ? " + " : ""}{c.name}<AlsoMark primary={c.type} groups={componentGroups(c, state)} /></Fragment>) : "Untitled meal"}</strong></span>
+                <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.map(c => c.name).join(" + ") || "Untitled meal"}</strong></span>
                 <small className="kw-meal-meta"><span>{meal.activeMinutes} min</span><span>{source.replace("Prepare fresh","Fresh")} {source.includes("fridge")?"🧊":"🌿"}</span></small>
-                {missing && <span className="kw-shortage" title={`Not in the fridge yet — prepare on prep day: ${missing.map(item => `${item.name} ×${item.portions}`).join(", ")}`}>🥣 To prep: {missing.map(item => `${item.name} ×${item.portions}`).join(", ")}</span>}
               </button>
               <div className="kw-card-tools">
                 {meal.locked && <button className="kw-meal-lock" aria-label="Unlock weekly meal" title="Locked every week · click to unlock" onClick={event=>{event.stopPropagation();onUnlock?.(meal);}}><LockSimple size={13} weight="fill"/></button>}

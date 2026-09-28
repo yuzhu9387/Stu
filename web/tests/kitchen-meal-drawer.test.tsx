@@ -20,7 +20,8 @@ describe("meal drawer persistence",()=>{
   it("saves dirty edits and closes after Save in the close prompt",async()=>{
     const props=setup();render(<MealDrawer {...props} initialEdit/>);
     fireEvent.change(screen.getAllByLabelText("Portions")[0],{target:{value:"2"}});
-    fireEvent.click(screen.getByLabelText("Close drawer"));
+    // Escape asks before dropping edits (the close button does not).
+    fireEvent.keyDown(document,{key:"Escape"});
     expect(screen.getByText("Keep your changes?")).toBeVisible();
     fireEvent.click(screen.getByText("Save changes"));
     await waitFor(()=>expect(props.onClose).toHaveBeenCalledOnce());

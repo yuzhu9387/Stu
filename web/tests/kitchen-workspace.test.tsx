@@ -98,8 +98,8 @@ describe("kitchen workspace navigation and concurrency",()=>{
     fireEvent.click(screen.getByLabelText(/^Reference Tue.*dinner in chat$/));
     expect(await screen.findByText("Save or discard your drawer edits before leaving this meal.")).toBeVisible();
     expect(new URLSearchParams(nav.query).get("meal")).toBe(dinner);
+    // The close button drops unsaved edits without asking.
     fireEvent.click(screen.getByLabelText("Close drawer"));
-    fireEvent.click(screen.getByText("Discard changes"));
     fireEvent.click(screen.getByLabelText(/^Reference Wed.*dinner in chat$/));
     await screen.findByLabelText("Ask Stu to adjust your plan");
     // Only Wednesday was referenced — the attempt while the drawer was dirty
@@ -112,8 +112,8 @@ describe("kitchen workspace navigation and concurrency",()=>{
     nav.query+=`&meal=${dinner}`;render(<KitchenWorkspace demo/>);await loaded();
     fireEvent.click(screen.getByLabelText("Edit meal"));
     fireEvent.change(screen.getAllByLabelText("Portions")[0],{target:{value:"2"}});
+    // The close button drops unsaved edits without asking.
     fireEvent.click(screen.getByLabelText("Close drawer"));
-    fireEvent.click(screen.getByText("Discard changes"));
     await waitFor(()=>expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(new URLSearchParams(nav.query).has("meal")).toBe(false);
     expect(store().plans[0].meals.find(m=>m.id===dinner)?.components[0].portions).toBe(3);

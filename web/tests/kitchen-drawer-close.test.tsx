@@ -21,31 +21,42 @@ describe("closing the meal drawer", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it("asks first, next to the close button, when the recipe form was changed", () => {
+  it("closes from the recipe form even after typing, dropping the edits", () => {
     const props = drawer();
     fireEvent.click(screen.getByRole("button", { name: "Save to recipe 📖" }));
     fireEvent.change(screen.getByLabelText("Recipe name"), { target: { value: "香煎三文鱼块" } });
     fireEvent.click(screen.getByLabelText("Close drawer"));
+    expect(props.onClose).toHaveBeenCalled();
+    expect(props.onSave).not.toHaveBeenCalled();
+  });
+
+  it("asks on Escape when the recipe form was changed, right under the header", () => {
+    const props = drawer();
+    fireEvent.click(screen.getByRole("button", { name: "Save to recipe 📖" }));
+    fireEvent.change(screen.getByLabelText("Recipe name"), { target: { value: "香煎三文鱼块" } });
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(props.onClose).not.toHaveBeenCalled();
     const prompt = screen.getByRole("alert");
     expect(prompt).toHaveTextContent("Discard these recipe edits?");
-    // Right under the header, not below the form, with the choice in focus.
     expect(prompt.closest("footer")).toBeNull();
     expect(prompt.contains(document.activeElement)).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Discard recipe edits" }));
     expect(screen.queryByRole("heading", { name: "Edit and add recipe" })).not.toBeInTheDocument();
   });
 
-  it("asks about unsaved meal edits at the top, and discarding closes", () => {
+  it("closes with unsaved meal edits, even ones that could not be saved", () => {
     const props = drawer();
     fireEvent.click(screen.getByRole("button", { name: "Edit meal" }));
-    fireEvent.change(screen.getAllByLabelText("Portions")[0], { target: { value: "5" } });
-    fireEvent.click(screen.getByLabelText("Close drawer"));
+    // Every dish taken off: Save would refuse this meal.
+    for (const remove of screen.getAllByRole("button", { name: /^Remove / })) fireEvent.click(remove);
+    fireEvent.keyDown(document, { key: "Escape" });
     const prompt = screen.getByRole("alert");
     expect(prompt).toHaveTextContent("Keep your changes?");
-    expect(prompt.closest("footer")).toBeNull();
     expect(prompt.contains(document.activeElement)).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    // With the question showing, the close button still just closes.
+    fireEvent.click(screen.getByLabelText("Close drawer"));
     expect(props.onClose).toHaveBeenCalled();
+    expect(props.onDirty).toHaveBeenLastCalledWith(false);
+    expect(props.onSave).not.toHaveBeenCalled();
   });
 });

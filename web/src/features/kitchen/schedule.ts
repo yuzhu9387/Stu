@@ -58,10 +58,13 @@ export function projectedMealShortages(state: KitchenState, plan: WeeklyPlan) {
     else stock.push({ id, name: task.name, type: task.type === "Baking" ? "Carbs" : task.type, portions: task.plannedPortions, recipeId: task.recipeId, location: "planned", prepared: true, addedOn: plan.weekStart, priority: false });
     ready.add(task.id);
   }
-  state.plans.filter(p => p.status === "confirmed" && p.id !== plan.id && p.id !== plan.basePlanId).forEach(p => p.meals.filter(m => m.status === "planned" && m.included !== false).forEach(m => m.components.filter(c => c.inventoryId || c.prepId).forEach(consume)));
+  const foodName = (id: string) => state.inventory.find(i => i.id === id)?.name ?? id;
+  state.plans.filter(p => p.status === "confirmed" && p.id !== plan.id && p.id !== plan.basePlanId).forEach(p => p.meals.filter(m => m.status === "planned" && m.included !== false).forEach(m => { m.components.filter(c => c.inventoryId || c.prepId).forEach(consume); m.components.flatMap(c => c.uses ?? []).forEach(u => consume({ ...u, name: "" })); }));
   const order = { breakfast: 0, lunch: 1, dinner: 2 };
   return plan.meals.filter(m => m.status === "planned" && m.included !== false).slice().sort((a,b) => a.day.localeCompare(b.day) || order[a.slot] - order[b.slot]).flatMap(meal => {
     const missing = meal.components.filter(c => c.inventoryId || c.prepId).flatMap(c => { const prep = plan.prep.find(p => p.id === c.prepId); const portions = consume({ ...c, inventoryId: prep ? prep.outputInventoryId || `prep-${prep.id}` : c.inventoryId }); return portions > 1e-8 ? [{ name: c.name, portions }] : []; });
+    // A dish cooked from fridge foods is short of whichever food ran out.
+    meal.components.flatMap(c => c.uses ?? []).forEach(u => { const portions = consume({ ...u, name: "" }); if (portions > 1e-8) missing.push({ name: foodName(u.inventoryId), portions }); });
     return missing.length ? [{ meal, missing }] : [];
   });
 }

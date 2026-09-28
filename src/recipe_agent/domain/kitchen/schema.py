@@ -496,6 +496,9 @@ class MealComponent(Base):
     prep_task_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("prep_tasks.id", ondelete="SET NULL")
     )
+    # A dish cooked from several fridge foods: [{"batchId": inventory batch
+    # UUID, "portions": n}], what it takes from each when the meal is eaten.
+    uses: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
 
 
 class MealStep(Base):

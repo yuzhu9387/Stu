@@ -73,6 +73,7 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
   // A quick task (no recipe, nothing made) is not food on its way to the fridge.
   plan?.prep.filter(p => p.status === "planned" && (p.recipeId || p.plannedPortions > 0)).forEach(p => { group(p.name, p.type === "Baking" ? "Carbs" : p.type).planned += p.plannedPortions; p.inputs.forEach(input => { const item = state.inventory.find(i => i.id === input.inventoryId); if (item) group(item.name, item.type).needed += input.portions; }); });
   plan?.meals.filter(m => m.status === "planned").forEach(m => m.components.filter(c => c.inventoryId || c.prepId).forEach(c => { const item = state.inventory.find(i => i.id === c.inventoryId); const prep = plan.prep.find(p => p.id === c.prepId); group(item?.name || prep?.name || c.name, item?.type || (prep?.type === "Baking" ? "Carbs" : prep?.type) || c.type).needed += c.portions; }));
+  plan?.meals.filter(m => m.status === "planned").forEach(m => m.components.flatMap(c => c.uses ?? []).forEach(u => { const item = state.inventory.find(i => i.id === u.inventoryId); if (item) group(item.name, item.type).needed += u.portions; }));
   const short = [...groups.values()].filter(g => g.needed > g.onHand + g.planned);
 
   return <section className="kw-support-page kw-fridge-page">
@@ -129,7 +130,7 @@ function FoodDialog({ item, state, plan, send, navigate, onClose }: { item: Inve
   const change = (fields: Partial<InventoryItem>) => setDraft(current => ({ ...current, ...fields }));
   const existing = state.inventory.some(i => i.id === item.id);
   const fresh = freshness(draft.expiresOn);
-  const linked = (plan?.meals ?? []).filter(meal => meal.components.some(c => c.inventoryId === draft.id));
+  const linked = (plan?.meals ?? []).filter(meal => meal.components.some(c => c.inventoryId === draft.id || c.uses?.some(u => u.inventoryId === draft.id)));
   const linkable = (plan?.meals ?? []).filter(meal => !linked.includes(meal) && meal.status === "planned");
   const dayName = (day: string) => new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
 

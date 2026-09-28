@@ -172,7 +172,9 @@ def plan_rule_violations(state: dict[str, Any], plan: dict[str, Any]) -> list[di
         for component in meal["components"]:
             stock = inventory.get(component.get("inventoryId"))
             ready = component.get("prepId") in prep_ids or (stock and stock.get("prepared"))
-            if not ready and component.get("recipeId") not in recipes and not stock:
+            # A dish composed from fridge foods carries its time in the meal.
+            sourced = stock or component.get("uses")
+            if not ready and component.get("recipeId") not in recipes and not sourced:
                 violations.append(
                     {
                         "kind": "recipe",

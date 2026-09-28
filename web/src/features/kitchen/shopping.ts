@@ -31,7 +31,8 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
     balances.set(id, (balances.get(id) ?? 0) - amount);
     return need - amount;
   }
-  function addRecipe(id: string | undefined, portions: number, name: string) {
+  /** Buy a recipe's ingredients, except those in `have` (already set aside). */
+  function addRecipe(id: string | undefined, portions: number, name: string, have = new Set<string>()) {
     if (portions <= 0) return;
     const recipe = id ? recipes.get(id) : undefined;
     if (!recipe?.ingredients.length || !recipe.servings) {
@@ -39,6 +40,7 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
       return;
     }
     for (const ingredient of recipe.ingredients) {
+      if (have.has(normalize(ingredient.name))) continue;
       if (!ingredient.quantity || !ingredient.unit.trim()) {
         warnings.add(`${ingredient.name} (${name}): check the amount in the recipe.`);
         continue;
@@ -69,8 +71,18 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
       } else if (component.inventoryId) {
         need = take(component.inventoryId, need, meal.day);
       }
+      // A dish cooked from fridge foods sets those foods aside; only the rest
+      // of its recipe (flour, oil…) is bought.
+      const have = new Set<string>();
+      for (const use of component.uses ?? []) {
+        const food = state.inventory.find(i => i.id === use.inventoryId);
+        if (!food) continue;
+        balances.set(food.id, Math.max(0, (balances.get(food.id) ?? 0) - use.portions));
+        [food.name, food.nameEn ?? ""].filter(Boolean).forEach(name => have.add(normalize(name)));
+      }
+      if (have.size && !component.recipeId) continue;
       const stored = state.inventory.find(i => i.id === component.inventoryId);
-      addRecipe(component.recipeId ?? task?.recipeId ?? stored?.recipeId, need, component.name);
+      addRecipe(component.recipeId ?? task?.recipeId ?? stored?.recipeId, need, component.name, have);
     }
   }
   const rawBalances = new Map(balances);

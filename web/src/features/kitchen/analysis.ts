@@ -257,7 +257,7 @@ export function planStats(state: KitchenState, plan: WeeklyPlan) {
   const budget = state.settings.maxDailyActiveMinutes;
   const overBudget = week.filter(day => dayActiveMinutes(plan, day) > budget);
   const fromStock = meals.filter(m =>
-    m.components.some(c => c.inventoryId || c.prepId),
+    m.components.some(c => c.inventoryId || c.prepId || c.uses?.length),
   ).length;
   return {
     foodGroups: new Set(meals.flatMap(m => m.components.map(c => c.type))).size,

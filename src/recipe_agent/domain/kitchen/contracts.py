@@ -220,6 +220,13 @@ class InventoryItem(Contract):
         return self
 
 
+class StockUse(Contract):
+    """Fridge portions a dish is made from."""
+
+    inventoryId: Identifier
+    portions: Annotated[float, Field(gt=0, allow_inf_nan=False, strict=True)]
+
+
 class MealComponent(Contract):
     id: Identifier
     name: Identifier
@@ -228,6 +235,17 @@ class MealComponent(Contract):
     recipeId: Identifier | None = None
     inventoryId: Identifier | None = None
     prepId: Identifier | None = None
+    # A dish cooked from several fridge foods (a basket): what it takes from each.
+    # A dish served straight from one batch names that batch in inventoryId.
+    uses: list[StockUse] | None = Field(default=None, max_length=12)
+
+    @model_validator(mode="after")
+    def _one_source(self) -> Self:
+        if self.uses and (self.inventoryId or self.prepId):
+            raise ValueError("A dish made from fridge foods cannot also come from one batch")
+        if not self.uses:
+            self.uses = None
+        return self
 
 
 class Meal(Contract):

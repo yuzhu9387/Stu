@@ -400,3 +400,43 @@ async def test_a_command_that_leaves_a_plan_alone_does_not_rewrite_its_rows(
     _, relational = await driver.both()
     assert relational["plans"][0]["meals"][0]["liked"] is True
     await assert_identical(driver)
+
+
+async def test_a_dish_made_from_fridge_foods_keeps_them_through_eating_it(
+    driver, relational_sessions
+):
+    await seed(driver)
+    await driver.send("inventory.save", {"item": batch("inv-spinach", "菠菜", 3.0)})
+    plan = plan_with_prep()
+    plan["prep"] = []
+    plan["meals"][0]["components"] = [
+        {
+            "id": "m-1-c1",
+            "name": "菠菜鸡蛋饼",
+            "type": "Protein",
+            "portions": 1.0,
+            "uses": [
+                {"inventoryId": "inv-eggs", "portions": 2.0},
+                {"inventoryId": "inv-spinach", "portions": 1.0},
+            ],
+        }
+    ]
+    await driver.send("plan.save", {"plan": plan})
+    await assert_identical(driver)
+    async with relational_sessions() as session:
+        component = await session.scalar(
+            select(s.MealComponent).where(s.MealComponent.legacy_id == "m-1-c1")
+        )
+        batches = {b.legacy_id: str(b.id) for b in await session.scalars(select(s.InventoryBatch))}
+        assert component.uses == [
+            {"batchId": batches["inv-eggs"], "portions": 2.0},
+            {"batchId": batches["inv-spinach"], "portions": 1.0},
+        ]
+    await driver.send("plan.confirm", {"id": "p-1"})
+    await driver.send("meal.status", {"planId": "p-1", "mealId": "m-1", "status": "completed"})
+    await assert_identical(driver)
+    _, relational = await driver.both()
+    assert {i["id"]: i["portions"] for i in relational["inventory"]} == {
+        "inv-eggs": 8.0,
+        "inv-spinach": 2.0,
+    }

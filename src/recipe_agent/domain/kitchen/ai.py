@@ -64,6 +64,26 @@ class PreferencesRequest(Input):
     text: str = Field(min_length=1, max_length=10000)
 
 
+class ComposeRequest(Input):
+    """A basket of fridge foods to turn into one dish."""
+
+    inventoryIds: list[str] = Field(min_length=1, max_length=8)
+    slot: typing.Literal["breakfast", "lunch", "dinner"] | None = None
+    # The meal's other dishes, so the new one goes with them.
+    mealDishes: list[str] = Field(default_factory=list, max_length=8)
+    note: str = Field(default="", max_length=1000)
+
+
+class ComposedUse(Input):
+    inventoryId: str
+    portions: float = Field(gt=0)
+
+
+class Composition(Input):
+    recipe: GeneratedRecipe
+    uses: list[ComposedUse] = Field(min_length=1, max_length=8)
+
+
 class PreferenceItem(Input):
     title: str = Field(min_length=1, max_length=80)
     content: str = Field(min_length=1, max_length=2000)
@@ -495,6 +515,9 @@ def projected_inventory(state: dict[str, Any], target_week: str) -> list[dict[st
                     identifier = prep.get("outputInventoryId") or f"prep-{prep['id']}"
                 if identifier in rows:
                     rows[identifier]["reservedPortions"] += component["portions"]
+                for use in component.get("uses") or []:
+                    if use["inventoryId"] in rows:
+                        rows[use["inventoryId"]]["reservedPortions"] += use["portions"]
     for row in rows.values():
         balance = row["onHandPortions"] + row["plannedOutputPortions"] - row["reservedPortions"]
         row["projectedPortions"] = max(0, balance)
@@ -1652,6 +1675,101 @@ class KitchenAI:
             seen.add(key)
             items.append({"title": item.title.strip(), "content": item.content.strip()})
         return {"preferences": items}
+
+    async def compose(self, scope: HouseholdScope, request: ComposeRequest) -> dict[str, Any]:
+        """Turn a basket of fridge foods into one dish: a recipe, and what it
+        takes from each food. A preview: nothing is saved here."""
+        state = await self.repository.get(scope)
+        stock = {item["id"]: item for item in state["inventory"]}
+        basket = [stock[i] for i in dict.fromkeys(request.inventoryIds) if i in stock]
+        if not basket:
+            raise ValueError("Choose foods that are in the fridge")
+        settings = state["settings"]
+        raw = await self.provider.complete(
+            [
+                {
+                    "role": "system",
+                    "content": SYSTEM
+                    + " Compose ONE dish from the basket of fridge foods. Use every basket food "
+                    "unless it truly does not belong, then leave it out of uses. You may add "
+                    "pantry staples (oil, salt, soy sauce, flour, starch, water) but no other "
+                    "fresh food unless the note asks. Cook for settings.people portions: set "
+                    "recipe.servings to that, and uses to the portions taken from each basket "
+                    "food (never more than it has). Name the dish in the household's language, "
+                    "as a cook would. Follow the enabled guidance and the child's age; respect "
+                    "allergies. recipe.type is the dish's main food group; secondaryTypes the "
+                    "other groups it contains. Give real ingredient amounts, short practical "
+                    "steps and honest minutes. Keep recipe source 'Composed from fridge'.",
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "basket": [
+                                {
+                                    key: item[key]
+                                    for key in (
+                                        "id",
+                                        "name",
+                                        "nameEn",
+                                        "type",
+                                        "secondaryTypes",
+                                        "portions",
+                                        "location",
+                                        "prepared",
+                                        "notes",
+                                        "expiresOn",
+                                    )
+                                    if item.get(key) not in (None, "", [])
+                                }
+                                for item in basket
+                            ],
+                            "slot": request.slot,
+                            "mealDishes": request.mealDishes,
+                            "note": request.note,
+                            "settings": {
+                                "people": settings.get("people"),
+                                "childAge": settings.get("childAge"),
+                                "allergies": settings.get("allergies", []),
+                                "guidance": [
+                                    {"title": g["title"], "content": g["content"]}
+                                    for g in settings.get("guidance", [])
+                                    if g.get("enabled")
+                                ],
+                            },
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            ],
+            Composition.model_json_schema(),
+        )
+        composed = Composition.model_validate(prune_extras(Composition, raw))
+        recipe = composed.recipe.model_dump(mode="json", exclude_none=True)
+        recipe.update(id=str(uuid4()), source="Composed from fridge", liked=False)
+        recipe.pop("incomplete", None)
+        # Seasoning "to taste" has no amount; the steps still say how to use it.
+        recipe["ingredients"] = [
+            i for i in recipe["ingredients"] if i["quantity"] > 0 and i["unit"].strip()
+        ]
+        if request.slot and not recipe.get("mealTypes"):
+            recipe["mealTypes"] = [request.slot]
+        complete_recipe(recipe, settings.get("allergies", []))
+        chosen = {item["id"]: item for item in basket}
+        uses: dict[str, float] = {}
+        for use in composed.uses:
+            item = chosen.get(use.inventoryId)
+            if item is not None:
+                taken = uses.get(item["id"], 0) + use.portions
+                uses[item["id"]] = min(taken, item["portions"])
+        if not uses:
+            raise ValueError("Stu could not make a dish from these foods; try another basket")
+        return {
+            "recipe": recipe,
+            "uses": [
+                {"inventoryId": key, "portions": value} for key, value in uses.items() if value > 0
+            ],
+        }
 
     async def extract(self, scope: HouseholdScope, request: ExtractRequest) -> dict[str, Any]:
         if not (request.text and request.text.strip()) and not request.imageData:

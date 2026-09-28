@@ -487,6 +487,16 @@ class RelationalWorkspaceReader:
                         part["inventoryId"] = transport(batches[component.inventory_batch_id])
                     if component.prep_task_id in prep_by_id:
                         part["prepId"] = transport(prep_by_id[component.prep_task_id])
+                    uses = [
+                        {
+                            "inventoryId": transport(batches[UUID(use["batchId"])]),
+                            "portions": use["portions"],
+                        }
+                        for use in component.uses or []
+                        if UUID(use["batchId"]) in batches
+                    ]
+                    if uses:
+                        part["uses"] = uses
                     parts.append(part)
                 meals.append(
                     {

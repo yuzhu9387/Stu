@@ -16,7 +16,7 @@ export function applyRecurring(state:KitchenState,plan:WeeklyPlan){
     const ids=new Map(rule.prep.map(t=>[t.id,`recurring-${plan.id}-${rule.weekday}-${rule.slot}-${t.id}`]));
     const tasks=rule.prep.map(t=>{const need=rule.meal.components.filter(c=>c.prepId===t.id).reduce((n,c)=>n+c.portions,0),factor=need&&t.plannedPortions?need/t.plannedPortions:1;return {...copy(t),id:ids.get(t.id)!,status:"planned" as const,actualPortions:0,plannedPortions:t.plannedPortions*factor,activeMinutes:t.activeMinutes*factor,elapsedMinutes:t.elapsedMinutes*factor,liked:false,outputInventoryId:undefined,inputs:[],dependencies:t.dependencies.flatMap(d=>ids.has(d)?[ids.get(d)!]:[])};});
     plan.prep.push(...tasks.filter(t=>!plan.prep.some(p=>p.id===t.id)));
-    const meal:Meal={...copy(rule.meal),id:old?.id??`recurring-${plan.id}-${rule.weekday}-${rule.slot}`,day:date.toISOString().slice(0,10),included:true,status:"planned",liked:false,locked:true,components:rule.meal.components.map(c=>({...c,inventoryId:undefined,prepId:c.prepId?ids.get(c.prepId):undefined}))};
+    const meal:Meal={...copy(rule.meal),id:old?.id??`recurring-${plan.id}-${rule.weekday}-${rule.slot}`,day:date.toISOString().slice(0,10),included:true,status:"planned",liked:false,locked:true,components:rule.meal.components.map(c=>({...c,inventoryId:undefined,uses:undefined,prepId:c.prepId?ids.get(c.prepId):undefined}))};
     if(old)plan.meals[plan.meals.indexOf(old)]=meal;else plan.meals.push(meal);
   }
   reconcile(before,plan);

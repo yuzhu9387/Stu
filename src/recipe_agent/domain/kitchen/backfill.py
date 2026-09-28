@@ -23,6 +23,7 @@ from recipe_agent.domain.identity.models import Account
 from recipe_agent.domain.kitchen import schema as s
 from recipe_agent.domain.kitchen.contracts import ANALYSIS_METRICS, Workspace
 from recipe_agent.domain.kitchen.models import KitchenWorkspace
+from recipe_agent.domain.kitchen.relational_write import stock_uses
 
 # The JSON aggregate uses these four food types; `dairy` only exists in the new
 # designs, so nothing backfills into it.
@@ -537,6 +538,7 @@ class WorkspaceBackfill:
                         recipe_id=recipe.id if recipe else None,
                         inventory_batch_id=batch.id if batch else None,
                         prep_task_id=task.id if task else None,
+                        uses=stock_uses(component, self.batches),
                     )
                 )
                 self.report.add("meal_components")

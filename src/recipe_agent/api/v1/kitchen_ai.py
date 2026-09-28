@@ -12,6 +12,7 @@ from recipe_agent.config import get_settings
 from recipe_agent.domain.kitchen.ai import (
     AIUnavailable,
     ChatRequest,
+    ComposeRequest,
     ExtractRequest,
     GenerateRequest,
     KitchenAI,
@@ -63,6 +64,12 @@ async def chat(body: ChatRequest, request: Request, scope: ScopeDependency) -> d
 @router.post("/extract")
 async def extract(body: ExtractRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
     return await invoke(service(request).extract(scope, body))
+
+
+@router.post("/compose")
+async def compose(body: ComposeRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
+    """Preview one dish made from a basket of fridge foods; nothing is saved."""
+    return await invoke(service(request).compose(scope, body))
 
 
 @router.post("/preferences")

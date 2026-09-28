@@ -879,6 +879,18 @@ PLAN_CONTEXT = ("recipes", "knowledgeDocuments", "mealStylePresets")
 PLAN_CHILDREN = ("prep", "meals", "chat", "presets", "guidanceSnapshot", "knowledgeSnapshot")
 
 
+def stock_uses(
+    component: dict[str, Any], batches: dict[str, s.InventoryBatch]
+) -> list[dict[str, Any]] | None:
+    """A composed dish's fridge foods, by batch row, as stored on its component."""
+    uses = [
+        {"batchId": str(batches[use["inventoryId"]].id), "portions": use["portions"]}
+        for use in component.get("uses") or []
+        if use["inventoryId"] in batches
+    ]
+    return uses or None
+
+
 def _batch_ids(document: dict[str, Any]) -> list[str]:
     return sorted(str(item["id"]) for item in document.get("inventory") or [])
 
@@ -1135,6 +1147,7 @@ async def _project_meals(
                     recipe_id=recipe.id if recipe else None,
                     inventory_batch_id=batch.id if batch else None,
                     prep_task_id=task.id if task else None,
+                    uses=stock_uses(component, batches),
                 )
             )
         for index, step in enumerate(raw.get("steps") or []):

@@ -47,9 +47,11 @@ function mealSource(meal: Meal, state: KitchenState, plan: WeeklyPlan | null): s
   const sources = meal.components.map(component => {
     const prep = plan?.prep.find(task => task.id === component.prepId);
     if (component.prepId && prep?.status !== "completed") return prep?.status === "planned" ? "prep" : "missing";
-    const stockId = prep?.outputInventoryId || component.inventoryId;
-    if (!stockId) return "fresh";
-    const stock = state.inventory.find(item => item.id === stockId);
+    // A dish cooked from fridge foods is as ready as the scarcest of them.
+    const stockIds = component.uses?.map(use => use.inventoryId) ?? [prep?.outputInventoryId || component.inventoryId];
+    if (!stockIds[0]) return "fresh";
+    const foods = stockIds.map(id => state.inventory.find(item => item.id === id));
+    const stock = foods.some(food => !food || (meal.status === "planned" && food.portions <= 0)) ? undefined : foods[0];
     if (!stock || (meal.status === "planned" && stock.portions <= 0)) return "missing";
     return stock.location.toLowerCase() === "freezer" ? "freezer" : stock.location.toLowerCase() === "fridge" ? "fridge" : "stored";
   });

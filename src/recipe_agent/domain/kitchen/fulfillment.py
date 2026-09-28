@@ -143,6 +143,8 @@ async def generate_fulfillment(
                 recipe
                 and recipe["steps"]
                 and not recipe.get("incomplete")
+                # A dish cooked on the day from fridge foods is not batch prep.
+                and not component.get("uses")
                 and (
                     not component.get("inventoryId") or component.get("prepId") in planned_prep_ids
                 )
@@ -372,6 +374,7 @@ def attach_fulfillment(state: dict[str, Any], plan: dict[str, Any], raw: Any) ->
             or not meal.get("included", True)
             or component.get("inventoryId")
             or component.get("prepId")
+            or component.get("uses")
             or not component.get("recipeId")
             or component["recipeId"] != task.get("recipeId")
         ):

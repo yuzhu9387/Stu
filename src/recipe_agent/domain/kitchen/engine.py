@@ -128,6 +128,8 @@ def validate_references(state: dict[str, Any]) -> None:
                 ]:
                     if component.get(key) and component[key] not in available:
                         raise KitchenError(f"{component['name']}: unknown {key}")
+                if any(use["inventoryId"] not in inventory for use in component.get("uses") or []):
+                    raise KitchenError(f"{component['name']}: unknown fridge food")
                 selected = None
                 if component.get("inventoryId"):
                     selected = find(state["inventory"], component["inventoryId"])
@@ -208,6 +210,16 @@ def consume(state: dict[str, Any], component: dict[str, Any], deltas: list[dict[
         )
 
 
+def dish_uses(state: dict[str, Any], component: dict[str, Any]) -> list[dict[str, Any]]:
+    """What a dish cooked from several fridge foods takes from each, named for
+    the food so a shortage says which one ran out."""
+    names = {item["id"]: item["name"] for item in state["inventory"]}
+    return [
+        {**use, "name": names.get(use["inventoryId"], use["inventoryId"])}
+        for use in component.get("uses") or []
+    ]
+
+
 def storage_location(value: str) -> str:
     """The fridge's own compartments are stored as the tables store them."""
     value = value.strip()
@@ -270,7 +282,8 @@ def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> None:
                     and task["status"] == "completed"
                     and task.get("outputInventoryId") == identifier
                 )
-                if component.get("inventoryId") == identifier or made_here:
+                used = any(u["inventoryId"] == identifier for u in component.get("uses") or [])
+                if component.get("inventoryId") == identifier or made_here or used:
                     weekday = date.fromisoformat(meal["day"]).strftime("%a")
                     raise KitchenError(
                         f"{item['name']} is planned for {weekday} {meal['slot']}. "
@@ -290,6 +303,12 @@ def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> None:
             for component in meal["components"]:
                 if component.get("inventoryId") == identifier:
                     component.pop("inventoryId")
+                if component.get("uses"):
+                    kept = [u for u in component["uses"] if u["inventoryId"] != identifier]
+                    if kept:
+                        component["uses"] = kept
+                    else:
+                        component.pop("uses")
         for task in plan["prep"]:
             task["inputs"] = [i for i in task["inputs"] if i["inventoryId"] != identifier]
             if task.get("outputInventoryId") == identifier:
@@ -307,6 +326,13 @@ def inventory_references(state: dict[str, Any]) -> set[str]:
             for meal in plan["meals"]
             for component in meal["components"]
             if component.get("inventoryId")
+        ),
+        *(
+            use["inventoryId"]
+            for plan in state["plans"]
+            for meal in plan["meals"]
+            for component in meal["components"]
+            for use in component.get("uses") or []
         ),
         *(
             ingredient["inventoryId"]
@@ -358,6 +384,12 @@ def check_confirmation(
     inventory_ids = {
         component.get("inventoryId") for meal in plan["meals"] for component in meal["components"]
     }
+    inventory_ids.update(
+        use["inventoryId"]
+        for meal in plan["meals"]
+        for component in meal["components"]
+        for use in component.get("uses") or []
+    )
     inventory_ids.update(
         ingredient["inventoryId"] for task in plan["prep"] for ingredient in task["inputs"]
     )
@@ -428,6 +460,9 @@ def check_confirmation(
                     # against a coincidentally matching leftover batch.
                     if check_stock and component.get("inventoryId"):
                         consume(projected, component, [])
+                    if check_stock:
+                        for use in dish_uses(projected, component):
+                            consume(projected, use, [])
 
 
 def reconcile_prep(original: dict[str, Any], candidate: dict[str, Any]) -> list[dict[str, Any]]:
@@ -981,6 +1016,8 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
                                 selected["inventoryId"] = task["outputInventoryId"]
                             if selected.get("inventoryId"):
                                 consume(state, selected, deltas)
+                            for use in dish_uses(state, component):
+                                consume(state, use, deltas)
                     else:
                         for dependency in entity["dependencies"]:
                             if find(plan["prep"], dependency)["status"] != "completed":

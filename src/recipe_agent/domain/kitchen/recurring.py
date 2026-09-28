@@ -63,6 +63,7 @@ def apply_recurring(state: dict[str, Any], plan: dict[str, Any]) -> None:
                 plan["prep"].append(task)
         for c in fresh["components"]:
             c.pop("inventoryId", None)
+            c.pop("uses", None)
             if c.get("prepId") in mapping:
                 c["prepId"] = mapping[c["prepId"]]
             else:

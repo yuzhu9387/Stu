@@ -43,6 +43,10 @@ def allocate_prep_inputs(
             if not c.get("prepId") and c.get("inventoryId") in balances:
                 key = c["inventoryId"]
                 balances[key] = max(0, balances[key] - c["portions"])
+            for use in c.get("uses") or []:
+                if use["inventoryId"] in balances:
+                    key = use["inventoryId"]
+                    balances[key] = max(0, balances[key] - use["portions"])
     for task in plan["prep"]:
         if task["id"] in new_task_ids or task["status"] != "planned":
             continue
@@ -104,7 +108,10 @@ def shopping_list(
     rows: dict[tuple[str, str], dict[str, Any]] = {}
     warnings: list[str] = []
 
-    def add_recipe(identifier: str | None, portions: float, name: str) -> None:
+    def add_recipe(
+        identifier: str | None, portions: float, name: str, have: frozenset[str] = frozenset()
+    ) -> None:
+        """Buy a recipe's ingredients, except those in `have` (already set aside)."""
         if portions <= 0:
             return
         recipe = recipes.get(identifier or "")
@@ -112,6 +119,8 @@ def shopping_list(
             warnings.append(f"{name}: add recipe ingredients.")
             return
         for ingredient in recipe["ingredients"]:
+            if normalized(ingredient["name"]) in have:
+                continue
             if not ingredient.get("quantity") or not ingredient.get("unit", "").strip():
                 warnings.append(f"{ingredient['name']} ({name}): check the recipe amount.")
                 continue
@@ -157,12 +166,23 @@ def shopping_list(
                     used = min(need, balances[inventory_id])
                     balances[inventory_id] -= used
                     need -= used
+            # A dish cooked from fridge foods sets those foods aside; only the
+            # rest of its recipe (flour, oil…) is bought.
+            have: set[str] = set()
+            for use in component.get("uses") or []:
+                food = stock.get(use["inventoryId"])
+                if food:
+                    balances[food["id"]] = max(0, balances[food["id"]] - use["portions"])
+                    have.update(normalized(n) for n in (food["name"], food.get("nameEn")) if n)
+            if have and not component.get("recipeId"):
+                continue
             add_recipe(
                 component.get("recipeId")
                 or (task or {}).get("recipeId")
                 or stock.get(inventory_id, {}).get("recipeId"),
                 need,
                 component["name"],
+                frozenset(have),
             )
     for (name, unit), row in rows.items():
         for item in stock.values():

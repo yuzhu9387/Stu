@@ -19,6 +19,7 @@
 .kw-basket-use small{font-size:11px;color:var(--stu-muted);padding-bottom:10px;white-space:nowrap}
 .kw-basket-use .kw-icon{margin-bottom:4px}
 @media(max-width:700px){.kw-basket-foods{grid-template-columns:repeat(2,minmax(0,1fr))}.kw-basket-food{min-height:56px}.kw-basket-actions .kw-button{flex:1 1 100%;min-height:44px}.kw-basket-food small,.kw-basket-use small{font-size:12px}}
-/* The first choice when filling an empty slot. */
-.kw-basket-entry{border:2px dashed #64734b!important;background:#eef4e5!important;margin-bottom:10px}
-.kw-basket-entry strong{font-size:14px}
+/* Filling an empty slot: make your own, or choose a recipe below. */
+.kw-make-own{width:100%;min-height:48px;font-size:15px}
+.kw-drawer .kw-or{display:flex;align-items:center;gap:10px;margin:18px 0 12px;font-size:13px;font-weight:800;color:#6b584e}
+.kw-drawer .kw-or::before,.kw-drawer .kw-or::after{content:"";flex:1;height:1px;background:#35251f33}

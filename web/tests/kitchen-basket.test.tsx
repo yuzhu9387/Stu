@@ -146,11 +146,11 @@ it("offers to make your own dish first when filling an empty slot", async () => 
   const onSave = vi.fn().mockResolvedValue(true);
   render(<MealDrawer state={state} plan={plan} meal={fresh} demo initialReplace onClose={vi.fn()} onDirty={vi.fn()} onSave={onSave} onAction={vi.fn()} onReference={vi.fn()} onRecipe={vi.fn()} busy={false} />);
   expect(screen.getByRole("heading", { name: "Add a meal" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /Make your own dish/ }));
+  fireEvent.click(screen.getByRole("button", { name: "🧺 Make your own" }));
   expect(screen.getByRole("group", { name: "Fridge foods" })).toBeInTheDocument();
   // Back returns to the choice it came from.
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  fireEvent.click(screen.getByRole("button", { name: /Make your own dish/ }));
+  fireEvent.click(screen.getByRole("button", { name: "🧺 Make your own" }));
   fireEvent.click(within(screen.getByRole("group", { name: "Fridge foods" })).getByRole("button", { name: /鸡蛋/ }));
   fireEvent.click(screen.getByRole("button", { name: "✨ Make a dish from 1 food" }));
   await screen.findByRole("heading", { name: "Stu’s dish" });

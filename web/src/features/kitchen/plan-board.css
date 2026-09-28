@@ -5,7 +5,8 @@
    margins so a card's name and badges keep their room. */
 .kw-workspace .kw-plan-board .kw-calendar.kw-calendar-reference{min-width:960px;column-gap:8px}
 @media(min-width:761px){
-  .kw-workspace .kw-plan-board .kw-calendar-reference .kw-day{padding-left:6px;padding-right:6px}
+  .kw-workspace .kw-plan-board .kw-calendar-reference .kw-day,
+  .kw-workspace .kw-plan-board .kw-calendar-reference .kw-day.is-today{padding-left:6px;padding-right:6px}
   .kw-workspace .kw-plan-board .kw-calendar-reference .kw-meal-card{padding-left:7px;padding-right:7px}
 }
 /* The week sets the height; the fridge fills it and scrolls inside. */

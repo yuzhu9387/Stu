@@ -866,10 +866,15 @@ html{scroll-padding-top:96px}
   .kw-workspace .kw-calendar-reference .kw-meal-title .kw-food-emoji{font-size:17px;line-height:21px;flex-basis:18px}
   /* The name takes the card's width: no side padding of its own. */
   .kw-workspace .kw-calendar-reference .kw-meal-title strong{-webkit-line-clamp:3;max-height:55px;padding:2px 0 0}
-  /* Time over source, the same badge twice: same type size, height, border
-     and width (100px holds the longest source, "Freezer + fresh 🌿"; a
-     narrower card gives both its whole width), on every card alike. */
-  .kw-workspace .kw-calendar-reference .kw-meal-meta{flex-direction:column;align-items:flex-start;row-gap:3px;height:auto;padding:0}
+  /* Time and source on one line, the same badge twice: same type size,
+     height, border and padding on every card; every time badge 46px wide.
+     The source is one short word ("Fresh", "Prep", "Freezer"…) so both fit. */
+  .kw-workspace .kw-calendar-reference .kw-meal-meta{flex-direction:row;flex-wrap:nowrap;align-items:center;gap:4px;height:auto;padding:0}
   .kw-workspace .kw-calendar-reference .kw-meal-meta>span,
-  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{box-sizing:border-box;width:min(100%,100px);max-width:none;height:20px;border-width:2px;border-radius:6px;padding:0 4px;font-size:10px;font-weight:900;line-height:16px;text-align:center;overflow:hidden;text-overflow:ellipsis}
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{box-sizing:border-box;display:flex;align-items:center;justify-content:center;height:20px;max-width:none;border-width:2px;border-radius:6px;padding:0 4px;font-size:10px;font-weight:900;line-height:16px;white-space:nowrap;overflow:hidden}
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span:first-child{flex:0 0 46px}
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{flex:0 1 auto;min-width:0}
+  .kw-workspace .kw-calendar-reference .kw-source-emoji{margin-left:3px}
+  /* Beside the plan board's fridge the cards are narrower: the word alone. */
+  .kw-workspace .kw-plan-board .kw-calendar-reference .kw-source-emoji{display:none}
 }

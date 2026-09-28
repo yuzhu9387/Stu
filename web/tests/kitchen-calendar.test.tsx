@@ -18,7 +18,7 @@ describe("calendar meal cards", () => {
     const card = screen.getByLabelText(/^Open Wed.*dinner$/).closest("article")!;
     expect(within(card).getByText("鸡肉丸 + 熟糙米饭 + 西兰花")).toBeVisible();
     expect(within(card).getByText("8 min")).toBeVisible();
-    expect(within(card).getByText(/Planned prep/)).toBeVisible();
+    expect(within(card).getByText(/^Prep/)).toBeVisible();
     expect(screen.getByLabelText(/^Open Wed.*dinner$/)).toHaveAttribute("title",expect.stringContaining("12 min elapsed"));
   });
 
@@ -33,9 +33,9 @@ describe("calendar meal cards", () => {
     dinner.components = [{ id: "missing", name: "Missing food", type: "Other", portions: 1, inventoryId: "missing" }];
     render(<CalendarGrid {...props}/>);
     const card = (name: RegExp) => screen.getByLabelText(name).closest("article")!;
-    expect(within(card(/^Open Mon.*breakfast$/)).getByText(/From fridge/)).toBeVisible();
-    expect(within(card(/^Open Mon.*lunch$/)).getByText(/From freezer/)).toBeVisible();
-    expect(within(card(/^Open Mon.*dinner$/)).getByText(/Check stock/)).toBeVisible();
+    expect(within(card(/^Open Mon.*breakfast$/)).getByText(/^Fridge/)).toBeVisible();
+    expect(within(card(/^Open Mon.*lunch$/)).getByText(/^Freezer/)).toBeVisible();
+    expect(within(card(/^Open Mon.*dinner$/)).getByText(/^Check/)).toBeVisible();
     expect(within(card(/^Open Tue.*breakfast$/)).getByText(/Fresh/)).toBeVisible();
     expect(screen.queryByText(/Pantry/)).not.toBeInTheDocument();
   });

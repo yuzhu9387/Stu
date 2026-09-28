@@ -44,7 +44,20 @@ const mealStyles = {
   dinner: { label: "Dinner", emoji: "🌙" },
 };
 
-function mealSource(meal: Meal, state: KitchenState, plan: WeeklyPlan | null): string {
+/** Where a meal's food comes from, as a short badge word, its emoji, and the
+ * longer description the badge shows on hover. */
+type Source = "check" | "prep" | "fresh" | "stored" | "freezer" | "fridge" | "mixed";
+const SOURCES: Record<Source, [string, string, string]> = {
+  fresh: ["Fresh", "🌿", "Cooked fresh"],
+  prep: ["Prep", "🥣", "From weekend prep"],
+  freezer: ["Freezer", "❄️", "From the freezer"],
+  fridge: ["Fridge", "🧊", "From the fridge"],
+  stored: ["Stored", "📦", "From stored food"],
+  mixed: ["Mixed", "🌿", "Partly stored food, partly cooked fresh"],
+  check: ["Check", "⚠️", "Some of its food is not in stock: check the fridge"],
+};
+
+function mealSource(meal: Meal, state: KitchenState, plan: WeeklyPlan | null): Source {
   const sources = meal.components.map(component => {
     const prep = plan?.prep.find(task => task.id === component.prepId);
     if (component.prepId && prep?.status !== "completed") return prep?.status === "planned" ? "prep" : "missing";
@@ -56,13 +69,13 @@ function mealSource(meal: Meal, state: KitchenState, plan: WeeklyPlan | null): s
     if (!stock || (meal.status === "planned" && stock.portions <= 0)) return "missing";
     return stock.location.toLowerCase() === "freezer" ? "freezer" : stock.location.toLowerCase() === "fridge" ? "fridge" : "stored";
   });
-  if (sources.includes("missing")) return "Check stock";
-  if (sources.includes("prep")) return "Planned prep";
+  if (sources.includes("missing")) return "check";
+  if (sources.includes("prep")) return "prep";
   const stored = new Set(sources.filter(source => source !== "fresh"));
-  if (!stored.size) return "Prepare fresh";
-  if (stored.size > 1 || stored.has("stored")) return sources.includes("fresh") ? "Stock + fresh" : "Stored food";
-  if (stored.has("freezer")) return sources.includes("fresh") ? "Freezer + fresh" : "From freezer";
-  return sources.includes("fresh") ? "Fridge + fresh" : "From fridge";
+  if (!stored.size) return "fresh";
+  if (sources.includes("fresh")) return "mixed";
+  if (stored.size > 1 || stored.has("stored")) return "stored";
+  return stored.has("freezer") ? "freezer" : "fridge";
 }
 
 export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect, onAdd, onStatus, onLike, onReplace, onReference, onInclude, referencedIds = [], planning = false, slotState, note = null, onUndo, onDismissNote, board }: CalendarProps) {
@@ -78,7 +91,7 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
         <header className="kw-day-header"><strong>{label.split(",")[0]}</strong><span lang="zh">{["周一","周二","周三","周四","周五","周六","周日"][dayIndex]}</span>{day === today && <span className="kw-calendar-today">Today</span>}</header>
         {slots.map(slot => {
           const meal = plan?.meals.find(candidate => candidate.day === day && candidate.slot === slot);
-          const source = meal ? mealSource(meal, state, plan) : "";
+          const source = meal ? SOURCES[mealSource(meal, state, plan)] : null;
           const { label: slotLabel, emoji } = mealStyles[slot];
           const slotHeader = <span className="kw-card-slot"><span>{slotLabel} <span aria-hidden="true">{emoji}</span></span></span>;
           const cardNote = note && meal && note.mealId === meal.id ? note : null;
@@ -89,7 +102,7 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
               <button className="kw-meal-open" onClick={event => { if (board?.picked && meal.status === "planned" && !meal.locked) board.onPlace({ kind: "meal", mealId: meal.id }); else if ((event.metaKey || event.ctrlKey) && onReference) onReference(meal); else onSelect(meal); }} aria-label={board?.picked && meal.status === "planned" && !meal.locked ? `Add ${board.picked.name} to ${label} ${slot}` : `Open ${label} ${slot}`} aria-pressed={selectedId === meal.id} title={`${meal.components.map(component => component.name).join(" + ")} · ${Math.max(0, ...meal.components.map(component => component.portions))} portions · ${meal.activeMinutes} min hands-on · ${meal.elapsedMinutes} min elapsed`}>
                 {slotHeader}
                 <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.map(c => c.name).join(" + ") || "Untitled meal"}</strong></span>
-                <small className="kw-meal-meta"><span>{meal.activeMinutes} min</span><span>{source.replace("Prepare fresh","Fresh")} {source.includes("fridge")?"🧊":"🌿"}</span></small>
+                <small className="kw-meal-meta"><span>{meal.activeMinutes} min</span>{source && <span title={source[2]}>{source[0]}<span className="kw-source-emoji" aria-hidden="true">{source[1]}</span></span>}</small>
               </button>
               <div className="kw-card-tools">
                 {meal.locked && <button className="kw-meal-lock" aria-label="Unlock weekly meal" title="Locked every week · click to unlock" onClick={event=>{event.stopPropagation();onUnlock?.(meal);}}><LockSimple size={13} weight="fill"/></button>}

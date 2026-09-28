@@ -46,14 +46,15 @@ export function addComposedDish(meal: Meal, { recipe, uses }: ComposedDish, keep
   return { ...next, activeMinutes, elapsedMinutes };
 }
 
-interface Props { state: KitchenState; meal: Meal; demo: boolean; onCancel: () => void; onAdd: (dish: ComposedDish, keep: boolean) => void }
+interface Props { state: KitchenState; meal: Meal; demo: boolean; onCancel: () => void; onAdd: (dish: ComposedDish, keep: boolean) => void; onComposed?: (composed: boolean) => void }
 
 /** Pick fridge foods for one dish; Stu names it and writes the amounts and
  * steps; the household changes anything before it goes on the plate. */
-export function BasketComposer({ state, meal, demo, onCancel, onAdd }: Props) {
+export function BasketComposer({ state, meal, demo, onCancel, onAdd, onComposed }: Props) {
   const foods = basketFoods(state);
   const [chosen, setChosen] = useState<string[]>([]), [note, setNote] = useState(""), [composing, setComposing] = useState(false), [error, setError] = useState("");
-  const [dish, setDish] = useState<ComposedDish | null>(null), [keep, setKeep] = useState(true);
+  const [dish, setDishState] = useState<ComposedDish | null>(null), [keep, setKeep] = useState(true);
+  const setDish = (next: ComposedDish | null) => { setDishState(next); onComposed?.(next !== null); };
   const toggle = (id: string) => setChosen(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id]);
   async function compose() {
     setComposing(true); setError("");

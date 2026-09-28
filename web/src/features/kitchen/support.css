@@ -25,3 +25,12 @@
 .kw-dish-steps{display:flex;flex-direction:column;gap:10px}
 .kw-dish-steps-label{display:flex;align-items:center;gap:6px;font-weight:800}
 .kw-drawer .kw-support-editor .kw-recipe-extras+.kw-label{margin-top:12px}
+
+/* Asked when closing with unsaved edits: under the header, by the close
+   button, so the answer is where the eye already is. */
+.kw-drawer-prompt{padding:0 22px 14px;flex-shrink:0}
+.kw-drawer-prompt .kw-unsaved{border:3px solid #35251f;border-radius:14px;background:#fff4d6;padding:12px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.kw-drawer-prompt .kw-unsaved>strong{flex-basis:100%;font-size:14px}
+.kw-drawer-prompt .kw-unsaved>p{flex-basis:100%;margin:-4px 0 2px}
+.kw-drawer-prompt .kw-unsaved>.kw-button{margin:0}
+.kw-drawer-prompt .kw-unsaved>.kw-text-button{display:inline-flex}

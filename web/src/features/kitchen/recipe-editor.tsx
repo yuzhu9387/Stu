@@ -20,11 +20,11 @@ export const blankRecipe = (): Recipe => ({ id: crypto.randomUUID(), name: "", t
 /** The recipe form, used on a recipe's own page (edit) and for a new recipe.
  * `children` sit under the heading and `actions` beside the submit button, for
  * a caller that saves the recipe as part of something else (a composed dish). */
-export function RecipeEditor({ initial, tags, save, cancel, title = "Edit recipe", submitLabel = "Save recipe", children, actions }: { initial: Recipe; tags: string[]; save: (recipe: Recipe) => Promise<boolean>; cancel: () => void; title?: string; submitLabel?: string; children?: ReactNode; actions?: ReactNode }) {
+export function RecipeEditor({ initial, tags, save, cancel, title = "Edit recipe", submitLabel = "Save recipe", children, actions, onEdited }: { initial: Recipe; tags: string[]; save: (recipe: Recipe) => Promise<boolean>; cancel: () => void; title?: string; submitLabel?: string; children?: ReactNode; actions?: ReactNode; onEdited?: () => void }) {
   const [recipe, setRecipe] = useState<Recipe>(structuredClone(initial));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const update = (patch: Partial<Recipe>) => setRecipe(r => ({ ...r, ...patch }));
+  const update = (patch: Partial<Recipe>) => { setRecipe(r => ({ ...r, ...patch })); onEdited?.(); };
   return <form className="kw-card kw-support-editor" onSubmit={async e => { e.preventDefault(); setError(""); if (recipe.elapsedMinutes < recipe.activeMinutes) { setError("Elapsed time must include all active time."); return; } if (!recipe.mealTypes.length || !recipe.ingredients.length || !recipe.steps.some(s => s.trim())) { setError("Choose a meal, add an ingredient and include at least one step."); return; } setBusy(true); try { if (await save({ ...recipe, secondaryTypes: recipe.secondaryTypes?.filter(group => group !== recipe.type), name: recipe.name.trim(), steps: recipe.steps.map(s => s.trim()).filter(Boolean), incomplete: false })) cancel(); } finally { setBusy(false); } }}>
     <div className="kw-row kw-editor-head"><h2>{title}</h2><button className="kw-button secondary" type="button" onClick={cancel}>Cancel</button></div>{children}
     <div className="kw-form-grid"><label className="kw-label">Recipe name<input autoFocus className="kw-input" required value={recipe.name} onChange={e => update({ name: e.target.value })} /></label><label className="kw-label">Type<select className="kw-input" value={recipe.type} onChange={e => update({ type: e.target.value as FoodType })}>{foodTypes.map(t => <option key={t}>{t}</option>)}</select></label>

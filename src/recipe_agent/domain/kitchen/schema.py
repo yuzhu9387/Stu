@@ -837,7 +837,9 @@ class HouseholdKitchenSettings(Base):
         Uuid, ForeignKey("households.id", ondelete="CASCADE"), primary_key=True
     )
     people: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
-    child_age_months: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False, default=0)
+    # The birthday, not the age: an age column is stale the day after it is
+    # written. NULL means no birthday on record.
+    child_birthday: Mapped[date | None] = mapped_column(Date, nullable=True)
     timezone: Mapped[str] = mapped_column(String(64), nullable=False)
     generate_time: Mapped[str] = mapped_column(String(5), nullable=False, default="17:00")
     prep_day: Mapped[int] = mapped_column(Integer, nullable=False, default=6)

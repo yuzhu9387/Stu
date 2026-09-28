@@ -23,7 +23,7 @@ export function weekOf(day: string) { const d = new Date(`${day}T12:00:00Z`); d.
 /** Whole weeks from one Monday to another. */
 export function weeksBetween(from: string, to: string) { return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / (7 * 86_400_000)); }
 export function minutes(n: number) { return n < 60 ? `${n} min` : `${Math.floor(n / 60)}h${n % 60 ? ` ${n % 60}m` : ""}`; }
-export function emptyState(): KitchenState { return { revision: 0, recipes: [], knowledgeDocuments: [], inventory: [], plans: [], tags: [], audit: [], settings: { people: 3, childAge: 3, allergies: [], timezone: "America/Los_Angeles", generateTime: "17:00", prepDay: 6, maxPrepMinutes: 240, maxDailyActiveMinutes: 30, newRecipesPerWeek: 2, recipeRepeatGapDays: 1, guidance: [] } }; }
+export function emptyState(): KitchenState { return { revision: 0, recipes: [], knowledgeDocuments: [], inventory: [], plans: [], tags: [], audit: [], settings: { people: 3, childBirthday: null, childAge: 0, allergies: [], timezone: "America/Los_Angeles", generateTime: "17:00", prepDay: 6, maxPrepMinutes: 240, maxDailyActiveMinutes: 30, newRecipesPerWeek: 2, recipeRepeatGapDays: 1, guidance: [] } }; }
 
 export function createDemoState(): KitchenState {
   const state = emptyState();

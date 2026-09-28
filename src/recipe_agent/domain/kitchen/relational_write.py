@@ -39,6 +39,10 @@ def _dec(value: Any, default: str = "0") -> Decimal:
     return Decimal(str(value)) if value is not None else Decimal(default)
 
 
+def _day(value: Any) -> date | None:
+    return date.fromisoformat(value) if value else None
+
+
 class VocabularyCache:
     """Create-only lookup for food and equipment, flushed as rows are added."""
 
@@ -788,7 +792,8 @@ async def _project_settings_row(
         )
         session.add(row)
     row.people = int(settings.get("people", 3))
-    row.child_age_months = _dec(settings.get("childAge"))
+    # childAge is derived on read; whatever comes back in it is discarded.
+    row.child_birthday = _day(settings.get("childBirthday"))
     row.timezone = settings.get("timezone", "America/Los_Angeles")
     row.generate_time = settings.get("generateTime", "17:00")
     row.prep_day = int(settings.get("prepDay", 6))

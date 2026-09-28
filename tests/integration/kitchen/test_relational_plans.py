@@ -178,7 +178,7 @@ async def test_settings_knowledge_and_prompts_follow_commands(driver, relational
         {
             "settings": {
                 "people": 4,
-                "childAge": 24.0,
+                "childBirthday": "2024-07-31",
                 "allergies": ["花生", "海鲜"],
                 "timezone": "Asia/Shanghai",
                 "generateTime": "18:30",

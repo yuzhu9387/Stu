@@ -8,6 +8,7 @@ PostgreSQL integration tests.
 from __future__ import annotations
 
 import os
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -29,7 +30,7 @@ def workspace() -> dict:
         "tags": ["Protein", "批量备餐"],
         "settings": {
             "people": 3,
-            "childAge": 24.0,
+            "childBirthday": "2024-07-31",
             "allergies": ["花生"],
             "timezone": "America/Los_Angeles",
             "generateTime": "17:00",
@@ -273,7 +274,7 @@ async def test_backfill_preserves_every_record(relational_sessions, relational_h
 
         settings = await session.get(s.HouseholdKitchenSettings, relational_household)
         assert settings is not None
-        assert settings.child_age_months == Decimal("24.00")
+        assert settings.child_birthday == date(2024, 7, 31)
         assert settings.timezone == "America/Los_Angeles"
 
         allergy = await session.scalar(

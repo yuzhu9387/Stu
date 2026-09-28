@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from recipe_agent.domain.kitchen import schema as s
-from recipe_agent.domain.kitchen.contracts import ANALYSIS_METRICS
+from recipe_agent.domain.kitchen.contracts import ANALYSIS_METRICS, child_age_months
 
 FOOD_TYPE = {
     s.FoodCategory.PROTEIN: "Protein",
@@ -729,9 +729,11 @@ class RelationalWorkspaceReader:
             )
         if record is None:
             return {"allergies": allergies, "guidance": guidance, "analysisMetrics": metrics}
+        birthday = record.child_birthday.isoformat() if record.child_birthday else None
         return {
             "people": record.people,
-            "childAge": _num(record.child_age_months),
+            "childBirthday": birthday,
+            "childAge": child_age_months(birthday),
             "allergies": allergies,
             "timezone": record.timezone,
             "generateTime": record.generate_time,

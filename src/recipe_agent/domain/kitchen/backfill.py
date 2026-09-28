@@ -60,6 +60,10 @@ def _dec(value: Any, default: str = "0") -> Decimal:
     return Decimal(str(value))
 
 
+def _day(value: Any) -> date | None:
+    return date.fromisoformat(value) if value else None
+
+
 def _date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value else None
 
@@ -178,7 +182,7 @@ class WorkspaceBackfill:
             s.HouseholdKitchenSettings(
                 household_id=self.household_id,
                 people=int(raw.get("people", 3)),
-                child_age_months=_dec(raw.get("childAge")),
+                child_birthday=_day(raw.get("childBirthday")),
                 timezone=raw.get("timezone", "America/Los_Angeles"),
                 generate_time=raw.get("generateTime", "17:00"),
                 prep_day=int(raw.get("prepDay", 6)),

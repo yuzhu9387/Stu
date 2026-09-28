@@ -1,5 +1,6 @@
 """Strict camelCase transport and persistence contracts."""
 
+from calendar import monthrange
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal, Protocol, Self
@@ -29,6 +30,25 @@ TagName = Annotated[str, Field(min_length=1, max_length=100)]
 # Pinned until the household chooses: the three meals (by slot) and the
 # child's tags, which lead the Recipe Book filters as large chips.
 DEFAULT_PINNED_TAGS: tuple[str, ...] = ("breakfast", "lunch", "dinner", "小孩饭", "Baby-friendly")
+
+
+def child_age_months(birthday: str | None, today: date | None = None) -> float:
+    """The child's age in whole months, counted from the birthday on every call.
+
+    A stored age is wrong the day after it is written, which is why only the
+    birthday is persisted. Zero means no birthday on record -- the planner reads
+    that as unknown, never as a newborn.
+    """
+    if not birthday:
+        return 0.0
+    born = date.fromisoformat(birthday)
+    now = today or date.today()
+    months = (now.year - born.year) * 12 + now.month - born.month
+    # The month turns once the day-of-month comes round again -- and for a child
+    # born on the 31st, a 30-day month turns on its last day rather than never.
+    if now.day < min(born.day, monthrange(now.year, now.month)[1]):
+        months -= 1
+    return float(max(months, 0))
 
 
 class Contract(BaseModel):
@@ -394,7 +414,24 @@ class KitchenSettings(Contract):
             raise ValueError("Duplicate recurring meal slot")
         return value
 
+    @field_validator("childBirthday")
+    @classmethod
+    def birthday_valid(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        if date.fromisoformat(value).isoformat() != value:
+            raise ValueError("childBirthday must be YYYY-MM-DD")
+        if date.fromisoformat(value) > date.today():
+            raise ValueError("childBirthday cannot be in the future")
+        return value
+
     people: int = Field(default=3, ge=1, le=100)
+    # The birthday is the only thing stored. The age is worked out from it on
+    # every read, so a plan drafted next spring is never planned for the age the
+    # child was when someone last typed a number in. None means none on record.
+    childBirthday: str | None = None
+    # Derived from childBirthday, in MONTHS. Present so the planner and the
+    # screens keep reading one field; sent back on save and ignored.
     childAge: Number = 0
     allergies: list[str] = Field(default_factory=list)
     timezone: str = "America/Los_Angeles"
@@ -438,6 +475,17 @@ class KitchenSettings(Contract):
         if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
             raise ValueError("generateTime must be HH:mm")
         return value
+
+    @model_validator(mode="after")
+    def age_follows_birthday(self) -> Self:
+        """Whatever age arrived is replaced by the one the birthday implies today.
+
+        Every path -- the aggregate, the tables, a settings.save round trip --
+        therefore reports the same current age, and no caller can write a stale
+        one back in.
+        """
+        self.childAge = child_age_months(self.childBirthday)
+        return self
 
 
 class Delta(Contract):

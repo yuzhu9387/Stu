@@ -51,7 +51,9 @@ async def test_empty_library_generates_persisted_week_and_scoped_chat(session_fa
             },
         )
 
-    await command("settings.save", {"settings": {**initial["settings"], "childAge": 36}})
+    await command(
+        "settings.save", {"settings": {**initial["settings"], "childBirthday": "2023-09-01"}}
+    )
     await command(
         "knowledge.save",
         {

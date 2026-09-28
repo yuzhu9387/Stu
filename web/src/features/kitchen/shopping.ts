@@ -6,6 +6,10 @@ export interface ShoppingItem {
 }
 const normalize = (s: string) => s.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 const round = (n: number) => Math.round(n * 10000) / 10000;
+/** Water and seasonings are in every kitchen, so they never go on the list
+ * (as the server's shopping.PANTRY). */
+const PANTRY = new Set(["水", "清水", "温水", "凉水", "冷水", "开水", "热水", "冰水", "盐", "食盐", "细盐", "海盐", "糖", "白糖", "白砂糖", "砂糖", "冰糖", "红糖", "油", "食用油", "植物油", "花生油", "菜籽油", "玉米油", "橄榄油", "香油", "芝麻油", "酱油", "生抽", "老抽", "蚝油", "醋", "白醋", "陈醋", "香醋", "米醋", "料酒", "黄酒", "胡椒粉", "白胡椒粉", "黑胡椒", "黑胡椒粉", "花椒", "八角", "桂皮", "香叶", "五香粉", "十三香", "孜然", "孜然粉", "淀粉", "玉米淀粉", "生粉", "鸡精", "味精", "番茄酱", "water", "salt", "sugar", "oil", "cooking oil", "vegetable oil", "olive oil", "sesame oil", "soy sauce", "light soy sauce", "dark soy sauce", "oyster sauce", "vinegar", "cooking wine", "pepper", "black pepper", "white pepper", "cornstarch", "starch", "msg", "ketchup"].map(normalize));
+export const pantryStaple = (ingredient: { name: string; group?: string }) => PANTRY.has(normalize(ingredient.name)) || /调味|调料|seasoning|condiment|spice/i.test(ingredient.group ?? "");
 const units: Record<string, [string, number]> = {
   g: ["g", 1], gram: ["g", 1], grams: ["g", 1], "克": ["g", 1],
   kg: ["g", 1000], kilograms: ["g", 1000], "千克": ["g", 1000], "公斤": ["g", 1000],
@@ -40,7 +44,7 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
       return;
     }
     for (const ingredient of recipe.ingredients) {
-      if (have.has(normalize(ingredient.name))) continue;
+      if (pantryStaple(ingredient) || have.has(normalize(ingredient.name))) continue;
       if (!ingredient.quantity || !ingredient.unit.trim()) {
         warnings.add(`${ingredient.name} (${name}): check the amount in the recipe.`);
         continue;

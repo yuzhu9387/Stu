@@ -69,3 +69,11 @@ describe("shopping requirements", () => {
     expect(shoppingList(state, plan, "2026-09-24").items.find(i => i.name === "鸡肉")?.required).toBe(400);
   });
 });
+
+it("never lists water or seasonings, and does not ask for their amounts", () => {
+  const { state, plan, recipe } = fixture();
+  recipe.ingredients.push({ name: "清水", quantity: 200, unit: "ml" }, { name: "盐", quantity: 0, unit: "适量" }, { name: "葱花", quantity: 5, unit: "g", group: "调味料" }, { name: "Soy Sauce", quantity: 10, unit: "ml" });
+  const { items, warnings } = shoppingList(state, plan);
+  expect(items.map(i => i.name)).toEqual(["鸡肉", "Egg"]);
+  expect(warnings).toEqual([]);
+});

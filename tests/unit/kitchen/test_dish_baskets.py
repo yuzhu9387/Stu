@@ -220,3 +220,23 @@ async def test_an_empty_basket_is_refused_before_asking_stu():
     with pytest.raises(ValueError, match="in the fridge"):
         await ai.compose("household", ComposeRequest(inventoryIds=["missing"]))
     assert provider.requests == []
+
+
+def test_water_and_seasonings_are_never_bought():
+    from recipe_agent.domain.kitchen.shopping import pantry_staple
+
+    seasoned = recipe(
+        ingredients=[
+            {"name": "鸡蛋", "quantity": 2, "unit": "个"},
+            {"name": "面粉", "quantity": 30, "unit": "g"},
+            {"name": "清水", "quantity": 100, "unit": "ml"},
+            {"name": "生抽", "quantity": 5, "unit": "ml"},
+            {"name": "葱花", "quantity": 5, "unit": "g", "group": "调味料"},
+            {"name": "Olive Oil", "quantity": 5, "unit": "ml"},
+        ]
+    )
+    state = household(pancake(recipeId="r-pancake"), recipes=[seasoned])
+    rows, warnings = shopping_list(state, state["plans"][0], as_of=WEEK)
+    assert [row["name"] for row in rows] == ["面粉"]
+    assert warnings == []
+    assert pantry_staple({"name": " 食盐 "}) and not pantry_staple({"name": "面粉"})

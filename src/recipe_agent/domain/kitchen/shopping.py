@@ -1,5 +1,6 @@
 """Ingredient arithmetic belongs to the service, not the language model."""
 
+import re
 import unicodedata
 from datetime import datetime
 from typing import Any
@@ -8,6 +9,99 @@ from zoneinfo import ZoneInfo
 
 def normalized(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
+
+
+# Water and seasonings are in every kitchen, so they never go on the list.
+PANTRY = frozenset(
+    normalized(name)
+    for name in (
+        "水",
+        "清水",
+        "温水",
+        "凉水",
+        "冷水",
+        "开水",
+        "热水",
+        "冰水",
+        "盐",
+        "食盐",
+        "细盐",
+        "海盐",
+        "糖",
+        "白糖",
+        "白砂糖",
+        "砂糖",
+        "冰糖",
+        "红糖",
+        "油",
+        "食用油",
+        "植物油",
+        "花生油",
+        "菜籽油",
+        "玉米油",
+        "橄榄油",
+        "香油",
+        "芝麻油",
+        "酱油",
+        "生抽",
+        "老抽",
+        "蚝油",
+        "醋",
+        "白醋",
+        "陈醋",
+        "香醋",
+        "米醋",
+        "料酒",
+        "黄酒",
+        "胡椒粉",
+        "白胡椒粉",
+        "黑胡椒",
+        "黑胡椒粉",
+        "花椒",
+        "八角",
+        "桂皮",
+        "香叶",
+        "五香粉",
+        "十三香",
+        "孜然",
+        "孜然粉",
+        "淀粉",
+        "玉米淀粉",
+        "生粉",
+        "鸡精",
+        "味精",
+        "番茄酱",
+        "water",
+        "salt",
+        "sugar",
+        "oil",
+        "cooking oil",
+        "vegetable oil",
+        "olive oil",
+        "sesame oil",
+        "soy sauce",
+        "light soy sauce",
+        "dark soy sauce",
+        "oyster sauce",
+        "vinegar",
+        "cooking wine",
+        "pepper",
+        "black pepper",
+        "white pepper",
+        "cornstarch",
+        "starch",
+        "msg",
+        "ketchup",
+    )
+)
+_SEASONING_GROUP = re.compile(r"调味|调料|seasoning|condiment|spice", re.IGNORECASE)
+
+
+def pantry_staple(ingredient: dict[str, Any]) -> bool:
+    """Water or a seasoning, by name or by the recipe's own group for it."""
+    return normalized(ingredient["name"]) in PANTRY or bool(
+        _SEASONING_GROUP.search(ingredient.get("group") or "")
+    )
 
 
 def unit_amount(unit: str) -> tuple[str, float]:
@@ -119,7 +213,7 @@ def shopping_list(
             warnings.append(f"{name}: add recipe ingredients.")
             return
         for ingredient in recipe["ingredients"]:
-            if normalized(ingredient["name"]) in have:
+            if pantry_staple(ingredient) or normalized(ingredient["name"]) in have:
                 continue
             if not ingredient.get("quantity") or not ingredient.get("unit", "").strip():
                 warnings.append(f"{ingredient['name']} ({name}): check the recipe amount.")

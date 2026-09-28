@@ -395,12 +395,13 @@ def attach_fulfillment(state: dict[str, Any], plan: dict[str, Any], raw: Any) ->
         for c in m["components"]
         if not c.get("inventoryId") and not c.get("prepId")
     }
-    from recipe_agent.domain.kitchen.shopping import normalized
+    from recipe_agent.domain.kitchen.shopping import normalized, pantry_staple
 
     needed = {
         normalized(i["name"])
         for rid in needed_ids
         for i in recipes.get(rid, {}).get("ingredients", [])
+        if not pantry_staple(i)
     }
     covered = {normalized(i["name"]) for i in result["shopping"]}
     if needed - covered and not result["warnings"]:

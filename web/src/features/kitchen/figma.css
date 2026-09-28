@@ -862,11 +862,14 @@ html{scroll-padding-top:96px}
    time and source badges under it sit on one line across the whole week,
    and a long "糙米饭 + 虾仁豆腐 + 蒸西兰花" is not cut short. */
 @media(min-width:681px){
-  .kw-workspace .kw-calendar-reference .kw-meal-title{min-height:55px;align-items:flex-start;gap:5px;padding:0 2px}
+  .kw-workspace .kw-calendar-reference .kw-meal-title{min-height:55px;align-items:flex-start;gap:5px;padding:0}
   .kw-workspace .kw-calendar-reference .kw-meal-title .kw-food-emoji{font-size:17px;line-height:21px;flex-basis:18px}
   /* The name takes the card's width: no side padding of its own. */
   .kw-workspace .kw-calendar-reference .kw-meal-title strong{-webkit-line-clamp:3;max-height:55px;padding:2px 0 0}
-  /* A source badge that does not fit beside the time goes under it, whole. */
-  .kw-workspace .kw-calendar-reference .kw-meal-meta{flex-wrap:wrap;row-gap:3px;height:auto;padding:0 2px}
-  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{max-width:100%}
+  /* Time over source, the same badge twice: same type size, height, border
+     and width (100px holds the longest source, "Freezer + fresh 🌿"; a
+     narrower card gives both its whole width), on every card alike. */
+  .kw-workspace .kw-calendar-reference .kw-meal-meta{flex-direction:column;align-items:flex-start;row-gap:3px;height:auto;padding:0}
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span,
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{box-sizing:border-box;width:min(100%,100px);max-width:none;height:20px;border-width:2px;border-radius:6px;padding:0 4px;font-size:10px;font-weight:900;line-height:16px;text-align:center;overflow:hidden;text-overflow:ellipsis}
 }

@@ -1,8 +1,13 @@
 /* The plan board: the fridge beside the week while adjusting a draft. */
 .kw-plan-board{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:stretch}
 .kw-plan-board>.kw-calendar-scroll{min-width:0}
-/* Seven days still fit beside the fridge on a laptop screen. */
-.kw-workspace .kw-plan-board .kw-calendar.kw-calendar-reference{min-width:960px}
+/* Seven days still fit beside the fridge on a laptop screen, with tighter
+   margins so a card's name and badges keep their room. */
+.kw-workspace .kw-plan-board .kw-calendar.kw-calendar-reference{min-width:960px;column-gap:8px}
+@media(min-width:761px){
+  .kw-workspace .kw-plan-board .kw-calendar-reference .kw-day{padding-left:6px;padding-right:6px}
+  .kw-workspace .kw-plan-board .kw-calendar-reference .kw-meal-card{padding-left:7px;padding-right:7px}
+}
 /* The week sets the height; the fridge fills it and scrolls inside. */
 .kw-board-rail{position:relative;min-height:320px}
 .kw-board-fridge{position:absolute;inset:0 0 10px;overflow-y:auto;border:3px solid #35251f;border-radius:16px;background:#fffdf9;padding:14px 12px;display:flex;flex-direction:column;gap:12px}

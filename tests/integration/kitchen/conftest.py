@@ -57,9 +57,7 @@ async def relational_sessions() -> AsyncIterator[async_sessionmaker[AsyncSession
     finally:
         await engine.dispose()
         with psycopg.connect(sync_url, autocommit=True) as connection:
-            connection.execute(
-                sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema))
-            )
+            connection.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
 
 
 @pytest_asyncio.fixture

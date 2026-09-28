@@ -70,9 +70,7 @@ class VocabularyCache:
             if existing.category == s.FoodCategory.OTHER and mapped != s.FoodCategory.OTHER:
                 existing.category = mapped
             return existing
-        item = s.FoodItem(
-            id=uuid4(), household_id=self.household_id, name=key, category=mapped
-        )
+        item = s.FoodItem(id=uuid4(), household_id=self.household_id, name=key, category=mapped)
         self.session.add(item)
         await self.session.flush()
         self.food[key] = item
@@ -281,9 +279,7 @@ async def _replace_children(
                 position=index,
             )
         )
-    details = {
-        int(entry["index"]): entry for entry in raw.get("stepDetails") or []
-    }
+    details = {int(entry["index"]): entry for entry in raw.get("stepDetails") or []}
     for index, step in enumerate(raw.get("steps") or []):
         detail = details.get(index, {})
         session.add(
@@ -300,9 +296,7 @@ async def _replace_children(
                     else None
                 ),
                 wait_minutes=(
-                    _dec(detail["waitMinutes"])
-                    if detail.get("waitMinutes") is not None
-                    else None
+                    _dec(detail["waitMinutes"]) if detail.get("waitMinutes") is not None else None
                 ),
             )
         )
@@ -387,9 +381,7 @@ async def _project_batches(
         recipe = recipes.get(str(raw.get("recipeId") or ""))
         row = existing.get(legacy_id)
         if row is None:
-            row = s.InventoryBatch(
-                id=uuid4(), household_id=household_id, legacy_id=legacy_id
-            )
+            row = s.InventoryBatch(id=uuid4(), household_id=household_id, legacy_id=legacy_id)
             session.add(row)
             existing[legacy_id] = row
         row.food_item_id = food.id
@@ -399,9 +391,7 @@ async def _project_batches(
         )
         row.prepared = bool(raw.get("prepared"))
         row.stored_on = date.fromisoformat(raw["addedOn"])
-        row.expires_on = (
-            date.fromisoformat(raw["expiresOn"]) if raw.get("expiresOn") else None
-        )
+        row.expires_on = date.fromisoformat(raw["expiresOn"]) if raw.get("expiresOn") else None
         row.priority = bool(raw.get("priority"))
         row.position = position
         row.notes = raw.get("notes")
@@ -460,9 +450,7 @@ async def _project_audit(
         row.legacy_id or str(row.id): row
         for row in (
             await session.scalars(
-                select(s.KitchenAuditEntry).where(
-                    s.KitchenAuditEntry.household_id == household_id
-                )
+                select(s.KitchenAuditEntry).where(s.KitchenAuditEntry.household_id == household_id)
             )
         ).all()
     }
@@ -548,9 +536,7 @@ async def _append_ledger(
             .group_by(s.InventoryLedgerEntry.batch_id)
         )
     ).all()
-    totals: dict[UUID, Decimal] = {
-        batch_id: Decimal(str(total)) for batch_id, total in rows
-    }
+    totals: dict[UUID, Decimal] = {batch_id: Decimal(str(total)) for batch_id, total in rows}
     for raw_item in state.get("inventory") or []:
         batch = batches.get(str(raw_item["id"]))
         if batch is None:
@@ -589,9 +575,7 @@ async def project_workspace(
     chat and snapshots took over a second for a one-field change such as the
     planning step or a shopping tick.
     """
-    if previous is None or any(
-        previous.get(key) != state.get(key) for key in ("recipes", "tags")
-    ):
+    if previous is None or any(previous.get(key) != state.get(key) for key in ("recipes", "tags")):
         await project_recipes_and_tags(session, household_id, state)
     await project_recipe_ratings(session, household_id, state)
     await project_knowledge_and_settings(session, household_id, state)
@@ -671,9 +655,7 @@ async def _project_versioned(
         ).all()
     }
     for legacy_id in set(existing) - set(incoming):
-        await session.execute(
-            delete(parent_model).where(parent_model.id == existing[legacy_id].id)
-        )
+        await session.execute(delete(parent_model).where(parent_model.id == existing[legacy_id].id))
     await session.flush()
 
     for legacy_id, raw in incoming.items():
@@ -688,9 +670,7 @@ async def _project_versioned(
         for key, value in extra(raw).items():
             setattr(row, key, value)
         await session.flush()
-        await version_row(
-            session, version_model, parent_column, row.id, raw, live=True
-        )
+        await version_row(session, version_model, parent_column, row.id, raw, live=True)
     await session.flush()
 
 
@@ -717,9 +697,7 @@ async def version_row(
     wanted = int(entry.get("version", 1))
     content = entry.get("content", "")
     rows = (
-        await session.scalars(
-            select(model).where(getattr(model, parent_column) == parent_id)
-        )
+        await session.scalars(select(model).where(getattr(model, parent_column) == parent_id))
     ).all()
     for row in rows:
         if row.version == wanted and row.content == content:
@@ -771,9 +749,7 @@ async def _preserve(
 ) -> None:
     """Move snapshots off a version row whose content is about to change."""
     statement = (
-        select(s.PlanKnowledgeSnapshot).where(
-            s.PlanKnowledgeSnapshot.document_version_id == row.id
-        )
+        select(s.PlanKnowledgeSnapshot).where(s.PlanKnowledgeSnapshot.document_version_id == row.id)
         if model is s.KnowledgeDocumentVersion
         else select(s.PlanGuidanceSnapshot).where(
             s.PlanGuidanceSnapshot.guidance_version_id == row.id
@@ -825,16 +801,12 @@ async def _project_settings_row(
 
     await _project_analysis_metrics(session, household_id, settings)
 
-    wanted = list(
-        dict.fromkeys(str(label).strip() for label in settings.get("allergies") or [])
-    )
+    wanted = list(dict.fromkeys(str(label).strip() for label in settings.get("allergies") or []))
     rows = {
         row_.label: row_
         for row_ in (
             await session.scalars(
-                select(s.HouseholdAllergy).where(
-                    s.HouseholdAllergy.household_id == household_id
-                )
+                select(s.HouseholdAllergy).where(s.HouseholdAllergy.household_id == household_id)
             )
         ).all()
     }
@@ -858,9 +830,7 @@ async def _project_settings_row(
     await session.flush()
 
 
-async def project_prompts(
-    session: AsyncSession, household_id: UUID, state: dict[str, Any]
-) -> None:
+async def project_prompts(session: AsyncSession, household_id: UUID, state: dict[str, Any]) -> None:
     incoming = {str(raw["weekStart"]): raw for raw in state.get("weeklyPrompts") or []}
     rows = {
         row.week_start.isoformat(): row
@@ -871,9 +841,7 @@ async def project_prompts(
         ).all()
     }
     for week in set(rows) - set(incoming):
-        await session.execute(
-            delete(s.WeeklyPrompt).where(s.WeeklyPrompt.id == rows[week].id)
-        )
+        await session.execute(delete(s.WeeklyPrompt).where(s.WeeklyPrompt.id == rows[week].id))
     for week, raw in incoming.items():
         row = rows.get(week)
         if row is None:
@@ -963,9 +931,7 @@ async def project_plans(
         ).all()
     }
     for legacy_id in set(existing) - set(incoming):
-        await session.execute(
-            delete(s.WeeklyPlan).where(s.WeeklyPlan.id == existing[legacy_id].id)
-        )
+        await session.execute(delete(s.WeeklyPlan).where(s.WeeklyPlan.id == existing[legacy_id].id))
     await session.flush()
 
     created: set[str] = set()
@@ -1022,9 +988,7 @@ async def _project_prep(
         ).all()
     }
     for legacy_id in set(existing) - set(incoming):
-        await session.execute(
-            delete(s.PrepTask).where(s.PrepTask.id == existing[legacy_id].id)
-        )
+        await session.execute(delete(s.PrepTask).where(s.PrepTask.id == existing[legacy_id].id))
     await session.flush()
 
     for position, (legacy_id, raw) in enumerate(incoming.items()):
@@ -1065,9 +1029,7 @@ async def _project_prep(
     for legacy_id, raw in incoming.items():
         row = existing[legacy_id]
         for index, step in enumerate(raw.get("steps") or []):
-            session.add(
-                s.PrepTaskStep(id=uuid4(), prep_task_id=row.id, position=index, text=step)
-            )
+            session.add(s.PrepTaskStep(id=uuid4(), prep_task_id=row.id, position=index, text=step))
         for source in raw.get("inputs") or []:
             batch = batches.get(str(source["inventoryId"]))
             if batch is None:
@@ -1082,9 +1044,7 @@ async def _project_prep(
             )
         for name in dict.fromkeys(raw.get("equipment") or []):
             tool = await vocabulary.equipment_item(name)
-            session.add(
-                s.PrepTaskEquipmentLink(prep_task_id=row.id, equipment_id=tool.id)
-            )
+            session.add(s.PrepTaskEquipmentLink(prep_task_id=row.id, equipment_id=tool.id))
     await session.flush()
     for legacy_id, raw in incoming.items():
         for dependency in raw.get("dependencies") or []:
@@ -1113,9 +1073,7 @@ async def _project_meals(
     incoming = {str(raw["id"]): raw for raw in meals}
     existing = {
         row.legacy_id or str(row.id): row
-        for row in (
-            await session.scalars(select(s.Meal).where(s.Meal.plan_id == plan.id))
-        ).all()
+        for row in (await session.scalars(select(s.Meal).where(s.Meal.plan_id == plan.id))).all()
     }
     for legacy_id in set(existing) - set(incoming):
         await session.execute(delete(s.Meal).where(s.Meal.id == existing[legacy_id].id))
@@ -1168,9 +1126,7 @@ async def _project_meals(
                 )
             )
         for index, step in enumerate(raw.get("steps") or []):
-            session.add(
-                s.MealStep(id=uuid4(), meal_id=row.id, position=index, text=step)
-            )
+            session.add(s.MealStep(id=uuid4(), meal_id=row.id, position=index, text=step))
     await session.flush()
 
 
@@ -1217,9 +1173,7 @@ async def project_meal_style_presets(
         row.key: row
         for row in (
             await session.scalars(
-                select(s.MealStylePreset).where(
-                    s.MealStylePreset.household_id == household_id
-                )
+                select(s.MealStylePreset).where(s.MealStylePreset.household_id == household_id)
             )
         ).all()
     }
@@ -1244,17 +1198,13 @@ async def project_meal_style_presets(
 async def _project_plan_presets(
     session: AsyncSession, household_id: UUID, plan: s.WeeklyPlan, keys: list[str]
 ) -> None:
-    await session.execute(
-        delete(s.PlanPreset).where(s.PlanPreset.plan_id == plan.id)
-    )
+    await session.execute(delete(s.PlanPreset).where(s.PlanPreset.plan_id == plan.id))
     await session.flush()
     catalog = {
         row.key: row.id
         for row in (
             await session.scalars(
-                select(s.MealStylePreset).where(
-                    s.MealStylePreset.household_id == household_id
-                )
+                select(s.MealStylePreset).where(s.MealStylePreset.household_id == household_id)
             )
         ).all()
     }
@@ -1284,9 +1234,7 @@ async def _project_chat(
     await session.flush()
     meals = {
         row.legacy_id or str(row.id): row.id
-        for row in (
-            await session.scalars(select(s.Meal).where(s.Meal.plan_id == plan.id))
-        ).all()
+        for row in (await session.scalars(select(s.Meal).where(s.Meal.plan_id == plan.id))).all()
     }
     for legacy_id, raw in incoming.items():
         row = existing.get(legacy_id)
@@ -1304,17 +1252,13 @@ async def _project_chat(
         else:
             row.text = raw.get("text", "")
             await session.execute(
-                delete(s.PlanChatReference).where(
-                    s.PlanChatReference.message_id == row.id
-                )
+                delete(s.PlanChatReference).where(s.PlanChatReference.message_id == row.id)
             )
             await session.flush()
         for meal_id in raw.get("mealIds") or []:
             target = meals.get(str(meal_id))
             if target is not None:
-                session.add(
-                    s.PlanChatReference(message_id=existing[legacy_id].id, meal_id=target)
-                )
+                session.add(s.PlanChatReference(message_id=existing[legacy_id].id, meal_id=target))
     await session.flush()
 
 
@@ -1340,9 +1284,7 @@ async def _project_snapshots(
         row.legacy_id or str(row.id): row
         for row in (
             await session.scalars(
-                select(s.KnowledgeDocument).where(
-                    s.KnowledgeDocument.household_id == household_id
-                )
+                select(s.KnowledgeDocument).where(s.KnowledgeDocument.household_id == household_id)
             )
         ).all()
     }
@@ -1350,9 +1292,7 @@ async def _project_snapshots(
         rule = rules.get(str(entry["id"]))
         if rule is None:
             continue
-        version = await version_row(
-            session, s.GuidanceRuleVersion, "rule_id", rule.id, entry
-        )
+        version = await version_row(session, s.GuidanceRuleVersion, "rule_id", rule.id, entry)
         session.add(
             s.PlanGuidanceSnapshot(
                 plan_id=plan.id,

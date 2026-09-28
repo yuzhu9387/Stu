@@ -1,0 +1,85 @@
+name: Deploy
+
+# Every push to main is checked, then released to https://stu.dodofamily.com:
+# both images are built and pushed, migrations run, then stu-api, stu-web and
+# the stu-plan job move to the new images. A failed check or step leaves the
+# running version in place. See docs/deploy/GCP.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release at a time; a release in progress is never cancelled.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # keyless sign-in to Google Cloud (Workload Identity Federation)
+    env:
+      REGION: us-west2
+      REGISTRY: us-west2-docker.pkg.dev/leonas-friends/stu
+      TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release only the newest commit on main
+        id: head
+        run: |
+          head="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main has moved on to $head; that run releases it"
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: google-github-actions/auth@v2
+        if: steps.head.outputs.current == 'true'
+        with:
+          workload_identity_provider: projects/314788321213/locations/global/workloadIdentityPools/stu-github/providers/github
+          service_account: stu-deployer@leonas-friends.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.head.outputs.current == 'true'
+
+      - name: Build and push images
+        if: steps.head.outputs.current == 'true'
+        run: |
+          gcloud auth configure-docker us-west2-docker.pkg.dev --quiet
+          docker build -f infra/Dockerfile.api -t "$REGISTRY/api:$TAG" .
+          docker build -f infra/Dockerfile.web --build-arg NEXT_PUBLIC_API_BASE_URL=https://stu.dodofamily.com -t "$REGISTRY/web:$TAG" .
+          docker push "$REGISTRY/api:$TAG"
+          docker push "$REGISTRY/web:$TAG"
+
+      - name: Migrate the database
+        if: steps.head.outputs.current == 'true'
+        run: |
+          gcloud run jobs update stu-migrate --region="$REGION" --image="$REGISTRY/api:$TAG" --quiet
+          gcloud run jobs execute stu-migrate --region="$REGION" --wait --quiet
+
+      - name: Release the services
+        if: steps.head.outputs.current == 'true'
+        run: |
+          gcloud run deploy stu-api --region="$REGION" --image="$REGISTRY/api:$TAG" --quiet
+          gcloud run deploy stu-web --region="$REGION" --image="$REGISTRY/web:$TAG" --quiet
+          gcloud run jobs update stu-plan --region="$REGION" --image="$REGISTRY/api:$TAG" --quiet
+
+      - name: Smoke test
+        if: steps.head.outputs.current == 'true'
+        run: |
+          curl --fail --silent --show-error https://stu-api-314788321213.us-west2.run.app/health/ready
+          curl --fail --silent --show-error https://stu.dodofamily.com/api/v1/auth/methods
+          curl --fail --silent --show-error --output /dev/null https://stu.dodofamily.com/calendar

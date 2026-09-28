@@ -11,7 +11,8 @@ each account gets its own household.
 | Browser hostname | `https://stu.dodofamily.com` |
 | Cloud Run services | `stu-api` (FastAPI, port 8000), `stu-web` (Next.js, port 3000) |
 | Backends | `https://stu-api-314788321213.us-west2.run.app`, `https://stu-web-314788321213.us-west2.run.app` |
-| Runtime service account | `stu-runtime@leonas-friends.iam.gserviceaccount.com` (Cloud SQL client, reads the `stu-*` secrets) |
+| Runtime service accounts | `stu-runtime@…` for the API and jobs (Cloud SQL client, reads the `stu-*` secrets); `stu-web-runtime@…` for the web app (no permissions) |
+| Automatic deploys | GitHub Actions `deploy.yml` on every push to `main`, as `stu-deployer@…` |
 | Images | `us-west2-docker.pkg.dev/leonas-friends/stu/{api,web}:<tag>` |
 | Cloud SQL | instance `leonas-friends:us-west2:avery-db` (shared), database `stu`, role `stu_app` |
 | Secrets | `stu-database-url`, `stu-openai-api-key`, `stu-session-signing-key`, `stu-metrics-token`, `stu-action-signing-key`, `stu-edge-proxy-token` |
@@ -49,22 +50,44 @@ export CLOUDSDK_CORE_ACCOUNT=yuzhu9387@gmail.com CLOUDSDK_CORE_PROJECT=leonas-fr
 
 ## Release
 
-From the repository root, build both images (Cloud Build uploads only what
+Push to `main`. [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
+runs every check in [`ci.yml`](../../.github/workflows/ci.yml) (backend on
+PostgreSQL 16, migrations on an empty database, web, the Worker, and the browser
+stories), then signs in to Google Cloud without a key, builds both images
+tagged with the commit SHA, runs `stu-migrate`, moves `stu-api`, `stu-web` and
+`stu-plan` to the new images, and smoke-tests the site. A failed check or step
+leaves the running version in place; fix it and push again, or re-run the
+workflow from the Actions tab. Only the newest commit on `main` is released,
+one release at a time. Progress: https://github.com/yuzhu9387/Stu/actions.
+
+The workflow signs in through Workload Identity Federation: pool `stu-github`,
+provider `github`, which accepts only repository ID `1302094716` (owner
+`33359827`), ref `refs/heads/main`, workflow
+`yuzhu9387/Stu/.github/workflows/deploy.yml@refs/heads/main`, and a `push` or
+`workflow_dispatch` event. That principal may act only as
+`stu-deployer@leonas-friends.iam.gserviceaccount.com`, which holds:
+
+- Artifact Registry writer on the `stu` repository only;
+- Cloud Run developer on `stu-api`, `stu-web`, `stu-migrate` and `stu-plan` only;
+- Service Account User on `stu-runtime` and `stu-web-runtime` only;
+- the custom `stuRunOperationReader` role (`run.operations.get`) on the
+  project, since Cloud Run operations are project resources.
+
+It has no key, no GitHub secret, no Secret Manager or Cloud SQL access, and no
+role on Avery or Socrates. `stu-web` runs as `stu-web-runtime`, which has no
+permissions at all (it serves pages only).
+
+Manual fallback, from the repository root (Cloud Build uploads only what
 `.gcloudignore` allows; check with `gcloud meta list-files-for-upload`):
 
 ```sh
 TAG="$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)"
 gcloud builds submit --region=us-west2 --config=deploy/cloudbuild.yaml --substitutions=_TAG="$TAG" .
-```
-
-Apply migrations with the migration job, then roll out the services:
-
-```sh
 gcloud run jobs update stu-migrate --region=us-west2 --image="us-west2-docker.pkg.dev/leonas-friends/stu/api:$TAG"
 gcloud run jobs execute stu-migrate --region=us-west2 --wait
-gcloud run jobs update stu-plan --region=us-west2 --image="us-west2-docker.pkg.dev/leonas-friends/stu/api:$TAG"
 gcloud run deploy stu-api --region=us-west2 --image="us-west2-docker.pkg.dev/leonas-friends/stu/api:$TAG"
 gcloud run deploy stu-web --region=us-west2 --image="us-west2-docker.pkg.dev/leonas-friends/stu/web:$TAG"
+gcloud run jobs update stu-plan --region=us-west2 --image="us-west2-docker.pkg.dev/leonas-friends/stu/api:$TAG"
 ```
 
 `gcloud run deploy` with only `--image` keeps the service's secrets,
@@ -110,6 +133,7 @@ gcloud run deploy stu-api --region=us-west2 --image="$API_IMAGE" \
   --ingress=all --allow-unauthenticated
 
 gcloud run deploy stu-web --region=us-west2 --image="$WEB_IMAGE" \
+  --service-account=stu-web-runtime@leonas-friends.iam.gserviceaccount.com \
   --port=3000 --cpu=1 --memory=512Mi --concurrency=80 \
   --min-instances=0 --max-instances=2 --ingress=all --allow-unauthenticated
 ```

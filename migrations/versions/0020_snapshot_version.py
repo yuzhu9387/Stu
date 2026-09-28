@@ -19,9 +19,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     for table in ("plan_guidance_snapshots", "plan_knowledge_snapshots"):
-        op.add_column(
-            table, sa.Column("version", sa.Integer(), nullable=False, server_default="1")
-        )
+        op.add_column(table, sa.Column("version", sa.Integer(), nullable=False, server_default="1"))
         op.alter_column(table, "version", server_default=None)
 
 

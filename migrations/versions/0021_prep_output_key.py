@@ -17,9 +17,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "prep_tasks", sa.Column("output_batch_key", sa.String(length=200), nullable=True)
-    )
+    op.add_column("prep_tasks", sa.Column("output_batch_key", sa.String(length=200), nullable=True))
 
 
 def downgrade() -> None:

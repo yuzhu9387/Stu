@@ -18,7 +18,9 @@ from recipe_agent.infrastructure.db import outbox as outbox_models  # noqa: F401
 from recipe_agent.infrastructure.db.base import Base
 from recipe_agent.infrastructure.db.migrations import to_sync_database_url
 from recipe_agent.infrastructure.jobs import kitchen as kitchen_job_models  # noqa: F401
-from recipe_agent.infrastructure.jobs import kitchen_ai_tasks as kitchen_ai_task_models  # noqa: F401
+from recipe_agent.infrastructure.jobs import (
+    kitchen_ai_tasks as kitchen_ai_task_models,  # noqa: F401
+)
 from recipe_agent.infrastructure.lark import events as lark_events  # noqa: F401
 
 config = context.config

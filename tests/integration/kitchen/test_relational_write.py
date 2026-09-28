@@ -145,19 +145,13 @@ async def test_editing_a_recipe_replaces_children_rather_than_appending(
     assert relational["recipes"] == aggregate["recipes"]
 
 
-async def test_recipe_delete_removes_rows_but_keeps_shared_food(
-    driver, relational_sessions
-):
+async def test_recipe_delete_removes_rows_but_keeps_shared_food(driver, relational_sessions):
     await driver.send("recipe.save", {"recipe": recipe("r-1", "番茄炒蛋")})
     await driver.send("recipe.delete", {"id": "r-1"})
 
     async with relational_sessions() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(s.KitchenRecipe))
-        ) == 0
-        assert (
-            await session.scalar(select(func.count()).select_from(s.RecipeIngredient))
-        ) == 0
+        assert (await session.scalar(select(func.count()).select_from(s.KitchenRecipe))) == 0
+        assert (await session.scalar(select(func.count()).select_from(s.RecipeIngredient))) == 0
         # 鸡蛋 is shared vocabulary; deleting a recipe must not remove it.
         assert (await session.scalar(select(func.count()).select_from(s.FoodItem))) >= 1
 
@@ -283,9 +277,7 @@ async def test_recipe_detail_fields_round_trip(driver, relational_sessions):
         ).all()
         assert list(groups) == ["肉类", "调味糖色"]
         blanch = await session.scalar(
-            select(s.RecipeStep).where(
-                s.RecipeStep.recipe_id == row.id, s.RecipeStep.position == 0
-            )
+            select(s.RecipeStep).where(s.RecipeStep.recipe_id == row.id, s.RecipeStep.position == 0)
         )
         assert blanch.title_en == "Blanch ribs"
         assert blanch.active_minutes == 5
@@ -317,9 +309,7 @@ async def test_absent_nutrition_is_not_zero_filled(driver, relational_sessions):
     assert "nutrition" not in aggregate["recipes"][0]
 
 
-async def test_ratings_are_one_per_person_and_average_is_counted(
-    driver, relational_sessions
-):
+async def test_ratings_are_one_per_person_and_average_is_counted(driver, relational_sessions):
     """`⭐ 4.9 (42)` is avg/count over rows, so re-rating replaces, not appends."""
     await driver.send("recipe.save", {"recipe": recipe("r-1", "红烧排骨")})
     await driver.send("recipe.rate", {"recipeId": "r-1", "stars": 4})
@@ -330,11 +320,7 @@ async def test_ratings_are_one_per_person_and_average_is_counted(
     assert state["recipeRatings"][0]["stars"] == 5
 
     async with relational_sessions() as session:
-        assert (
-            await session.scalar(
-                select(func.count()).select_from(s.KitchenRecipeRating)
-            )
-        ) == 1
+        assert (await session.scalar(select(func.count()).select_from(s.KitchenRecipeRating))) == 1
     aggregate, relational = await driver.both()
     assert relational["recipeRatings"] == aggregate["recipeRatings"]
 
@@ -351,11 +337,7 @@ async def test_deleting_a_recipe_takes_its_ratings(driver, relational_sessions):
     state = await driver.repo.get(driver.scope)
     assert state["recipeRatings"] == []
     async with relational_sessions() as session:
-        assert (
-            await session.scalar(
-                select(func.count()).select_from(s.KitchenRecipeRating)
-            )
-        ) == 0
+        assert (await session.scalar(select(func.count()).select_from(s.KitchenRecipeRating))) == 0
 
 
 async def test_analysis_metrics_default_on_and_round_trip_a_choice(driver, relational_sessions):
@@ -405,4 +387,3 @@ async def test_pinned_tags_round_trip(driver):
     aggregate, after = await driver.both()
     assert after["settings"]["pinnedTags"] == ["breakfast", "dinner", "Soup"]
     assert after["settings"] == aggregate["settings"]
-

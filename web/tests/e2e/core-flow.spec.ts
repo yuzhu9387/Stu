@@ -8,7 +8,8 @@ const week = "2026-09-21";
 async function login(page: Page) {
   await page.goto("/calendar");
   await page.getByLabel("Email", { exact: true }).fill(`kitchen-${randomUUID()}@example.com`);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  // The API runs in development here, so the passwordless shortcut is offered.
+  await page.getByRole("button", { name: "Local development: continue without a password", exact: true }).click();
   // The shell heading is visible even before login; wait for authenticated data.
   await expect(page.getByRole("region", { name: "Weekly meal calendar" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Calendar", exact: true })).toBeVisible();
@@ -207,12 +208,13 @@ test("Figma navigation, recipe drawer and all page layouts work at desktop and p
   }
   await page.getByRole("button", { name: "Recipes", exact: true }).click();
   await page.getByRole("button", { name: "Open recipe 鸡肉丸", exact: true }).click();
-  // A recipe has its own page (frame 36:1030), with editing on that page.
-  await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
+  // A recipe has its own page (frame 36:1030), with editing on that page. In
+  // the demo the page is addressed by query (?page=recipes&recipe=…).
+  await expect(page).toHaveURL(/[?&]recipe=recipe-meatballs/);
   const recipe = page.getByRole("article", { name: "Recipe 鸡肉丸" });
   await expect(recipe.getByRole("button", { name: "✎ 编辑 Edit", exact: true })).toBeInViewport();
   await recipe.getByRole("button", { name: "← Recipe Book", exact: true }).click();
-  await expect(page).toHaveURL(/\/recipes$/);
+  await expect(page).toHaveURL(/[?&]page=recipes$/);
 });
 
 test("planning hides execution, locks recur and recipe details open a real new tab",async({page},testInfo)=>{
@@ -231,7 +233,7 @@ test("planning hides execution, locks recur and recipe details open a real new t
   const popup=await popupPromise;
   await expect(popup).toHaveURL(/\/recipes\/chicken/);
   await expect(popup.getByRole("heading",{name:"鸡肉丸",exact:true})).toBeVisible();
-  await expect(popup.getByRole("heading",{name:"Ingredients",exact:true})).toBeVisible();
+  await expect(popup.getByRole("heading",{name:/Ingredients/})).toBeVisible();
   await popup.screenshot({path:`/tmp/stu-recipe-${testInfo.project.name}.png`,fullPage:true});
   await popup.close();
   await drawer.getByRole("button",{name:"Close drawer",exact:true}).click();

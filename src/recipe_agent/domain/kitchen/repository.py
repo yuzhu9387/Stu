@@ -151,9 +151,7 @@ class KitchenRepository:
                     return Workspace.model_validate(rebuilt).model_dump(
                         mode="json", exclude_none=True
                     )
-            return Workspace.model_validate(row.state).model_dump(
-                mode="json", exclude_none=True
-            )
+            return Workspace.model_validate(row.state).model_dump(mode="json", exclude_none=True)
 
     async def command(self, scope: HouseholdScope, command: dict[str, Any]) -> dict[str, Any]:
         command = KitchenCommand.model_validate(command).model_dump(mode="json")

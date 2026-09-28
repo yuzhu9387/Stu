@@ -253,9 +253,7 @@ async def test_backfill_preserves_every_record(relational_sessions, relational_h
         ).all()
         assert list(allergens) == ["蛋"]
 
-        meal = await session.scalar(
-            select(s.Meal).where(s.Meal.legacy_id == "m-mon-lunch")
-        )
+        meal = await session.scalar(select(s.Meal).where(s.Meal.legacy_id == "m-mon-lunch"))
         assert meal is not None
         assert meal.status == s.ExecutionStatus.COMPLETED
         assert meal.liked is True
@@ -288,9 +286,7 @@ async def test_backfill_preserves_every_record(relational_sessions, relational_h
         reference = await session.scalar(select(func.count()).select_from(s.PlanChatReference))
         assert reference == 1
 
-        snapshot = await session.scalar(
-            select(func.count()).select_from(s.PlanGuidanceSnapshot)
-        )
+        snapshot = await session.scalar(select(func.count()).select_from(s.PlanGuidanceSnapshot))
         assert snapshot == 1
 
 

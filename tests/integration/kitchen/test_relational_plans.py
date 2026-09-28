@@ -419,10 +419,15 @@ async def test_a_dish_made_from_fridge_foods_keeps_them_through_eating_it(
                 {"inventoryId": "inv-eggs", "portions": 2.0},
                 {"inventoryId": "inv-spinach", "portions": 1.0},
             ],
-        }
+            "secondaryTypes": ["Vegetables", "Carbs"],
+        },
+        {"id": "m-1-c2", "name": "米饭", "type": "Carbs", "portions": 1.0, "secondaryTypes": []},
     ]
     await driver.send("plan.save", {"plan": plan})
     await assert_identical(driver)
+    _, relational = await driver.both()
+    parts = relational["plans"][0]["meals"][0]["components"]
+    assert [p.get("secondaryTypes") for p in parts] == [["Vegetables", "Carbs"], []]
     async with relational_sessions() as session:
         component = await session.scalar(
             select(s.MealComponent).where(s.MealComponent.legacy_id == "m-1-c1")

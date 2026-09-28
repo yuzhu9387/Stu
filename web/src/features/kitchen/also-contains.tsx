@@ -5,9 +5,10 @@ import type { FoodType } from "./types";
 const GROUPS: FoodType[] = ["Protein", "Carbs", "Vegetables", "Dairy"];
 
 /** The other food groups a dish or food carries besides its main one. */
-export function AlsoContains({ primary, value, onChange }: { primary: FoodType; value?: FoodType[]; onChange: (next: FoodType[]) => void }) {
+/** `name` names the dish when several are edited side by side. */
+export function AlsoContains({ primary, value, onChange, name }: { primary: FoodType; value?: FoodType[]; onChange: (next: FoodType[]) => void; name?: string }) {
   const chosen = (value ?? []).filter(group => group !== primary);
-  return <fieldset className="kw-also">
+  return <fieldset className="kw-also" aria-label={name ? `Also contains, ${name}` : undefined}>
     <legend>Also contains</legend>
     <div className="kw-also-chips">{GROUPS.filter(group => group !== primary).map(group => {
       const on = chosen.includes(group);

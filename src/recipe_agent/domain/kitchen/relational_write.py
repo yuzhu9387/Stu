@@ -1148,6 +1148,7 @@ async def _project_meals(
                     inventory_batch_id=batch.id if batch else None,
                     prep_task_id=task.id if task else None,
                     uses=stock_uses(component, batches),
+                    secondary_types=component.get("secondaryTypes"),
                 )
             )
         for index, step in enumerate(raw.get("steps") or []):

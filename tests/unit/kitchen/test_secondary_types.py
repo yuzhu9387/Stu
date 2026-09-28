@@ -56,3 +56,14 @@ def test_every_batch_of_a_food_shares_what_else_it_contains():
     # ... and clearing it on an existing batch clears it everywhere.
     state = run(state, "inventory.save", {"item": buns()})
     assert all("secondaryTypes" not in i for i in state["inventory"] if i["name"] == "包子")
+
+
+def test_a_dish_on_a_plate_names_its_own_other_groups():
+    from recipe_agent.domain.kitchen.contracts import MealComponent
+
+    dish = {"id": "c", "name": "包子", "type": "Carbs", "portions": 1}
+    assert "secondaryTypes" not in parse(MealComponent, dish)
+    own = parse(MealComponent, {**dish, "secondaryTypes": ["Protein", "Carbs", "Protein"]})
+    assert own["secondaryTypes"] == ["Protein"]
+    # An empty list is kept: "none", whatever the recipe says.
+    assert parse(MealComponent, {**dish, "secondaryTypes": []})["secondaryTypes"] == []

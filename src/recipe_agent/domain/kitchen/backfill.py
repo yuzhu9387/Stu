@@ -539,6 +539,7 @@ class WorkspaceBackfill:
                         inventory_batch_id=batch.id if batch else None,
                         prep_task_id=task.id if task else None,
                         uses=stock_uses(component, self.batches),
+                        secondary_types=component.get("secondaryTypes"),
                     )
                 )
                 self.report.add("meal_components")

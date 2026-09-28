@@ -1,5 +1,7 @@
 "use client";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
+import { AlsoMark } from "./also-contains";
+import { componentGroups } from "./food-groups";
 import { ArrowsClockwise, ChatCircleDots, LockSimple, Plus } from "@phosphor-icons/react";
 import { foodEmoji } from "./food-art";
 import { dayLabel, slots, weekDays } from "./data";
@@ -92,7 +94,7 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
             : meal ? <article data-food-drop={board ? `meal:${meal.id}` : undefined} className={`kw-meal-card ${selectedId === meal.id ? "is-selected" : ""} ${referencedIds.includes(meal.id) ? "is-referenced" : ""} ${board?.over === `meal:${meal.id}` ? "is-drop-over" : ""} ${meal.status}`}>{referencedIds.includes(meal.id) && <span className="kw-ref-badge" title="Referenced in the Stu chat">💬</span>}
               <button className="kw-meal-open" onClick={event => { if (board?.picked && meal.status === "planned" && !meal.locked) board.onPlace({ kind: "meal", mealId: meal.id }); else if ((event.metaKey || event.ctrlKey) && onReference) onReference(meal); else onSelect(meal); }} aria-label={`Open ${label} ${slot}`} aria-pressed={selectedId === meal.id} title={`${meal.components.map(component => component.name).join(" + ")} · ${Math.max(0, ...meal.components.map(component => component.portions))} portions · ${meal.activeMinutes} min hands-on · ${meal.elapsedMinutes} min elapsed`}>
                 {slotHeader}
-                <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.map(c=>c.name).join(" + ") || "Untitled meal"}</strong></span>
+                <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.length ? meal.components.map((c, i) => <Fragment key={c.id}>{i ? " + " : ""}{c.name}<AlsoMark primary={c.type} groups={componentGroups(c, state)} /></Fragment>) : "Untitled meal"}</strong></span>
                 <small className="kw-meal-meta"><span>{meal.activeMinutes} min</span><span>{source.replace("Prepare fresh","Fresh")} {source.includes("fridge")?"🧊":"🌿"}</span></small>
                 {missing && <span className="kw-shortage" title={`Not in the fridge yet — prepare on prep day: ${missing.map(item => `${item.name} ×${item.portions}`).join(", ")}`}>🥣 To prep: {missing.map(item => `${item.name} ×${item.portions}`).join(", ")}</span>}
               </button>

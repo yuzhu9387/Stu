@@ -238,6 +238,9 @@ class MealComponent(Contract):
     # A dish cooked from several fridge foods (a basket): what it takes from each.
     # A dish served straight from one batch names that batch in inventoryId.
     uses: list[StockUse] | None = Field(default=None, max_length=12)
+    # The dish's other food groups, set for this plate. Absent, they come from
+    # its recipe or fridge food; an empty list says "none, whatever those say".
+    secondaryTypes: list[FoodType] | None = Field(default=None, max_length=4)
 
     @model_validator(mode="after")
     def _one_source(self) -> Self:
@@ -245,6 +248,8 @@ class MealComponent(Contract):
             raise ValueError("A dish made from fridge foods cannot also come from one batch")
         if not self.uses:
             self.uses = None
+        if self.secondaryTypes is not None:
+            self.secondaryTypes = secondary_types(self.type, self.secondaryTypes) or []
         return self
 
 

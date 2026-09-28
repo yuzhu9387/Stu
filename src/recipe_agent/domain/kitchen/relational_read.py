@@ -497,6 +497,8 @@ class RelationalWorkspaceReader:
                     ]
                     if uses:
                         part["uses"] = uses
+                    if component.secondary_types is not None:
+                        part["secondaryTypes"] = component.secondary_types
                     parts.append(part)
                 meals.append(
                     {

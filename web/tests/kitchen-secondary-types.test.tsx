@@ -39,3 +39,23 @@ it("counts what a dish also contains when checking a meal's food groups", () => 
   const withProtein = meals.filter(m => m.components.some(c => componentGroups(c, state).includes("Protein"))).length;
   expect(balance.value).toContain(`protein ${withProtein}`);
 });
+
+it("lets a dish in a meal name its own other groups, over its food's", async () => {
+  const { MealDrawer } = await import("@/features/kitchen/meal-drawer");
+  const state = createDemoState(), plan = state.plans[0];
+  state.inventory = [...state.inventory, buns];
+  const meal = { ...plan.meals.find(m => m.id === "meal-1-lunch")!, components: [{ id: "c-buns", name: "包子", type: "Carbs" as const, portions: 1, inventoryId: "buns" }] };
+  const onSave = vi.fn().mockResolvedValue(true);
+  render(<MealDrawer state={state} plan={plan} meal={meal} initialEdit onClose={vi.fn()} onDirty={vi.fn()} onSave={onSave} onAction={vi.fn()} onReference={vi.fn()} onRecipe={vi.fn()} busy={false} />);
+  const also = screen.getByRole("group", { name: "Also contains, 包子" });
+  // Until changed here, the dish shows what its fridge food says.
+  expect(within(also).getByRole("button", { name: /Protein/ })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(within(also).getByRole("button", { name: /Vegetables/ }));
+  fireEvent.click(within(also).getByRole("button", { name: /Dairy/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  const dish = onSave.mock.calls[0][0].components[0];
+  expect(dish.secondaryTypes).toEqual(["Protein", "Dairy"]);
+  expect(componentGroups(dish, state)).toEqual(["Carbs", "Protein", "Dairy"]);
+  expect(componentGroups({ ...dish, secondaryTypes: [] }, state)).toEqual(["Carbs"]);
+});

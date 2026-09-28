@@ -499,6 +499,8 @@ class MealComponent(Base):
     # A dish cooked from several fridge foods: [{"batchId": inventory batch
     # UUID, "portions": n}], what it takes from each when the meal is eaten.
     uses: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    # The dish's own other food groups; NULL defers to its recipe or food.
+    secondary_types: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
 
 class MealStep(Base):

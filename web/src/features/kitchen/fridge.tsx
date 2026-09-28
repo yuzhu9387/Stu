@@ -77,7 +77,7 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
   const short = [...groups.values()].filter(g => g.needed > g.onHand + g.planned);
 
   return <section className="kw-support-page kw-fridge-page">
-    <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} Items Short! ⚠️</span>}</header>
+    <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
     <div className="kw-fridge" ref={fridgeRef}>
       <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong></header>

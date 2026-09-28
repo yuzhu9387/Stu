@@ -828,3 +828,35 @@ html{scroll-padding-top:96px}
 .kw-dish-row:has(.kw-dish-progress.completed)>strong{color:#598c40}
 .kw-dish-row:has(.kw-dish-progress.skipped)>strong{color:#a19486;text-decoration:line-through}
 @media(prefers-reduced-motion:reduce){.kw-dish-progress>span{transition:none}}
+
+/* On a phone a card is the full width, yet its actions took a row of their
+   own under the dish: 44px more for each of 21 meals. They sit on the slot
+   line now, right-aligned, where the card had room. Replace and "do not
+   plan", shown when the card has focus, join that row instead of being
+   lifted to the top from the bottom. The 44px tap squares stay (above). */
+@media(max-width:520px){
+  .kw-workspace .kw-calendar-reference .kw-meal-card{position:relative}
+  .kw-workspace .kw-calendar-reference .kw-card-tools{position:absolute;top:4px;right:8px;left:auto;bottom:auto;min-height:30px;justify-content:flex-end}
+  .kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action,
+  .kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action:last-child{position:relative;top:auto;right:auto}
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-slot{min-height:30px;display:flex;align-items:center}
+}
+
+/* Replace and reference sit on a cream circle; the white glyph the action
+   circles use vanished on it. */
+.kw-workspace .kw-calendar-reference .kw-card-tools .kw-secondary-action{color:#35251f}
+
+/* On a phone the week's controls took three rows under the title, the
+   version and "Shopping & Prep" a row each. The version and the shopping
+   link share one now. */
+@media(max-width:520px){
+  .kw-workspace .kw-calendar-heading{row-gap:12px;column-gap:8px}
+  .kw-workspace .kw-calendar-heading h1{flex-basis:100%}
+  .kw-workspace .kw-calendar-heading .kw-weekbar{display:contents}
+  .kw-workspace .kw-calendar-heading .kw-prep-link{margin-left:auto}
+}
+
+/* Two recipe cards to a row on a phone, each a picture, a name and tags,
+   left 80px of blank card under the tags to meet a desktop floor height.
+   The row still lines its two cards up. */
+@media(max-width:520px){.kw-workspace .kw-recipe-card{min-height:0}}

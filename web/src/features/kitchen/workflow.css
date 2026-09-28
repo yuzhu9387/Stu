@@ -239,3 +239,11 @@
 .kw-week-status.draft{background:#fbe7b3;color:#8a5d00}
 .kw-week-status.none{background:#f1ebe3;color:#8d7d70}
 @media(max-width:760px){.kw-week-shortcuts{margin-left:0;width:100%}.kw-week-shortcut{flex:1}.kw-week-popover{left:0;transform:none}}
+
+/* Two week buttons share a phone's width, ~170px each: the status pill
+   beside the title squeezed "Next week" onto two lines and its dates onto
+   two more. Stacked, each line keeps its words together. */
+@media(max-width:520px){
+  .kw-week-shortcut{grid-template-columns:minmax(0,1fr);row-gap:3px}
+  .kw-week-shortcut .kw-week-status{grid-column:1;grid-row:auto;justify-self:start}
+}

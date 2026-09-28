@@ -385,6 +385,34 @@ def recipe_generation_policy(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def prepared_stock(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ready-made food on hand (cooked or frozen dishes and staples): the first
+    thing a week is built from."""
+    return [
+        {
+            "inventoryId": item["id"],
+            "name": item["name"],
+            "type": item["type"],
+            "portions": item["portions"],
+            "location": item["location"],
+            **({"recipeId": item["recipeId"]} if item.get("recipeId") else {}),
+        }
+        for item in state["inventory"]
+        if item.get("prepared") and item["portions"] > 0
+    ]
+
+
+PREPARED_FIRST = (
+    " Build meals in this order. First place preparedStock (ready-made dishes and staples "
+    "already cooked or frozen, such as dumplings, buns or braised meat) into the slots as "
+    "inventory components, following the enabled guidance for each meal, and use as much of "
+    "it as the guidance allows without planning more portions than remain. Then complete "
+    "each meal with what it still lacks under the guidance: vegetables cooked fresh that day "
+    "and any carbohydrate or protein, preferring raw fridge stock. Only then add new cooking "
+    "or prep. Each component's portions follow settings.people unless guidance says otherwise."
+)
+
+
 def planning_time_budget(state: dict[str, Any]) -> dict[str, Any]:
     total = state["settings"]["maxDailyActiveMinutes"]
     breakfast = round(total / 6, 2)
@@ -922,6 +950,7 @@ class KitchenAI:
                         "recipeGeneration": policy,
                         "recipeRotation": preferences["recipeRotation"],
                         "planningBudget": planning_time_budget(state),
+                        "preparedStock": prepared_stock(state),
                         **(extra or {}),
                     },
                     ensure_ascii=False,
@@ -978,7 +1007,7 @@ class KitchenAI:
                 "active work; do not invent appliances to force parallel timing. Ordinary "
                 "prep must fit its elapsed limit as well as the active-work limit."
             )
-        messages[0]["content"] += (
+        messages[0]["content"] += PREPARED_FIRST + (
             " Household settings.recurringMeals are fixed weekly weekday/slot meals. "
             "Keep their dishes and portions exactly; plan the other slots around them. "
             "Never reuse a previous week's consumed inventory or prep batch IDs. "
@@ -1213,15 +1242,34 @@ class KitchenAI:
             "why alternatives may conflict. Avoid the same dish on consecutive days among the "
             "meals you change. "
             "Every changed meal needs its own steps, activeMinutes and elapsedMinutes. "
-            "Act on what the household asks and change only what the request is about. "
+            "Act on what the household asks and change only the meals the request is about, "
+            "but every meal you return must still satisfy the standing constraints: the "
+            "enabled guidance (standing.guidance), the chosen meal styles (standing.presets) "
+            "and the household's earlier requests in this conversation "
+            "(standing.earlierRequests), which still apply unless the new message replaces "
+            "them. When the new message conflicts with a standing constraint, keep the "
+            "constraint where you can, for example by adding the vegetables or protein a rule "
+            "requires, and say in the reply which rule you kept. If the message leaves no way "
+            "to keep a rule, follow the message and name the rule it breaks. "
             "Ask a question only when the request is to rebuild the whole week and a key "
             "preference is genuinely unknown: then return no meals, needsClarification=true, "
             "one short question in reply, and 2-4 short answers in options. "
             "Never ask more than once: when answeringClarification is true, act now using the "
             "answer and sensible defaults. Reply in the language of the household's message."
         )
+        presets = {p["key"]: p["label"] for p in state.get("mealStylePresets", [])}
         payload = {
             "message": request.message,
+            "standing": {
+                "guidance": [
+                    {"title": g["title"], "content": g["content"]}
+                    for g in state["settings"]["guidance"]
+                    if g["enabled"]
+                ],
+                "presets": [presets.get(key, key) for key in plan.get("presets", [])],
+                "earlierRequests": [m["text"] for m in plan["chat"] if m["role"] == "user"][-12:],
+            },
+            "preparedStock": prepared_stock(state),
             "answeringClarification": request.answeringClarification,
             "wholeWeek": whole_week,
             "componentId": request.componentId,

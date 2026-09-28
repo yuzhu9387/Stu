@@ -68,7 +68,16 @@ body.kw-dragging .kw-food-remove{visibility:hidden}
 .kw-fridge-view{display:flex;flex-wrap:wrap;gap:8px}
 .kw-fridge-view label{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#6b584e}
 .kw-fridge-view select{border:1.5px solid #e4d7c5;border-radius:8px;background:#fff;color:#35251f;font:inherit;font-size:12px;font-weight:700;padding:3px 4px}
-.kw-fridge-heading .kw-fridge-view{margin-left:auto}
+/* On the Fridge page the choices sit on the fridge's dark top bar, larger. */
+.kw-fridge-badge{flex-wrap:wrap}
+.kw-fridge-badge .kw-fridge-view{margin-left:auto;gap:14px}
+.kw-fridge-badge .kw-fridge-view label{color:#fff8ef;font-size:14px;gap:8px}
+.kw-fridge-badge .kw-fridge-view select{min-height:40px;padding:6px 10px;border:2px solid #fff8ef;border-radius:10px;font-size:15px;font-weight:800}
+@media(max-width:520px){
+  .kw-fridge-badge .kw-fridge-view{margin-left:0;width:100%;gap:10px}
+  .kw-fridge-badge .kw-fridge-view label{flex:1;min-width:0;flex-direction:column;align-items:stretch;gap:4px;font-size:12px}
+  .kw-fridge-badge .kw-fridge-view select{width:100%;min-width:0}
+}
 /* Grouped by food group, each group starts its own shelves under a label. */
 .kw-shelf-group{display:flex;align-items:center;gap:4px;margin:6px 4px -2px;font-size:12px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#6b584e}
 .kw-shelf-group:first-child{margin-top:0}

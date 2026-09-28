@@ -196,10 +196,11 @@
 .kw-mcp-confirm{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:#c74732}
 .kw-link-button{border:0;background:none;padding:0;color:#64734b;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}
 
-/* Week picker: the date box opens a month calendar; a day picks its whole week. */
-.kw-week-picker{position:relative;display:inline-flex}
-.kw-week-picker>.kw-week-label{display:inline-flex;align-items:center;gap:8px;color:#35251f;font:inherit;font-weight:800;cursor:pointer}
-.kw-workspace .kw-weekbar .kw-week-picker>.kw-week-label:hover{background:#fff8ef}
+/* Week chooser (not .kw-week-picker, the plan's meal grid): the date box opens
+   a month calendar; a day picks its whole week. */
+.kw-week-chooser{position:relative;display:inline-flex}
+.kw-week-chooser>.kw-week-label{display:inline-flex;align-items:center;gap:8px;color:#35251f;font:inherit;font-weight:800;cursor:pointer}
+.kw-workspace .kw-weekbar .kw-week-chooser>.kw-week-label:hover{background:#fff8ef}
 .kw-week-caret{font-size:11px;color:#8d7d70;transition:transform .15s}
 .kw-week-label[aria-expanded=true] .kw-week-caret{transform:rotate(180deg)}
 .kw-week-popover{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:30;width:292px;padding:12px;border:3px solid #35251f;border-radius:16px;background:#fff;box-shadow:0 6px 0 #35251f,0 16px 32px rgba(53,37,31,.18)}

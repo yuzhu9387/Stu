@@ -38,7 +38,7 @@ export function WeekPicker({ week, thisWeek, onPick, className = "" }: { week: s
   const toggle = () => { if (!open) setMonth(week.slice(0, 7)); setOpen(!open); };
   const pick = (monday: string) => { setOpen(false); if (monday !== week) onPick(monday); };
 
-  return <div className="kw-week-picker" ref={root}>
+  return <div className="kw-week-chooser" ref={root}>
     <button type="button" className={`kw-week-label ${className}`} aria-haspopup="dialog" aria-expanded={open} aria-label={`Week of ${weekLabel(week)}, choose a week`} onClick={toggle}>
       {weekLabel(week)}<span className="kw-week-caret" aria-hidden="true">▾</span>
     </button>

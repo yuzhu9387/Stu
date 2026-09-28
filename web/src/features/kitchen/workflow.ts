@@ -1,5 +1,27 @@
 import type { PlanningWorkflow, PlanStep, WeeklyPlan } from "./types";
 
+/** A plan with at least one meal to eat; an empty draft is a plan not yet made. */
+export function hasPlannedMeals(plan: WeeklyPlan | null | undefined): boolean {
+  return !!plan?.meals.some(meal => meal.included !== false && meal.components.length > 0);
+}
+
+/** A draft laid out for the whole week: a meal slot on all seven days (Stu's
+ * drafts lay out every slot, marking the ones not eaten) and something to eat. */
+export function coversWeek(plan: WeeklyPlan): boolean {
+  return new Set(plan.meals.map(meal => meal.day)).size >= 7 && hasPlannedMeals(plan);
+}
+
+/** Next week's plan that is ready to review: the week is not confirmed yet and
+ * its latest draft covers the week. An edit of a confirmed plan, a superseded
+ * version, an empty draft or one with a meal or two (a repeating breakfast
+ * carried over) is not a plan waiting for review. */
+export function readyDraft(plans: WeeklyPlan[], week: string): WeeklyPlan | null {
+  const inWeek = plans.filter(p => p.weekStart === week);
+  if (inWeek.some(p => p.status === "confirmed")) return null;
+  const latest = [...inWeek].reverse().find(p => p.status === "draft" && !p.basePlanId);
+  return latest && coversWeek(latest) ? latest : null;
+}
+
 export function rememberedPlan(plans: WeeklyPlan[], week: string, saved?: PlanningWorkflow): WeeklyPlan | null {
   const plan = plans.find(p => p.id === saved?.planId && p.weekStart === week);
   if (!plan || !saved) return null;

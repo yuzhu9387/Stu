@@ -194,7 +194,9 @@ describe("kitchen workspace navigation and concurrency",()=>{
   });
   it("opens the ready next-week draft with its exact week and plan",async()=>{
     const state=createDemoState();
-    state.plans.push({...structuredClone(state.plans[0]),id:"next-draft",weekStart:"2026-09-28",status:"draft",meals:[],prep:[]});
+    // A drafted week: its meals moved seven days on. (An empty draft is not "ready".)
+    const meals=structuredClone(state.plans[0].meals).map(m=>({...m,id:`next-${m.id}`,day:new Date(Date.parse(`${m.day}T12:00:00Z`)+7*86_400_000).toISOString().slice(0,10)}));
+    state.plans.push({...structuredClone(state.plans[0]),id:"next-draft",weekStart:"2026-09-28",status:"draft",meals,prep:[]});
     localStorage.setItem("stu-kitchen-demo-v1",JSON.stringify(state));
     render(<KitchenWorkspace demo/>);await loaded();
     fireEvent.click(screen.getByText("Review draft"));

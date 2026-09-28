@@ -425,6 +425,17 @@
     font-size:16px;line-height:23px;max-height:46px}
 }
 
+/* The badges under a dish ran 10px and 9px, below the 12px a caption needs
+   and well below what a phone at arm's length resolves. "Fresh 🌿" was the
+   smallest text in the app. They are still secondary to the dish above them
+   -- 12px against its 16px keeps that -- but they can be read now. */
+@media(max-width:680px){
+  .kw-workspace .kw-calendar-reference .kw-meal-meta{height:auto;line-height:17px}
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span,
+  .kw-workspace .kw-calendar-reference .kw-meal-meta>span+span{
+    font-size:12px;line-height:17px;padding:0 6px}
+}
+
 /* Done, skipped and liked are the actions this screen exists for, and they
    were the smallest things on it: 24px circles, a bit over half the 44px a
    fingertip needs. A thumb misses them, or hits the neighbour. The circle

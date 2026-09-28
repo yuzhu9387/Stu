@@ -3,6 +3,7 @@ import { foodEmoji } from "./food-art";
 import { freshness } from "./data";
 import { useMemo, useRef, useState } from "react";
 import { useFridgeDrag, type Columns } from "./fridge-drag";
+import { AlsoContains, AlsoMark } from "./also-contains";
 import "./fridge-arrange.css";
 import type { FoodType, InventoryItem, PageProps } from "./types";
 
@@ -36,6 +37,7 @@ function FoodCardBody({ item }: { item: InventoryItem }) {
     <span className={`kw-food-kind ${item.prepared ? "prepared" : "raw"}`}>{item.prepared ? "半成品" : "生食"}</span>
     <span className="kw-food-art" aria-hidden="true">{item.emoji || foodEmoji(item.name, item.type)}</span>
     <span className="kw-food-line"><h3>{item.name}</h3><span className="kw-food-count">×{item.portions}</span>{item.priority && <span className="kw-food-flag" title="Use first">⭐</span>}</span>
+    <AlsoMark primary={item.type} groups={item.secondaryTypes} />
     {fresh && fresh.tone !== "fresh" && <span className={`kw-food-expiry ${fresh.tone}`}>{fresh.label}</span>}
   </>;
 }
@@ -139,7 +141,7 @@ function FoodDialog({ item, state, plan, send, navigate, onClose }: { item: Inve
   }
 
   return <div className="kw-modal-backdrop" role="presentation" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <form className="kw-modal kw-food-modal" role="dialog" aria-modal="true" aria-label={existing ? "Edit food" : "Add food"} onSubmit={async e => { e.preventDefault(); setBusy(true); try { if (await send("inventory.save", { item: { ...draft, name: draft.name.trim() } })) onClose(); } finally { setBusy(false); } }}>
+    <form className="kw-modal kw-food-modal" role="dialog" aria-modal="true" aria-label={existing ? "Edit food" : "Add food"} onSubmit={async e => { e.preventDefault(); setBusy(true); try { if (await send("inventory.save", { item: { ...draft, name: draft.name.trim(), secondaryTypes: draft.secondaryTypes?.filter(group => group !== draft.type) } })) onClose(); } finally { setBusy(false); } }}>
       <header className="kw-modal-head">
         <input className="kw-food-emoji-input" aria-label="Icon" maxLength={8} placeholder="🥩" value={draft.emoji || ""} onChange={e => change({ emoji: e.target.value || undefined })} />
         <span className="kw-food-titles">
@@ -154,6 +156,8 @@ function FoodDialog({ item, state, plan, send, navigate, onClose }: { item: Inve
           <label className="kw-field">Category<select className="kw-food-select" aria-label="Type" value={draft.type} onChange={e => change({ type: e.target.value as FoodType })}>{types.map(t => <option key={t}>{t}</option>)}</select></label>
           <label className="kw-field">Location<span className="kw-segmented">{["Freezer", "Fridge"].map(place => <button type="button" key={place} className={draft.location.toLowerCase() === place.toLowerCase() ? "on" : ""} aria-pressed={draft.location.toLowerCase() === place.toLowerCase()} onClick={() => change({ location: place })}>{place === "Freezer" ? "冷冻 Freezer ❄️" : "冷藏 Fridge 🧊"}</button>)}</span></label>
         </div>
+
+        <AlsoContains primary={draft.type} value={draft.secondaryTypes} onChange={secondaryTypes => change({ secondaryTypes })} />
 
         <div className="kw-portion-box">
           <div><strong>Portions</strong><small>≈ <input className="kw-grams" aria-label="Grams per portion" type="number" min="1" step="1" placeholder="?" value={draft.portionGrams ?? ""} onChange={e => change({ portionGrams: Number.isNaN(e.target.valueAsNumber) ? undefined : e.target.valueAsNumber })} />g each</small></div>

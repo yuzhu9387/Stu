@@ -387,3 +387,27 @@ async def test_pinned_tags_round_trip(driver):
     aggregate, after = await driver.both()
     assert after["settings"]["pinnedTags"] == ["breakfast", "dinner", "Soup"]
     assert after["settings"] == aggregate["settings"]
+
+
+async def test_secondary_food_groups_round_trip(driver):
+    item = {
+        "id": "buns",
+        "name": "包子",
+        "type": "Carbs",
+        "portions": 6,
+        "location": "freezer",
+        "prepared": True,
+        "addedOn": "2026-09-27",
+        "priority": False,
+        "secondaryTypes": ["Protein", "Vegetables"],
+    }
+    await driver.send("inventory.save", {"item": item})
+    await driver.send(
+        "inventory.receive", {"items": [{**item, "id": "more", "secondaryTypes": None}]}
+    )
+    aggregate, relational = await driver.both()
+    assert relational["inventory"] == aggregate["inventory"]
+    assert {i["id"]: i.get("secondaryTypes") for i in relational["inventory"]} == {
+        "buns": ["Protein", "Vegetables"],
+        "more": ["Protein", "Vegetables"],
+    }

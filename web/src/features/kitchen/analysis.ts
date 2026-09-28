@@ -1,3 +1,4 @@
+import { mealHas } from "./food-groups";
 import { slots, weekDays } from "./data";
 import type { AnalysisMetric, KitchenState, Meal, MealComponent, Recipe, WeeklyPlan } from "./types";
 
@@ -181,8 +182,8 @@ export function planWarnings(state: KitchenState, plan: WeeklyPlan): PlanWarning
     const candidates = meals.filter(m => m.status === "planned");
     // Slots that have no vegetable at all come first; they change the most.
     const ordered = [
-      ...candidates.filter(m => !m.components.some(c => c.type === "Vegetables")),
-      ...candidates.filter(m => m.components.some(c => c.type === "Vegetables")),
+      ...candidates.filter(m => !mealHas(m, "Vegetables", state)),
+      ...candidates.filter(m => mealHas(m, "Vegetables", state)),
     ];
     warnings.push({
       id: "vegetable-variety",
@@ -195,7 +196,8 @@ export function planWarnings(state: KitchenState, plan: WeeklyPlan): PlanWarning
     });
   }
 
-  const without = meals.filter(m => !m.components.some(c => c.type === "Vegetables"));
+  // A meal whose buns carry some vegetables is not a meal without vegetables.
+  const without = meals.filter(m => !mealHas(m, "Vegetables", state));
   if (without.length) {
     const targets = without.filter(m => m.status === "planned");
     warnings.push({
@@ -309,7 +311,7 @@ export function planMetrics(state: KitchenState, plan: WeeklyPlan): MetricResult
       };
     },
     nutrition_balance: () => {
-      const count = (type: MealComponent["type"]) => meals.filter(m => m.components.some(c => c.type === type)).length;
+      const count = (type: MealComponent["type"]) => meals.filter(m => mealHas(m, type, state)).length;
       const own = warnings.filter(w => w.id === "vegetable-variety" || w.id === "meals-without-vegetables");
       return {
         value: `Vegetables in ${count("Vegetables")} of ${meals.length} meals · protein ${count("Protein")} · carbs ${count("Carbs")}`,

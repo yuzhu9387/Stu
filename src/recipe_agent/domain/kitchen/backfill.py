@@ -289,6 +289,7 @@ class WorkspaceBackfill:
                 source_text=None if is_url else (source or None),
                 source_url=source if is_url else None,
                 name_en=raw.get("nameEn"),
+                secondary_types=raw.get("secondaryTypes"),
                 cuisine=raw.get("cuisine"),
                 difficulty=raw.get("difficulty"),
                 hero_image_url=raw.get("heroImageUrl"),

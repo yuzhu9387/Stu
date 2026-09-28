@@ -101,6 +101,13 @@ class RecipeRating(Contract):
     stars: int = Field(ge=1, le=5)
 
 
+def secondary_types(primary: FoodType, extra: list[FoodType] | None) -> list[FoodType] | None:
+    """Other food groups a dish also carries (buns: Carbs, with Protein and
+    Vegetables): distinct, never the main type again, absent when none."""
+    kept = [group for group in dict.fromkeys(extra or []) if group != primary]
+    return kept or None
+
+
 class Recipe(Contract):
     id: Identifier
     name: Identifier
@@ -125,6 +132,13 @@ class Recipe(Contract):
     nutrition: RecipeNutrition | None = None
     reheat: list[ReheatInstruction] = Field(default_factory=list)
     stepDetails: list[StepDetail] = Field(default_factory=list)
+    # The main food group is `type`; these are the others it also contains.
+    secondaryTypes: list[FoodType] | None = Field(default=None, max_length=4)
+
+    @model_validator(mode="after")
+    def _secondary(self) -> Self:
+        self.secondaryTypes = secondary_types(self.type, self.secondaryTypes)
+        return self
 
     @field_validator("heroImageUrl")
     @classmethod
@@ -175,6 +189,13 @@ class InventoryItem(Contract):
     # single food record: renaming or re-iconing it updates each surface at once.
     emoji: str | None = Field(default=None, max_length=16)
     nameEn: str | None = Field(default=None, max_length=200)
+    # Other food groups this food also contains; shared like the icon.
+    secondaryTypes: list[FoodType] | None = Field(default=None, max_length=4)
+
+    @model_validator(mode="after")
+    def _secondary(self) -> Self:
+        self.secondaryTypes = secondary_types(self.type, self.secondaryTypes)
+        return self
 
     @field_validator("addedOn")
     @classmethod

@@ -293,6 +293,9 @@ SYSTEM = (
     "Ground household-specific facts in supplied data; create recipes when the task asks. "
     "Do not claim external actions or medical safety. "
     "No hidden reasoning. Respect allergies, enabled guidance, amounts and time limits. "
+    "A recipe or stock item's type is its main food group; secondaryTypes are other groups "
+    "it also contains (buns: Carbs, with some Protein and Vegetables). Count them when "
+    "checking a meal has protein or vegetables, but not as a full portion of that group. "
     "Planning preferences (rotation, time budgets, new-recipe targets) are advisory: "
     "return the best practical meal plan even if a preference cannot be met. The analysis "
     "will report conflicts for the household to review; do not refuse a useful suggestion. "
@@ -396,6 +399,7 @@ def prepared_stock(state: dict[str, Any]) -> list[dict[str, Any]]:
             "portions": item["portions"],
             "location": item["location"],
             **({"recipeId": item["recipeId"]} if item.get("recipeId") else {}),
+            **({"secondaryTypes": item["secondaryTypes"]} if item.get("secondaryTypes") else {}),
         }
         for item in state["inventory"]
         if item.get("prepared") and item["portions"] > 0

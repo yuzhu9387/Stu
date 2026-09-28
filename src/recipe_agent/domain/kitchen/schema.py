@@ -143,6 +143,8 @@ class FoodItem(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     name_en: Mapped[str | None] = mapped_column(String(200))
     category: Mapped[FoodCategory] = mapped_column(String(16), nullable=False)
+    # Other food groups this food also contains (JSON list of type names).
+    secondary_types: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     emoji: Mapped[str | None] = mapped_column(String(16))
     # Null means unknown. Never inferred from a name.
     default_portion_grams: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
@@ -199,6 +201,8 @@ class KitchenRecipe(Base):
     category: Mapped[FoodCategory] = mapped_column(
         String(16), nullable=False, default=FoodCategory.OTHER
     )
+    # Other food groups the dish also contains (JSON list of type names).
+    secondary_types: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     cuisine: Mapped[str | None] = mapped_column(String(60))
     hero_media_id: Mapped[UUID | None] = mapped_column(
         Uuid, ForeignKey("media_objects.id", ondelete="SET NULL")

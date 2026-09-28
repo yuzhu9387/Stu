@@ -207,6 +207,7 @@ class RelationalWorkspaceReader:
                 ("cuisine", row.cuisine),
                 ("difficulty", _text(row.difficulty) if row.difficulty else None),
                 ("heroImageUrl", row.hero_image_url),
+                ("secondaryTypes", row.secondary_types),
             ):
                 if value:
                     entry[key] = value
@@ -307,6 +308,8 @@ class RelationalWorkspaceReader:
                 item["emoji"] = food[row.food_item_id].emoji
             if food[row.food_item_id].name_en:
                 item["nameEn"] = food[row.food_item_id].name_en
+            if food[row.food_item_id].secondary_types:
+                item["secondaryTypes"] = food[row.food_item_id].secondary_types
             out.append(item)
         return out, by_id
 

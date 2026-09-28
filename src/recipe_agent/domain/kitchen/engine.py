@@ -145,7 +145,9 @@ def validate_references(state: dict[str, Any]) -> None:
                         raise KitchenError("Selected prep belongs to a different recipe")
 
 
-def share_food_attributes(state: dict[str, Any], saved: dict[str, Any]) -> None:
+def share_food_attributes(
+    state: dict[str, Any], saved: dict[str, Any], *, edited: bool = False
+) -> None:
     """Icon and English name describe the food, not one batch of it.
 
     Two tubs of 鸡蛋 are the same food, so naming or re-iconing one has to reach
@@ -155,11 +157,27 @@ def share_food_attributes(state: dict[str, Any], saved: dict[str, Any]) -> None:
     """
     name = saved["name"].casefold()
     shared = {key: saved[key] for key in ("emoji", "nameEn") if saved.get(key) is not None}
-    if not shared:
+    others = [
+        item
+        for item in state["inventory"]
+        if item["id"] != saved["id"] and item["name"].casefold() == name
+    ]
+    for item in others:
+        item.update(shared)
+    # What else the food contains is one value for every batch. A new batch that
+    # says nothing takes the food's; an edited one sets it for all, clearing too.
+    if not edited and not saved.get("secondaryTypes"):
+        known = next((i["secondaryTypes"] for i in others if i.get("secondaryTypes")), None)
+        chosen = [group for group in known or [] if group != saved["type"]]
+        if chosen:
+            saved["secondaryTypes"] = chosen
         return
-    for item in state["inventory"]:
-        if item["id"] != saved["id"] and item["name"].casefold() == name:
-            item.update(shared)
+    for item in others:
+        kept = [group for group in saved.get("secondaryTypes") or [] if group != item["type"]]
+        if kept:
+            item["secondaryTypes"] = kept
+        else:
+            item.pop("secondaryTypes", None)
 
 
 def consume(state: dict[str, Any], component: dict[str, Any], deltas: list[dict[str, Any]]) -> None:
@@ -474,9 +492,10 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             else ("item", InventoryItem, "inventory")
         )
         saved = parse(model, payload[key])
+        existed = any(item["id"] == saved["id"] for item in state[collection])
         upsert(state[collection], saved)
         if kind == "inventory.save":
-            share_food_attributes(state, saved)
+            share_food_attributes(state, saved, edited=existed)
     elif kind == "inventory.receive":
         # What was bought comes home: each item is a new batch, once. A batch
         # already recorded (the same shopping line received twice) is left as is.

@@ -181,6 +181,7 @@ async def _project_recipes(
         row.source_text = None if is_url else (source or None)
         row.source_url = source if is_url else None
         row.name_en = raw.get("nameEn")
+        row.secondary_types = raw.get("secondaryTypes")
         row.cuisine = raw.get("cuisine")
         row.difficulty = raw.get("difficulty")
         row.hero_image_url = raw.get("heroImageUrl")
@@ -428,9 +429,14 @@ async def _derive_food_attributes(
         if batch is None:
             continue
         current = seen.setdefault(
-            batch.food_item_id, {"emoji": None, "nameEn": None, "grams": None}
+            batch.food_item_id,
+            {"emoji": None, "nameEn": None, "grams": None, "secondaryTypes": None},
         )
-        for key, source in (("emoji", "emoji"), ("nameEn", "nameEn")):
+        for key, source in (
+            ("emoji", "emoji"),
+            ("nameEn", "nameEn"),
+            ("secondaryTypes", "secondaryTypes"),
+        ):
             if current[key] is None and raw.get(source) is not None:
                 current[key] = raw[source]
         if current["grams"] is None and raw.get("portionGrams") is not None:
@@ -441,6 +447,7 @@ async def _derive_food_attributes(
             continue
         food.emoji = values["emoji"]
         food.name_en = values["nameEn"]
+        food.secondary_types = values["secondaryTypes"]
         food.default_portion_grams = values["grams"]
     vocabulary.food.clear()
     await vocabulary.prime()

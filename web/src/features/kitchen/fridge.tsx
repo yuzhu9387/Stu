@@ -1,9 +1,10 @@
 "use client";
 import { foodEmoji } from "./food-art";
 import { freshness } from "./data";
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useFridgeDrag, type Columns } from "./fridge-drag";
 import { AlsoContains, AlsoMark } from "./also-contains";
+import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
 import "./fridge-arrange.css";
 import type { FoodType, InventoryItem, PageProps } from "./types";
 
@@ -13,13 +14,19 @@ const BAND: Record<string, string> = { Protein: "Protein", Carbs: "Carbs", Veget
 
 /** The frame draws real shelves, so a compartment holds a fixed number of cards
  * per row rather than a reflowing grid: a shelf carrying four items on one row
- * and two on the next stops reading as a shelf. The add tile always sits on the
- * last shelf, and a new empty shelf appears when the last one is full. */
-function shelve(items: InventoryItem[], perShelf: number): InventoryItem[][] {
-  const rows: InventoryItem[][] = [];
-  for (let i = 0; i < items.length; i += perShelf) rows.push(items.slice(i, i + perShelf));
-  if (!rows.length || rows[rows.length - 1].length === perShelf) rows.push([]);
-  return rows;
+ * and two on the next stops reading as a shelf. Grouped by food group, each
+ * group starts its own shelf. The add tile always sits on the last shelf, and
+ * a new empty shelf appears when the last one is full. */
+function shelve(groups: ReturnType<typeof groupFoods>, perShelf: number) {
+  const blocks = groups.filter(group => group.items.length).map(({ type, items }) => {
+    const rows: InventoryItem[][] = [];
+    for (let i = 0; i < items.length; i += perShelf) rows.push(items.slice(i, i + perShelf));
+    return { type, rows };
+  });
+  const last = blocks.at(-1);
+  if (!last) return [{ type: undefined, rows: [[]] as InventoryItem[][] }];
+  if (last.rows.at(-1)!.length === perShelf) last.rows.push([]);
+  return blocks;
 }
 
 function compartmentName(location: string) {
@@ -49,6 +56,7 @@ function blank(location: string): InventoryItem {
 export function FridgePage({ state, plan, send, navigate }: PageProps) {
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [search, setSearch] = useState("");
+  const view = useFridgeView();
   // The corner × takes a box straight out; a box a meal still needs stays, and the reason shows.
   const remove = (item: InventoryItem) => void send("inventory.delete", { id: item.id }, { quiet: true });
 
@@ -60,9 +68,11 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the locations follow the inventory
     [state.inventory]);
   const fridgeRef = useRef<HTMLDivElement>(null);
-  /** A box let go somewhere new: save the whole order and any compartment change. */
+  /** A box let go somewhere new: save any compartment change, and the new
+   * order when the fridge is shown in the household's own order (sorted by
+   * date or name, a drag only moves a box between compartments). */
   const { shown, dragId, ghost, ghostRef, over, start, clicked } = useFridgeDrag(fridgeRef, columns, async next => {
-    const order = locations.flatMap(location => next[location.toLowerCase()] ?? []);
+    const order = view.sort === "arranged" ? locations.flatMap(location => next[location.toLowerCase()] ?? []) : state.inventory.map(item => item.id);
     const moves = locations.flatMap(location => (next[location.toLowerCase()] ?? []).filter(id => byId.get(id)?.location.toLowerCase() !== location.toLowerCase()).map(id => ({ id, location })));
     return send("inventory.arrange", { order, moves }, { quiet: true });
   });
@@ -77,7 +87,7 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
   const short = [...groups.values()].filter(g => g.needed > g.onHand + g.planned);
 
   return <section className="kw-support-page kw-fridge-page">
-    <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
+    <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}<FridgeViewControls view={view} /></header>
 
     <div className="kw-fridge" ref={fridgeRef}>
       <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong></header>
@@ -86,11 +96,11 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
           const key = location.toLowerCase();
           const items = (shown[key] ?? []).map(id => byId.get(id)).filter((item): item is InventoryItem => !!item);
           const perShelf = key === "fridge" ? 4 : 3;
-          const rows = shelve(items, perShelf);
+          const blocks = shelve(groupFoods(sortFoods(items, view.sort, shown[key] ?? []), view.byType), perShelf);
           return <section data-compartment={key} className={`kw-compartment ${key === "freezer" ? "freezer" : key === "fridge" ? "chilled" : "other"} ${over === key ? "is-drop-target" : ""}`} key={location}>
             <header><h2>{compartmentName(location)}</h2><span>{items.length} item{items.length === 1 ? "" : "s"}</span></header>
             <div className="kw-shelves">
-              {rows.map((row, index) => <div className="kw-shelf" key={index} style={{ gridTemplateColumns: `repeat(${perShelf},minmax(0,1fr))` }}>
+              {blocks.map((block, b) => <Fragment key={block.type ?? "all"}>{block.type && <h3 className="kw-shelf-group">{groupLabel(block.type)}</h3>}{block.rows.map((row, index) => { const last = b === blocks.length - 1 && index === block.rows.length - 1; return <div className="kw-shelf" key={index} style={{ gridTemplateColumns: `repeat(${perShelf},minmax(0,1fr))` }}>
                 {row.map(item => item.id === dragId
                   ? <span className="kw-food-card kw-food-placeholder" key={item.id} data-fridge-item={item.id} aria-hidden="true" />
                   : <div className="kw-food-cell" key={item.id} data-fridge-item={item.id}>
@@ -99,9 +109,9 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
                     </button>
                     <button type="button" className="kw-food-remove" aria-label={`Remove ${item.name}`} title="Remove" onClick={() => remove(item)}>×</button>
                   </div>)}
-                {index === rows.length - 1 && <button className="kw-food-add" aria-label={`Add food to ${location}`} onClick={() => setEditing(blank(location))}>+</button>}
-                {index === rows.length - 1 && Array.from({ length: Math.max(0, perShelf - row.length - 1) }, (_, i) => <span className="kw-food-slot" key={`slot-${i}`} aria-hidden="true" />)}
-              </div>)}
+                {last && <button className="kw-food-add" aria-label={`Add food to ${location}`} onClick={() => setEditing(blank(location))}>+</button>}
+                {last && Array.from({ length: Math.max(0, perShelf - row.length - 1) }, (_, i) => <span className="kw-food-slot" key={`slot-${i}`} aria-hidden="true" />)}
+              </div>; })}</Fragment>)}
             </div>
           </section>;
         })}

@@ -1,11 +1,11 @@
 "use client";
 import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AlsoMark } from "./also-contains";
-import { useStored } from "./browser-store";
 import { uid } from "./data";
 import { foodEmoji } from "./food-art";
 import { withDish } from "./meal-steps";
-import type { FoodType, InventoryItem, KitchenState, Meal, MealComponent, MealSlot, WeeklyPlan } from "./types";
+import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
+import type { InventoryItem, KitchenState, Meal, MealComponent, MealSlot, WeeklyPlan } from "./types";
 import "./plan-board.css";
 
 /** Where a fridge food lands: on a meal, or on an empty slot. */
@@ -157,24 +157,16 @@ export function usePlanBoard(state: KitchenState, plan: WeeklyPlan | null, save:
 
 /** Freezer first, as on the Fridge page; any other place after. */
 const PLACES: [string, string][] = [["freezer", "❄️ 冷冻 Freezer"], ["fridge", "🧊 冷藏 Fridge"]];
-const TYPES: FoodType[] = ["Protein", "Carbs", "Vegetables", "Dairy", "Other"];
-const SORTS = { made: "Oldest made", newest: "Newest made", name: "Name" } as const;
-type Sort = keyof typeof SORTS;
 const madeOn = (day: string) => new Intl.DateTimeFormat("en-US", { month: "numeric", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
 
-/** The fridge beside the week, one block per compartment. Foods are grouped by
- * food group (each group on its own rows) unless the household turns that off,
- * and ordered by the day they were made or by name; both choices are kept in
- * this browser. Each food shows the portions this week has not taken yet. */
+/** The fridge beside the week, one block per compartment, grouped and ordered
+ * as on the Fridge page (fridge-view). Each food shows the portions this week
+ * has not taken yet and the day it was made. */
 export function FridgeRail({ state, free, pickedId, onPick, onDragFood }: ReturnType<typeof usePlanBoard>["rail"]) {
-  const [groupRaw, setGroup] = useStored("local", "stu-board-group");
-  const [sortRaw, setSort] = useStored("local", "stu-board-sort");
-  const byType = groupRaw !== "none";
-  const sort: Sort = sortRaw && sortRaw in SORTS ? sortRaw as Sort : "made";
+  const view = useFridgeView();
   const foods = state.inventory.filter(item => item.portions > 0);
   const place = (item: InventoryItem) => item.location.trim().toLocaleLowerCase();
   const places = [...PLACES, ...[...new Set(foods.map(place))].filter(key => !PLACES.some(([p]) => p === key)).map(key => [key, key.charAt(0).toUpperCase() + key.slice(1)] as [string, string])];
-  const order = (a: InventoryItem, b: InventoryItem) => sort === "name" ? a.name.localeCompare(b.name) : (sort === "made" ? 1 : -1) * a.addedOn.localeCompare(b.addedOn) || a.name.localeCompare(b.name);
   const picked = foods.find(item => item.id === pickedId);
   const food = (item: InventoryItem) => {
     const left = Math.max(0, Math.round((free.get(item.id) ?? 0) * 100) / 100);
@@ -185,19 +177,16 @@ export function FridgeRail({ state, free, pickedId, onPick, onDragFood }: Return
   return <aside className="kw-board-fridge" aria-label="Fridge for this week">
     <header>
       <h2>冰箱 Fridge</h2>
-      <div className="kw-board-controls">
-        <label>Group<select value={byType ? "type" : "none"} onChange={e => setGroup(e.target.value === "none" ? "none" : null)}><option value="type">Food group</option><option value="none">None</option></select></label>
-        <label>Sort<select value={sort} onChange={e => setSort(e.target.value)}>{Object.entries(SORTS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-      </div>
+      <FridgeViewControls view={view} />
       {picked && <p className="kw-board-hint" role="status">Tap a meal to add {picked.name}</p>}
     </header>
     <div className="kw-board-shelves">{places.map(([key, label]) => {
-      const items = foods.filter(item => place(item) === key).sort(order);
+      const items = sortFoods(foods.filter(item => place(item) === key), view.sort, state.inventory.map(item => item.id));
       if (!items.length) return null;
       return <section key={key} className={`kw-board-place is-${key}`} aria-label={label}><h3>{label}</h3>
-        {byType
-          ? TYPES.map(type => { const group = items.filter(item => item.type === type); return group.length ? <div key={type} className="kw-board-group" role="group" aria-label={type}><h4><span aria-hidden="true">{foodEmoji("", type)}</span>{type}</h4><ul>{group.map(food)}</ul></div> : null; })
-          : <ul>{items.map(food)}</ul>}
+        {groupFoods(items, view.byType).map(({ type, items: group }) => type
+          ? <div key={type} className="kw-board-group" role="group" aria-label={type}><h4>{groupLabel(type)}</h4><ul>{group.map(food)}</ul></div>
+          : <ul key="all">{group.map(food)}</ul>)}
       </section>;
     })}</div>
     {!foods.length && <p className="kw-empty">The fridge is empty. Add food in Fridge first.</p>}

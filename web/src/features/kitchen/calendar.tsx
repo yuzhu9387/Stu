@@ -103,6 +103,7 @@ export function CalendarGrid({ onUnlock, week, plan, state, selectedId, onSelect
                 {slotHeader}
                 <span className="kw-meal-title"><span className="kw-food-emoji" aria-hidden="true">{foodEmoji(meal.components[0]?.name||"",meal.components[0]?.type)}</span><strong>{meal.components.map(c => c.name).join(" + ") || "Untitled meal"}</strong></span>
                 <small className="kw-meal-meta"><span>{meal.activeMinutes} min</span>{source && <span title={source[2]}>{source[0]}<span className="kw-source-emoji" aria-hidden="true">{source[1]}</span></span>}</small>
+                {meal.status === "changed" && meal.note && <small className="kw-meal-note" title={meal.note}><span aria-hidden="true">📝 </span>{meal.note}</small>}
               </button>
               <div className="kw-card-tools">
                 {meal.locked && <button className="kw-meal-lock" aria-label="Unlock weekly meal" title="Locked every week · click to unlock" onClick={event=>{event.stopPropagation();onUnlock?.(meal);}}><LockSimple size={13} weight="fill"/></button>}

@@ -43,3 +43,11 @@
 .kw-calendar-reference .kw-day-total.over-budget,.kw-calendar-reference .kw-day-total.over-budget span{color:var(--stu-primary)}
 @media(hover:none){.kw-calendar-reference .kw-meal-quick-actions{opacity:1}.kw-calendar-reference .kw-shortage{bottom:26px;background:var(--meal-bg)}}
 @media(max-width:700px){.kw-calendar.kw-calendar-reference{grid-template-columns:repeat(7,168px);min-width:1224px;gap:8px}.kw-calendar-reference .kw-day-header{padding-left:10px}.kw-calendar-reference .kw-day-header strong{font-size:16px}.kw-calendar-reference .kw-meal-card,.kw-calendar-reference .kw-add-meal{height:134px;min-height:134px}.kw-calendar-reference .kw-card-tools button{width:28px;height:28px}.kw-calendar-reference .kw-meal-open{padding-bottom:31px}.kw-calendar-reference .kw-meal-quick-actions{opacity:1}.kw-calendar-reference .kw-shortage{bottom:31px;background:var(--meal-bg)}}
+
+/* A meal that went differently: its own stamp (the word comes from here, as
+   DONE and SKIP do in figma.css) and its note under the title. */
+.kw-workspace .kw-calendar-reference .changed .kw-meal-state{border-color:#2f7fa8;background:rgba(47,127,168,.08);color:#2f7fa8}
+.kw-workspace .kw-calendar-reference .changed .kw-meal-state:after{content:"CHANGED";font-size:11px;font-weight:900}
+.kw-workspace .kw-calendar-reference .changed .kw-card-slot{padding-right:72px;overflow:hidden;white-space:nowrap}
+.kw-workspace .kw-calendar-reference .changed .kw-card-slot>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kw-meal-note{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700;color:#2f7fa8}

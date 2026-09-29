@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CalendarGrid } from "@/features/kitchen/calendar";
@@ -57,6 +58,22 @@ describe("a meal that went differently", () => {
     render(<CalendarGrid week={plan.weekStart} plan={next.plans[0]} state={next} selectedId={null} onSelect={() => {}} onAdd={() => {}} onStatus={() => {}} onLike={() => {}} />);
     const card = screen.getByRole("button", { name: `Open Wed, Sep 23 dinner` }).closest("article")!;
     expect(within(card).getByText("changed")).toBeInTheDocument();
+  });
+});
+
+describe("a changed meal on the calendar", () => {
+  it("shows its note on the card", () => {
+    const { state, plan, meal } = confirmed();
+    const next = applyDemoCommand(state, { type: "meal.status", payload: { planId: plan.id, mealId: meal.id, status: "changed", note: "改成了包子" }, expectedRevision: state.revision, operationId: "c" }).state;
+    render(<CalendarGrid week={plan.weekStart} plan={next.plans[0]} state={next} selectedId={null} onSelect={() => {}} onAdd={() => {}} onStatus={() => {}} onLike={() => {}} />);
+    const card = screen.getByRole("button", { name: "Open Wed, Sep 23 dinner" }).closest("article")!;
+    expect(within(card).getByText("改成了包子")).toBeInTheDocument();
+  });
+
+  it("gets a stamp of its own, as Done and Skip do (the stamp's word comes from the stylesheet)", () => {
+    const css = ["figma.css", "calendar.css", "support.css"].map(name => readFileSync(`src/features/kitchen/${name}`, "utf8")).join("\n");
+    expect(css).toMatch(/\.changed \.kw-meal-state:after\{content:"CHANGED"/);
+    expect(css).toMatch(/\.changed \.kw-card-slot\{padding-right/);
   });
 });
 

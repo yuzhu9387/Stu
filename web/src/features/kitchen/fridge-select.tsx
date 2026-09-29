@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePrepDrafts } from "./prep-drafts";
 import type { InventoryItem } from "./types";
 
 /** Foods chosen on the fridge for 🔪 + Prep. Choosing starts by holding a
@@ -30,4 +31,15 @@ export function ChoiceBar({ count, onPrep, onClear }: { count: number; onPrep: (
     <button type="button" className="kw-choice-prep" title="Add to prep day" onClick={onPrep}>🔪 + Prep</button>
     <button type="button" className="kw-choice-clear" aria-label="Clear selection" onClick={onClear}>✕</button>
   </div>;
+}
+
+/** In the fridge's title bar while + Prep dishes are on their way: how many,
+ * a dot while Stu is still making one, a star when one is ready to review. */
+export function PrepTag({ demo, onOpen }: { demo: boolean; onOpen: () => void }) {
+  const drafts = usePrepDrafts(demo);
+  if (!drafts.length) return null;
+  const making = drafts.some(d => d.status === "making"), ready = drafts.some(d => d.status === "ready");
+  return <button type="button" className={`kw-prep-tag ${making ? "is-making" : ""} ${ready ? "is-ready" : ""}`} aria-label={`Prep dishes, ${drafts.length}`} title="+ Prep dishes on their way" onClick={onOpen}>
+    <span aria-hidden="true">🔪</span>{drafts.length}{making && <span className="kw-prep-tag-dot" aria-hidden="true" />}
+  </button>;
 }

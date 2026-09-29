@@ -6,6 +6,7 @@ import { createDemoState } from "@/features/kitchen/data";
 import { applyDemoCommand } from "@/features/kitchen/demo-engine";
 import { FridgePage } from "@/features/kitchen/fridge";
 import { PrepPage } from "@/features/kitchen/prep";
+import { reloadPrepDrafts } from "@/features/kitchen/prep-drafts";
 import { addToPrep, fridgePrepTask, nextWeekStart, prepPlan } from "@/features/kitchen/prep-from-fridge";
 import type { KitchenState, PrepTask } from "@/features/kitchen/types";
 import { planningStep } from "@/features/kitchen/workflow";
@@ -91,22 +92,31 @@ describe("the week a + Prep dish goes to", () => {
 });
 
 describe("🔪 + Prep on the fridge", () => {
-  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-09-30T12:00:00-07:00")); });
-  afterEach(() => { vi.useRealTimers(); });
-
-  it("turns the chosen foods into a dish on next week's prep day, not in the recipe book", async () => {
-    const k = kitchen(), recipes = k.latest().recipes.length;
-    render(<Fridge k={k} />);
-    choose("熟糙米饭");
-    choose("西兰花");
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-09-30T12:00:00-07:00")); localStorage.clear(); reloadPrepDrafts(); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  /** Choose foods and ask Stu for a dish from them. */
+  const make = (...names: string[]) => {
+    names.forEach(choose);
     const bar = screen.getByRole("toolbar", { name: "Selected foods" });
-    expect(bar).toHaveTextContent("2 selected");
+    expect(bar).toHaveTextContent(`${names.length} selected`);
     const prep = within(bar).getByRole("button", { name: "🔪 + Prep" });
     expect(prep).toHaveAttribute("title", "Add to prep day");
     fireEvent.click(prep);
     const drawer = screen.getByRole("dialog", { name: "🔪 + Prep" });
-    fireEvent.click(within(drawer).getByRole("button", { name: /Make a dish from 2 foods/ }));
-    fireEvent.change(await within(drawer).findByLabelText("Dish name"), { target: { value: "米饭西兰花饼" } });
+    fireEvent.click(within(drawer).getByRole("button", { name: new RegExp(`Make a dish from ${names.length} food`) }));
+    return drawer;
+  };
+  const tag = () => screen.getByRole("button", { name: /^Prep dishes, / });
+
+  it("turns the chosen foods into a dish on next week's prep day, not in the recipe book", async () => {
+    const k = kitchen(), recipes = k.latest().recipes.length;
+    render(<Fridge k={k} />);
+    const drawer = make("熟糙米饭", "西兰花");
+    // Stu works on it in the background; the selection is free for the next dish.
+    expect(within(drawer).getByText(/Stu is making a dish/)).toBeInTheDocument();
+    expect(screen.queryByRole("toolbar", { name: "Selected foods" })).not.toBeInTheDocument();
+    fireEvent.click(await within(drawer).findByRole("button", { name: /^Review / }));
+    fireEvent.change(within(drawer).getByLabelText("Dish name"), { target: { value: "米饭西兰花饼" } });
     fireEvent.change(within(drawer).getByLabelText("Portions of 西兰花"), { target: { value: "2" } });
     fireEvent.click(within(drawer).getByRole("button", { name: "Add to prep day" }));
     await waitFor(() => expect(k.latest().plans.some(p => p.weekStart === NEXT)).toBe(true));
@@ -115,9 +125,10 @@ describe("🔪 + Prep on the fridge", () => {
     expect(task.recipeId).toBeUndefined();
     expect(k.latest().recipes).toHaveLength(recipes);
     expect(k.calls).not.toContain("recipe.save");
-    // Done: the selection is cleared and prep day is one tap away.
+    // Added: it leaves the list, and prep day is one tap away.
     expect(await screen.findByText(/米饭西兰花饼 is on prep day/)).toBeVisible();
-    expect(screen.queryByRole("toolbar", { name: "Selected foods" })).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole("button", { name: /^Review / })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Prep dishes, / })).not.toBeInTheDocument();
   });
 
   it("can use a recipe instead of Stu's dish", async () => {
@@ -131,6 +142,65 @@ describe("🔪 + Prep on the fridge", () => {
     fireEvent.click(within(drawer).getByRole("button", { name: "Add to prep day" }));
     await waitFor(() => expect(k.latest().plans.some(p => p.weekStart === NEXT)).toBe(true));
     expect(k.latest().plans.find(p => p.weekStart === NEXT)!.prep[0]).toMatchObject({ recipeId: "recipe-broccoli", origin: "fridge", inputs: [{ inventoryId: "stock-broccoli" }] });
+  });
+
+  it("keeps making dishes after the drawer is closed, several at once, and lists only those not yet added or discarded", async () => {
+    const k = kitchen();
+    render(<Fridge k={k} />);
+    make("熟糙米饭");
+    fireEvent.click(screen.getByRole("button", { name: "Close drawer" }));
+    make("西兰花", "鸡肉丸");
+    fireEvent.click(screen.getByRole("button", { name: "Close drawer" }));
+    expect(tag()).toHaveTextContent("2");
+    fireEvent.click(tag());
+    const drawer = screen.getByRole("dialog", { name: "🔪 + Prep" });
+    await waitFor(() => expect(within(drawer).getAllByRole("button", { name: /^Review / })).toHaveLength(2));
+    const [first] = within(drawer).getAllByRole("listitem");
+    fireEvent.click(within(first).getByRole("button", { name: /^Discard / }));
+    expect(within(drawer).getAllByRole("button", { name: /^Review / })).toHaveLength(1);
+    expect(tag()).toHaveTextContent("1");
+    fireEvent.click(within(drawer).getByRole("button", { name: /^Review / }));
+    fireEvent.click(within(drawer).getByRole("button", { name: "Add to prep day" }));
+    await waitFor(() => expect(k.latest().plans.find(p => p.weekStart === NEXT)?.prep).toHaveLength(1));
+    expect(k.latest().plans.find(p => p.weekStart === NEXT)!.prep[0].inputs.map(i => i.inventoryId)).toEqual(["stock-broccoli", "stock-meatballs"]);
+    await waitFor(() => expect(screen.queryByRole("button", { name: /^Prep dishes, / })).not.toBeInTheDocument());
+  });
+
+  it("keeps a dish Stu made through a reload; one still being made then can be tried again", async () => {
+    const k = kitchen();
+    const { unmount } = render(<Fridge k={k} />);
+    make("熟糙米饭");
+    await screen.findByRole("button", { name: /^Review / });
+    fireEvent.click(screen.getByRole("button", { name: "Close drawer" }));
+    make("西兰花");
+    unmount();
+    reloadPrepDrafts();
+    render(<Fridge k={k} />);
+    expect(tag()).toHaveTextContent("2");
+    fireEvent.click(tag());
+    const drawer = screen.getByRole("dialog", { name: "🔪 + Prep" });
+    expect(within(drawer).getAllByRole("button", { name: /^Review / })).toHaveLength(1);
+    fireEvent.click(within(drawer).getByRole("button", { name: /^Try again/ }));
+    await waitFor(() => expect(within(drawer).getAllByRole("button", { name: /^Review / })).toHaveLength(2));
+  });
+
+  it("says when Stu could not make a dish, and tries again", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ detail: "Stu is not available right now." }), { status: 503, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetch);
+    const state = createDemoState();
+    let latest = state;
+    function Live() {
+      const [current, setCurrent] = useState(latest);
+      return <FridgePage state={current} plan={current.plans[0]} demo={false} notify={vi.fn()} navigate={vi.fn()} send={async (type, payload) => { latest = command(latest, type, payload); setCurrent(latest); return true; }} />;
+    }
+    render(<Live />);
+    const drawer = make("西兰花");
+    expect(await within(drawer).findByText("Stu is not available right now.")).toBeInTheDocument();
+    const dish = demoComposition([food(state, "西兰花")], "dinner", 3);
+    fetch.mockResolvedValueOnce(new Response(JSON.stringify(dish), { status: 200, headers: { "content-type": "application/json" } }));
+    fireEvent.click(within(drawer).getByRole("button", { name: /^Try again/ }));
+    expect(await within(drawer).findByRole("button", { name: /^Review / })).toBeInTheDocument();
+    expect(JSON.parse(fetch.mock.calls[1][1].body as string)).toMatchObject({ inventoryIds: ["stock-broccoli"] });
   });
 
   it("while choosing, a tap picks a food; a food with nothing left cannot be picked; ✕ ends it", () => {

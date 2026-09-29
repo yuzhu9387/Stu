@@ -7,7 +7,8 @@ import { AlsoContains, AlsoMark } from "./also-contains";
 import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
 import { FridgeDoors, type Door } from "./fridge-doors";
 import { ChoiceBar, useFoodChoice } from "./fridge-select";
-import { PrepFromFridge } from "./prep-drawer";
+import { PrepDrawer, type PrepView } from "./prep-drawer";
+import { PrepTag } from "./fridge-select";
 import { ShoppingDrawer, ShoppingNote } from "./shopping-note";
 import "./fridge-arrange.css";
 import type { FoodType, InventoryItem, PageProps } from "./types";
@@ -62,8 +63,8 @@ function blank(location: string): InventoryItem {
 export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDay }: PageProps & { onDoor?: (door: Door) => void; onPrepDay?: (week: string) => void }) {
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const choice = useFoodChoice(state.inventory);
-  // The foods + Prep was opened with, and the day it was opened on.
-  const [preparing, setPreparing] = useState<{ foods: InventoryItem[]; today: string } | null>(null);
+  // The + Prep drawer: foods just chosen, the dishes on their way, or one to review.
+  const [prepView, setPrepView] = useState<PrepView | null>(null);
   const [shopping, setShopping] = useState(false);
   const [search, setSearch] = useState("");
   const view = useFridgeView();
@@ -100,7 +101,7 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
     <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
     <div className="kw-fridge-home"><div className="kw-fridge" ref={fridgeRef}>
-      <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><ShoppingNote rows={state.shoppingList ?? []} onOpen={() => setShopping(true)} /><FridgeViewControls view={view} /></header>
+      <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><ShoppingNote rows={state.shoppingList ?? []} onOpen={() => setShopping(true)} /><PrepTag demo={demo} onOpen={() => setPrepView({ kind: "list" })} /><FridgeViewControls view={view} /></header>
       <div className={`kw-fridge-body ${locations.length > 2 ? "wide" : ""}`}>
         {locations.map(location => {
           const key = location.toLowerCase();
@@ -131,8 +132,8 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
       {ghost && byId.get(ghost.id) && <div ref={ghostRef} className={`kw-food-card kw-food-ghost type-${byId.get(ghost.id)!.type}`} style={{ width: ghost.width, height: ghost.height }} aria-hidden="true"><FoodCardBody item={byId.get(ghost.id)!} /></div>}
     </div><FridgeDoors onOpen={door => onDoor ? onDoor(door) : navigate(door)} /></div>
 
-    {choice.choosing && !preparing && <ChoiceBar count={choice.chosen.length} onClear={choice.clear} onPrep={() => setPreparing({ foods: choice.chosen, today: new Intl.DateTimeFormat("en-CA", { timeZone: state.settings.timezone }).format(new Date()) })} />}
-    {preparing && <PrepFromFridge state={state} foods={preparing.foods} demo={demo} send={send} today={preparing.today} onClose={() => setPreparing(null)} onAdded={choice.clear} onPrepDay={onPrepDay} />}
+    {choice.choosing && !prepView && <ChoiceBar count={choice.chosen.length} onClear={choice.clear} onPrep={() => setPrepView({ kind: "new", foods: choice.chosen })} />}
+    {prepView && <PrepDrawer state={state} demo={demo} send={send} view={prepView} onView={setPrepView} onStarted={choice.clear} onPrepDay={onPrepDay} />}
     {shopping && <ShoppingDrawer state={state} send={send} onClose={() => setShopping(false)} />}
     {editing && <FoodDialog key={editing.id} item={editing} state={state} plan={plan} send={send} navigate={navigate} onClose={() => setEditing(null)} />}
 

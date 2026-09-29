@@ -112,3 +112,25 @@ body.kw-dragging .kw-food-remove{visibility:hidden}
 .kw-prep-place button[aria-pressed=true]{background:#f4af14;color:#35251f}
 .kw-prep-finish>p{flex-basis:100%;margin:0}
 .kw-prep-finish-actions{display:flex;gap:8px}
+
+/* + Prep dishes on their way: a tag in the fridge's title bar, and the list. */
+.kw-prep-tag{position:relative;display:inline-flex;align-items:center;gap:4px;border:0;border-radius:999px;background:#fff8ef;color:#35251f;padding:5px 11px;font:inherit;font-size:13px;font-weight:900;cursor:pointer;box-shadow:2px 2px 0 rgba(0,0,0,.28)}
+.kw-prep-tag.is-ready{background:#f4af14}
+.kw-prep-tag:focus-visible{outline:3px solid #f4af14;outline-offset:3px}
+.kw-prep-tag-dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border:2px solid #35251f;border-radius:50%;background:#8cbf73;animation:kw-prep-pulse 1.2s ease-in-out infinite}
+@keyframes kw-prep-pulse{50%{transform:scale(.6);opacity:.6}}
+.kw-prep-drafts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.kw-prep-draft{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:2px solid #e4d7c5;border-radius:14px;background:#fff}
+.kw-prep-draft.is-ready{border-color:#35251f;box-shadow:0 3px 0 #35251f}
+.kw-prep-draft.is-failed{border-color:#e7b3a8;background:#fff6f3}
+.kw-prep-draft-body{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.kw-prep-draft-foods{font-size:13px;font-weight:800;color:#6b584e}
+.kw-prep-draft-status{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#8d7d70}
+.kw-prep-draft-status.kw-error{margin:0}
+.kw-prep-draft-review{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:0;background:none;padding:0;font:inherit;text-align:left;cursor:pointer;color:#35251f}
+.kw-prep-draft-review strong{font-size:16px}
+.kw-prep-draft-review span{font-size:13px;font-weight:900;color:#c9492f}
+.kw-prep-draft-review:hover span{text-decoration:underline}
+.kw-prep-draft .kw-spinner{width:14px;height:14px;border:2.5px solid #e4d7c5;border-top-color:#c9492f;border-radius:50%;animation:kw-prep-spin .8s linear infinite}
+@keyframes kw-prep-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.kw-prep-tag-dot,.kw-prep-draft .kw-spinner{animation:none}}

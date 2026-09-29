@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 import { setDishSteps, stepGroups } from "./meal-steps";
-import type { FoodType, Ingredient, KitchenState, Meal, MealComponent } from "./types";
+import type { FoodType, Ingredient, KitchenState, Meal, MealComponent, Recipe } from "./types";
 
 /** A dish as sent to Stu: what the household wrote, blanks left out. */
 export interface FillDish { id: string; name: string; portions: number; type?: FoodType; secondaryTypes?: FoodType[]; ingredients?: Ingredient[]; steps?: string[]; activeMinutes?: number; elapsedMinutes?: number }
@@ -79,4 +79,34 @@ export async function fillMeal(meal: Meal, state: Pick<KitchenState, "recipes">,
   if (!dishes.length) return meal;
   const answer = demo ? { dishes: dishes.map(demoFill) } : await api<{ dishes: FilledDish[] }>("/api/v1/kitchen/fill", { method: "POST", body: JSON.stringify({ slot: meal.slot, dishes }) });
   return mergeFilled(meal, answer.dishes);
+}
+
+/** A recipe's blanks for Stu: no ingredient named, no step written. */
+export function recipeBlanks(recipe: Recipe): number {
+  return Number(!recipe.ingredients.some(i => i.name.trim())) + Number(!recipe.steps.some(step => step.trim()));
+}
+
+/** A recipe with its blanks filled by Stu (or, in the demo, plainly), through
+ * the same fill as a meal's dishes; anything written stays. Throws when Stu
+ * cannot answer. */
+export async function fillRecipe(recipe: Recipe, demo: boolean): Promise<Recipe> {
+  const ingredients = recipe.ingredients.filter(i => i.name.trim()), steps = recipe.steps.map(step => step.trim()).filter(Boolean);
+  const dish: FillDish = {
+    id: recipe.id, name: recipe.name.trim(), portions: recipe.servings > 0 ? recipe.servings : 1,
+    ...(recipe.type !== "Other" ? { type: recipe.type } : {}),
+    ...(recipe.secondaryTypes ? { secondaryTypes: recipe.secondaryTypes } : {}),
+    ...(ingredients.length ? { ingredients } : {}), ...(steps.length ? { steps } : {}),
+    activeMinutes: recipe.activeMinutes, elapsedMinutes: recipe.elapsedMinutes,
+  };
+  const answer = demo ? { dishes: [demoFill(dish)] } : await api<{ dishes: FilledDish[] }>("/api/v1/kitchen/fill", { method: "POST", body: JSON.stringify({ slot: recipe.mealTypes[0] ?? "dinner", dishes: [dish] }) });
+  const filled = answer.dishes.find(d => d.id === recipe.id);
+  if (!filled) throw new Error("Stu could not fill this recipe.");
+  return {
+    ...recipe,
+    type: recipe.type === "Other" ? filled.type : recipe.type,
+    ...(recipe.secondaryTypes === undefined && filled.secondaryTypes?.length ? { secondaryTypes: filled.secondaryTypes } : {}),
+    ingredients: ingredients.length ? ingredients : filled.ingredients,
+    steps: steps.length ? steps : filled.steps,
+    incomplete: false,
+  };
 }

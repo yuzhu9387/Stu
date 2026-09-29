@@ -8,6 +8,7 @@ import { TagManager } from "./tag-manager";
 import { libraryTags } from "./tag-pins";
 import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import { fillRecipe } from "./fill";
 import { fridgeMatch } from "./fridge-match";
 import type { MealSlot, PageProps, Recipe } from "./types";
 import "./recipe-pages.css";
@@ -112,10 +113,10 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
     else { const result = await api<{ recipes: Recipe[] }>("/api/v1/kitchen/extract", { method: "POST", body: JSON.stringify({ ...(value.trim() ? { text: value } : {}), ...(image ? { imageData: image } : {}) }) }); setPreview(result.recipes); setConfirmedIds([]); setImporting(false); if (!result.recipes.length) setError("No recipes found. Add clearer text or another image."); }
   } catch (e) { setError(e instanceof Error ? e.message : "Extraction failed. Please try again."); } finally { setBusy(false); } };
 
-  if (openId === "new") return <section className="kw-support-page kw-recipes-page"><NewRecipe key={draft?.id ?? "new"} tags={state.tags} initial={draft ?? blankRecipe()} send={send} onCancel={() => { setDraft(null); open(null); }} onSaved={id => { setDraft(null); open(id); }} /></section>;
+  if (openId === "new") return <section className="kw-support-page kw-recipes-page"><NewRecipe key={draft?.id ?? "new"} tags={state.tags} initial={draft ?? blankRecipe()} send={send} fill={recipe => fillRecipe(recipe, demo)} onCancel={() => { setDraft(null); open(null); }} onSaved={id => { setDraft(null); open(id); }} /></section>;
   const opened = openId ? state.recipes.find(r => r.id === openId) : undefined;
   if (openId) return <section className="kw-support-page kw-recipes-page">{opened
-    ? <RecipeDetail key={opened.id} recipe={opened} state={state} send={send} onBack={() => open(null)} onOpen={open} onDeleted={() => open(null)} />
+    ? <RecipeDetail key={opened.id} recipe={opened} state={state} send={send} fill={recipe => fillRecipe(recipe, demo)} onBack={() => open(null)} onOpen={open} onDeleted={() => open(null)} />
     : <div className="kw-rd"><button type="button" className="kw-rd-back" onClick={() => open(null)}>← Recipe Book</button><h1>Recipe not found</h1><p className="kw-muted">It may have been deleted.</p></div>}</section>;
 
   const chip = (active: boolean, label: string, onClick: () => void, big: boolean) => <button key={label} type="button" className={`kw-filter-chip ${big ? "is-key" : ""} ${active ? "is-active" : ""}`} aria-pressed={active} onClick={onClick}>{label}</button>;

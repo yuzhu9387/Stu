@@ -115,9 +115,11 @@ function Steps({ recipe }: { recipe: Recipe }) {
  * card (tags, favourite, rating, times cooked, edit and delete); nutrition and
  * ingredients sit beside the steps and reheating; related recipes close it.
  * Editing happens here, on the recipe's page, not above the list. */
-export function RecipeDetail({ recipe, state, send, onBack, onOpen, onDeleted }: {
+export function RecipeDetail({ recipe, state, send, onBack, onOpen, onDeleted, fill }: {
   recipe: Recipe; state: KitchenState; send: Send;
   onBack: () => void; onOpen: (id: string) => void; onDeleted: () => void;
+  /** Stu fills what the recipe leaves blank when it is saved. */
+  fill?: (recipe: Recipe) => Promise<Recipe>;
 }) {
   const [editing, setEditing] = useState(false), [deleting, setDeleting] = useState(false), [busy, setBusy] = useState(false);
   const rating = ratingSummary(state, recipe.id), cooked = timesCooked(state, recipe.id);
@@ -127,7 +129,7 @@ export function RecipeDetail({ recipe, state, send, onBack, onOpen, onDeleted }:
 
   if (editing) return <div className="kw-rd kw-rd-editing">
     <button type="button" className="kw-rd-back" onClick={() => setEditing(false)}>← {recipe.name}</button>
-    <RecipeEditor initial={recipe} tags={state.tags} cancel={() => setEditing(false)} save={next => send("recipe.save", { recipe: { ...next, allergens: next.allergens?.map(s => s.trim()).filter(Boolean), equipment: next.equipment?.map(s => s.trim()).filter(Boolean) } })} />
+    <RecipeEditor initial={recipe} tags={state.tags} fill={fill} cancel={() => setEditing(false)} save={next => send("recipe.save", { recipe: { ...next, allergens: next.allergens?.map(s => s.trim()).filter(Boolean), equipment: next.equipment?.map(s => s.trim()).filter(Boolean) } })} />
   </div>;
 
   return <article className="kw-rd" aria-label={`Recipe ${recipe.name}`}>
@@ -181,10 +183,10 @@ export function RecipeDetail({ recipe, state, send, onBack, onOpen, onDeleted }:
 }
 
 /** A new recipe gets the same page layout: the form first, its page after saving. */
-export function NewRecipe({ tags, initial, send, onSaved, onCancel }: { tags: string[]; initial: Recipe; send: Send; onSaved: (id: string) => void; onCancel: () => void }) {
+export function NewRecipe({ tags, initial, send, onSaved, onCancel, fill }: { tags: string[]; initial: Recipe; send: Send; onSaved: (id: string) => void; onCancel: () => void; fill?: (recipe: Recipe) => Promise<Recipe> }) {
   return <div className="kw-rd kw-rd-editing">
     <button type="button" className="kw-rd-back" onClick={onCancel}>← Recipe Book</button>
-    <RecipeEditor title="New recipe" initial={initial} tags={tags} cancel={onCancel} save={async next => {
+    <RecipeEditor title="New recipe" initial={initial} tags={tags} cancel={onCancel} fill={fill} save={async next => {
       const saved = await send("recipe.save", { recipe: { ...next, allergens: next.allergens?.map(s => s.trim()).filter(Boolean), equipment: next.equipment?.map(s => s.trim()).filter(Boolean) } });
       if (saved) onSaved(next.id);
       return false; // the page moves to the saved recipe instead of closing the form

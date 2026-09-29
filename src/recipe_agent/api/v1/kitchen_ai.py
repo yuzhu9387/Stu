@@ -11,6 +11,7 @@ from recipe_agent.api.dependencies import ScopeDependency
 from recipe_agent.config import get_settings
 from recipe_agent.domain.kitchen.ai import (
     AIUnavailable,
+    AskRequest,
     ChatRequest,
     ComposeRequest,
     ExtractRequest,
@@ -66,6 +67,12 @@ async def chat(body: ChatRequest, request: Request, scope: ScopeDependency) -> d
 @router.post("/extract")
 async def extract(body: ExtractRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
     return await invoke(service(request).extract(scope, body))
+
+
+@router.post("/ask")
+async def ask(body: AskRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
+    """Stu answers a question from the fridge page; nothing is saved."""
+    return await invoke(service(request).ask(scope, body))
 
 
 @router.post("/import-link")

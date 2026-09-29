@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from typing import Any, Protocol, Self
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from recipe_agent.config import Settings
 from recipe_agent.domain.identity.service import HouseholdScope
@@ -67,6 +67,27 @@ class ImportLinkRequest(Input):
     """A link to a recipe page or video the household wants as a recipe."""
 
     url: str = Field(min_length=1, max_length=2000)
+
+
+class AskRequest(Input):
+    """A question for Stu from the fridge page ("今晚吃什么")."""
+
+    message: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("message")
+    @classmethod
+    def _asked(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Ask Stu something")
+        return value.strip()
+
+
+class AskReply(Input):
+    reply: str = Field(max_length=4000)
+
+
+# Recipes the household marks as quick to make.
+QUICK_TAG = re.compile(r"quick|快手|快速", re.IGNORECASE)
 
 
 class PreferencesRequest(Input):
@@ -1888,6 +1909,84 @@ class KitchenAI:
             )
             dishes.append(dish)
         return {"dishes": dishes}
+
+    async def ask(self, scope: HouseholdScope, request: AskRequest) -> dict[str, Any]:
+        """Answer a question from the fridge page from what is in the fridge
+        and the quick or liked recipes. Read-only: nothing is saved."""
+        state = await self.repository.get(scope)
+        settings = state["settings"]
+        fridge = [
+            {
+                key: item[key]
+                for key in (
+                    "name",
+                    "nameEn",
+                    "type",
+                    "portions",
+                    "location",
+                    "prepared",
+                    "priority",
+                    "expiresOn",
+                )
+                if item.get(key) not in (None, "", [])
+            }
+            for item in state["inventory"]
+            if item["portions"] > 0
+        ]
+        recipes = [
+            {
+                "name": r["name"],
+                "type": r["type"],
+                "tags": r.get("tags", []),
+                "activeMinutes": r["activeMinutes"],
+                "elapsedMinutes": r["elapsedMinutes"],
+                "ingredients": [i["name"] for i in r["ingredients"]],
+            }
+            for r in state["recipes"]
+            if not r.get("incomplete")
+            and (r.get("liked") or any(QUICK_TAG.search(tag) for tag in r.get("tags", [])))
+        ][:40]
+        raw = await self.provider.complete(
+            [
+                {
+                    "role": "system",
+                    "content": SYSTEM
+                    + " Answer the household's question from the fridge page. This is read-only: "
+                    "you change nothing and propose no edits to plans, recipes or stock. Suggest "
+                    "what to cook from the fridge foods, using prepared food and food marked "
+                    "priority or expiring first, and the quick or liked recipes when they fit. "
+                    "Follow the enabled guidance and the child's age; respect allergies. Reply "
+                    "in the question's language (Chinese by default) in at most five short "
+                    "sentences of plain text.",
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "question": request.message,
+                            "fridge": fridge,
+                            "recipes": recipes,
+                            "settings": {
+                                "people": settings.get("people"),
+                                "childAge": settings.get("childAge"),
+                                "allergies": settings.get("allergies", []),
+                                "guidance": [
+                                    {"title": g["title"], "content": g["content"]}
+                                    for g in settings.get("guidance", [])
+                                    if g.get("enabled")
+                                ],
+                            },
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            ],
+            AskReply.model_json_schema(),
+        )
+        reply = AskReply.model_validate(prune_extras(AskReply, raw)).reply.strip()
+        if not reply:
+            raise ValueError("Stu could not answer just now. Please try again.")
+        return {"reply": reply}
 
     async def import_link(
         self, scope: HouseholdScope, request: ImportLinkRequest

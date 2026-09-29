@@ -1,0 +1,13 @@
+/* Ask Stu, beside the fridge's title: a question in, a short answer out. */
+.kw-ask-stu{flex:1 1 360px;max-width:520px;margin-left:auto;display:flex;flex-direction:column;gap:8px}
+.kw-ask-row{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border:3px solid #35251f;border-radius:999px;background:#fff;box-shadow:0 3px 0 #35251f}
+.kw-ask-row>span{font-size:18px}
+.kw-fridge-heading:has(.kw-ask-stu){align-items:flex-start}
+.kw-workspace .kw-ask-row .kw-input,.kw-ask-row .kw-input{flex:1;min-width:0;border:0;border-radius:0;box-shadow:none;background:transparent;padding:6px 4px;min-height:34px}
+.kw-workspace .kw-ask-row .kw-input:focus,.kw-ask-row .kw-input:focus{outline:none;box-shadow:none}
+.kw-ask-row:focus-within{outline:3px solid #f4af14;outline-offset:2px}
+.kw-ask-row .kw-button{min-height:34px;padding:4px 16px;border-radius:999px}
+.kw-ask-reply{margin:0;padding:10px 14px;border:2px solid #e4d7c5;border-radius:4px 16px 16px 16px;background:#fff8ec;color:#35251f;font-size:14px;font-weight:700;line-height:1.5;white-space:pre-wrap}
+.kw-ask-reply.is-thinking{color:#8d7d70;font-weight:700}
+.kw-ask-stu .kw-error{margin:0}
+@media(max-width:760px){.kw-ask-stu{flex-basis:100%;max-width:none;margin-left:0}}

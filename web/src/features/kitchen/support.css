@@ -41,3 +41,17 @@
 .kw-changed-note .kw-row{gap:8px;align-items:center}
 .kw-changed-shown{display:flex;align-items:center;gap:5px;margin:8px 0;font-weight:800;color:#8a5d00}
 .kw-changed-shown span{font-weight:600;color:#35251f}
+
+/* Plan drawer: one card per dish. */
+.kw-dish-card{display:flex;flex-direction:column;gap:10px;border:3px solid #35251f;border-radius:14px;background:#fff;padding:12px;box-shadow:0 3px 0 #35251f}
+.kw-dish-card-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:end}
+.kw-dish-card-emoji{font-size:24px;line-height:1;padding-bottom:8px}
+.kw-dish-card-row{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:8px}
+.kw-dish-card-block{display:flex;flex-direction:column;gap:6px}
+.kw-dish-card-label{font-size:12px;font-weight:800;color:#6b584e}
+.kw-dish-ingredients{margin:0;padding-left:18px;font-size:13px;line-height:1.6}
+.kw-dish-ingredients .kw-muted{list-style:none;margin-left:-18px;font-size:11px}
+.kw-dish-ingredient{display:grid;grid-template-columns:minmax(0,1fr) 70px 64px auto;gap:6px;align-items:center}
+.kw-dish-time{margin:0;font-size:12px;font-weight:700;color:#6b584e}
+.kw-dish-time-field{max-width:160px}
+@media(max-width:520px){.kw-dish-ingredient{grid-template-columns:minmax(0,1fr) 58px 52px auto}}

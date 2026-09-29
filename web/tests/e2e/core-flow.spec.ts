@@ -46,6 +46,8 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await page.goto(`/plan?week=${week}`);
   await page.getByRole("button", { name: "Back to step 1, meals and preferences", exact: true }).click();
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
+  // The step is saved in the background; leave only once it has landed.
+  await expect.poll(async () => (await state(page.request)).weeklyPrompts?.find(p => p.weekStart === week)?.workflow?.step).toBe("preferences");
   // The fridge is home: Plan opens from the round button beside it.
   await page.goto(`/fridge?week=${week}`);
   const doors = page.getByRole("navigation", { name: "Kitchen" });
@@ -226,10 +228,11 @@ test("planning hides execution, locks recur and recipe details open a real new t
   await login(page);await seed(page.request);
   await page.goto(`/plan?week=${week}&plan=week&meal=dinner`);
   const drawer=page.getByRole("dialog");
-  await expect(drawer.getByText("From your fridge",{exact:true})).toBeVisible();
+  // Planning opens a meal straight into editing, dish by dish.
+  await expect(drawer.getByRole("heading",{name:"Edit meal",exact:true})).toBeVisible();
+  await expect(drawer.getByRole("group",{name:"Dish 鸡肉丸"})).toBeVisible();
   await expect(drawer.getByRole("button",{name:"Mark completed",exact:true})).toHaveCount(0);
   await expect(drawer.getByRole("button",{name:"Baby liked it",exact:true})).toHaveCount(0);
-  await expect(drawer.getByRole("button",{name:"Edit meal",exact:true})).toBeVisible();
   await drawer.getByRole("button",{name:"Lock this meal every week",exact:true}).click();
   await expect.poll(async()=> (await state(page.request)).settings.recurringMeals?.length).toBe(1);
   await page.screenshot({path:`/tmp/stu-drawer-${testInfo.project.name}.png`,fullPage:true});

@@ -59,14 +59,15 @@ it("fills a new meal from a complete recipe and saves its recipe reference",asyn
   expect(props.onSave.mock.calls[0][0].steps).toEqual(props.state.recipes[3].steps);
 });
 
-it("keeps fridge context, removes execution controls during planning and links recipes in a new tab",()=>{
+it("opens for planning straight into editing, without execution controls, and links recipes in a new tab",()=>{
   const props=setup();render(<MealDrawer {...props} planning/>);
-  expect(screen.getByText("From your fridge")).toBeVisible();
+  expect(screen.getByRole("heading",{name:"Edit meal"})).toBeInTheDocument();
+  // Where each dish comes from stays in view: a prep batch, fridge stock.
+  expect(screen.getByLabelText(`Source for ${props.meal.components[0].name}`)).toHaveValue(`prep:${props.meal.components[0].prepId}`);
   expect(screen.queryByRole("button",{name:"Mark completed"})).not.toBeInTheDocument();
   expect(screen.queryByRole("button",{name:"Baby liked it"})).not.toBeInTheDocument();
   expect(screen.queryByRole("button",{name:"Skip meal"})).not.toBeInTheDocument();
-  expect(screen.getByRole("button",{name:"Edit meal"})).toHaveTextContent("Edit meal");
-  const link=screen.getByRole("link",{name:/View full recipe/});
+  const link=screen.getByRole("link",{name:`View recipe for ${props.meal.components[0].name}`});
   expect(link).toHaveAttribute("target","_blank");
   expect(link).toHaveAttribute("href",`/recipes/${props.meal.components[0].recipeId}`);
 });

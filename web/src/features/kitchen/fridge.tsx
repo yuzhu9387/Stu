@@ -86,6 +86,8 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
   const fridgeRef = useRef<HTMLDivElement>(null);
   // How wide each compartment's shelves are (measured), for the cards per shelf.
   const [shelfWidths, setShelfWidths] = useState<Record<string, number>>({});
+  // How far below the fridge's top its compartments start: the doors beside it line up with them.
+  const [doorsOffset, setDoorsOffset] = useState(0);
   const compartments = locations.join("|");
   useEffect(() => {
     const root = fridgeRef.current;
@@ -94,8 +96,12 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
     const measure = () => {
       const next = Object.fromEntries(shelves().map(el => [el.parentElement?.getAttribute("data-compartment") ?? "", el.clientWidth]));
       setShelfWidths(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+      const compartment = root.querySelector(".kw-compartment");
+      const offset = compartment ? Math.round(compartment.getBoundingClientRect().top - root.getBoundingClientRect().top) : 0;
+      if (offset > 0) setDoorsOffset(offset);
     };
     const observer = new ResizeObserver(measure);
+    observer.observe(root);
     shelves().forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, [compartments]);
@@ -120,7 +126,7 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
   return <section className={`kw-support-page kw-fridge-page ${choice.choosing ? "is-choosing" : ""}`}>
     <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
-    <div className="kw-fridge-home"><div className="kw-fridge" ref={fridgeRef}>
+    <div className="kw-fridge-home" style={doorsOffset ? { "--doors-offset": `${doorsOffset}px` } as CSSProperties : undefined}><div className="kw-fridge" ref={fridgeRef}>
       <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><ShoppingNote rows={state.shoppingList ?? []} onOpen={() => setShopping(true)} /><PrepTag demo={demo} onOpen={() => setPrepView({ kind: "list" })} /><FridgeViewControls view={view} /></header>
       <div className={`kw-fridge-body ${locations.length > 2 ? "wide" : ""}`}>
         {locations.map(location => {

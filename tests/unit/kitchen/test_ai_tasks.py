@@ -428,3 +428,27 @@ def test_a_partial_apply_takes_only_the_prep_its_meals_use():
         ("stock", 2),
         ("dumplings", 4),
     ]
+
+
+async def test_stu_can_be_stopped_and_the_lists_never_land(session_factory):
+    repository = MemoryRepository(workspace())
+    provider = GatedProvider(BATCH)
+    app, client = await client_for(session_factory, repository, provider)
+    try:
+        async with client:
+            task = (await confirm(client))["task"]
+            stopped = await client.post(f"/api/v1/kitchen/ai-tasks/{task['id']}/stop")
+            assert stopped.status_code == 200, stopped.text
+            assert stopped.json()["task"]["status"] == "failed"
+            assert stopped.json()["task"]["resolution"] == "dismissed"
+            provider.gate.set()
+            await kitchen_ai_tasks.drain()
+            week = repository.state["plans"][0]
+            assert week["status"] == "confirmed" and not week.get("fulfillment")
+            # Nothing is left waiting: the week can ask again whenever.
+            latest = await client.get(
+                "/api/v1/kitchen/ai-tasks/latest", params={"kind": "fulfillment", "planId": "plan"}
+            )
+            assert latest.json()["task"]["status"] != "running"
+    finally:
+        await app.state.runtime.aclose()

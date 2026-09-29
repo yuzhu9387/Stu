@@ -110,3 +110,33 @@ def test_changing_what_a_meal_is_on_the_calendar_still_needs_the_edit_reconciled
     assert plans(state)["rev"]["baseVersion"] != plans(state)["plan"]["version"]
     with pytest.raises(KitchenError, match="Confirmed plan changed"):
         run(state, "plan.confirm", {"id": "rev"})
+
+
+def test_a_week_just_confirmed_can_be_reopened_as_a_draft():
+    state = run(household(), "plan.confirm", {"id": "plan"})
+    state = run(state, "plan.reopen", {"id": "plan"})
+    assert plans(state)["plan"]["status"] == "draft"
+    step = next(
+        w for w in state["weeklyPrompts"] if w["weekStart"] == plans(state)["plan"]["weekStart"]
+    )
+    assert step["workflow"]["step"] == "adjust"
+
+
+def test_reopening_an_edit_puts_the_confirmed_version_back():
+    state = editing()
+    state = run(state, "plan.confirm", {"id": "rev"})
+    assert plans(state)["plan"]["status"] == "draft"
+    state = run(state, "plan.reopen", {"id": "rev"})
+    base, edit = plans(state)["plan"], plans(state)["rev"]
+    assert (base["status"], edit["status"]) == ("confirmed", "draft")
+    assert edit["baseVersion"] == base["version"]
+    run(state, "plan.confirm", {"id": "rev"})
+
+
+def test_a_week_with_something_recorded_is_not_reopened():
+    state = run(household(), "plan.confirm", {"id": "plan"})
+    state = run(state, "meal.status", {"planId": "plan", "mealId": "lunch", "status": "skipped"})
+    with pytest.raises(KitchenError, match="recorded"):
+        run(state, "plan.reopen", {"id": "plan"})
+    state = run(state, "change.undo", {"auditId": state["audit"][-1]["id"]})
+    run(state, "plan.reopen", {"id": "plan"})

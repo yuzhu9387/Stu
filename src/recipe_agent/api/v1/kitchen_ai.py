@@ -163,6 +163,11 @@ async def apply_task(
     return await run_task(tasks(request).apply(scope, task_id, meal_ids))
 
 
+@router.post("/ai-tasks/{task_id}/stop")
+async def stop_task(task_id: UUID, request: Request, scope: ScopeDependency) -> dict[str, Any]:
+    return {"task": await run_task(tasks(request).stop(scope, task_id))}
+
+
 @router.post("/ai-tasks/{task_id}/dismiss")
 async def dismiss_task(task_id: UUID, request: Request, scope: ScopeDependency) -> dict[str, Any]:
     return {"task": await run_task(tasks(request).dismiss(scope, task_id))}

@@ -327,3 +327,49 @@ describe("the Delete key on the plan page",()=>{
     expect(store().plans[0].meals.some(m=>m.id===dinner)).toBe(true);
   });
 });
+
+describe("while Stu prepares a confirmed week's lists", () => {
+  function preparing() {
+    const state=createDemoState(),plan=state.plans[0];
+    state.weeklyPrompts=[{weekStart:plan.weekStart,prompt:"",workflow:{planId:plan.id,step:"shopping",focus:"shopping"}}];
+    const task={id:"lists",kind:"fulfillment",status:"running",resolution:"open",planId:plan.id,weekStart:plan.weekStart,result:null,error:null as string|null,createdAt:new Date().toISOString(),now:new Date().toISOString()};
+    const sent:{type:string}[]=[];
+    mockedApi.mockImplementation(async(path,options)=>{
+      if(path.endsWith("/ai-tasks/lists/stop")){Object.assign(task,{status:"failed",resolution:"dismissed",error:"Stopped"});return {task:{...task}} as never;}
+      if(path.includes("kind=fulfillment")||path.endsWith("/ai-tasks/lists"))return {task:{...task}} as never;
+      if(path.includes("/ai-tasks/"))return {task:null} as never;
+      if(path.endsWith("/commands")){
+        const command=JSON.parse(String(options?.body));sent.push(command);
+        if(command.type==="plan.reopen"){plan.status="draft";plan.version++;state.weeklyPrompts![0].workflow={planId:plan.id,step:"adjust",focus:"shopping"};}
+        state.revision++;return {state:structuredClone(state),message:"Week back to a draft"} as never;
+      }
+      return structuredClone(state) as never;
+    });
+    nav.query=`week=${plan.weekStart}&plan=${plan.id}&step=shopping`;
+    return sent;
+  }
+  const stopped=()=>mockedApi.mock.calls.some(([path,options])=>path.endsWith("/ai-tasks/lists/stop")&&options?.method==="POST");
+
+  it("Skip stops Stu and keeps the week confirmed with the app's own lists", async () => {
+    const sent=preparing();
+    render(<KitchenWorkspace initialPage="plan"/>);
+    await screen.findByText(/Stu is preparing your lists/);
+    fireEvent.click(screen.getByRole("button",{name:"Skip"}));
+    await waitFor(()=>expect(screen.queryByText(/Stu is preparing your lists/)).not.toBeInTheDocument());
+    expect(stopped()).toBe(true);
+    expect(sent).toEqual([]);
+    expect(screen.queryByText("Shopping list and prep day aren’t ready")).not.toBeInTheDocument();
+  });
+
+  it("Cancel stops Stu and puts the week back to a draft to adjust", async () => {
+    const sent=preparing();
+    render(<KitchenWorkspace initialPage="plan"/>);
+    await screen.findByText(/Stu is preparing your lists/);
+    fireEvent.click(screen.getByRole("button",{name:"Cancel"}));
+    await waitFor(()=>expect(sent.map(command=>command.type)).toEqual(["plan.reopen"]));
+    expect(stopped()).toBe(true);
+    await waitFor(()=>expect(new URLSearchParams(nav.query).get("step")).toBe("adjust"));
+    expect(await screen.findByRole("button",{name:"Confirm plan"})).toBeVisible();
+    expect(screen.queryByText(/Stu is preparing/)).not.toBeInTheDocument();
+  });
+});

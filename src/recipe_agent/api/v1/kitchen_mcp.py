@@ -56,6 +56,7 @@ COMMANDS = [
     "shopping.putAway",
     "plan.save",
     "plan.confirm",
+    "plan.reopen",
     "meal.save",
     "meal.delete",
     "meal.leftovers",

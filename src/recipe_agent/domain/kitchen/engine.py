@@ -986,6 +986,64 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
         ]
         plan["version"] += 1
         message = "Shopping list and prep day are ready"
+        audit_context = {"planId": plan["id"]}
+    elif kind == "plan.reopen":
+        # Stu was stopped straight after confirming: the week goes back to a
+        # draft, and the version it replaced is confirmed again. Only while
+        # nothing has been recorded on it since.
+        plan = find(state["plans"], payload["id"])
+        if plan["status"] != "confirmed":
+            raise KitchenError("Only a confirmed week can be reopened")
+        confirmed = next(
+            (
+                index
+                for index in range(len(state["audit"]) - 1, -1, -1)
+                if state["audit"][index]["kind"] in {"plan.confirm", "plan.fulfill"}
+                and state["audit"][index].get("planId") == plan["id"]
+                and not state["audit"][index]["undone"]
+            ),
+            None,
+        )
+        if confirmed is None:
+            raise KitchenError("This week can't be reopened; edit it instead", 409)
+        for later in state["audit"][confirmed + 1 :]:
+            if (
+                not later["undone"]
+                and later["kind"] in {"meal.status", "meal.leftovers", "prep.status"}
+                and (later.get("planId") or (later.get("undo") or {}).get("planId")) == plan["id"]
+            ):
+                raise KitchenError(
+                    "Something was recorded on this week; undo it or edit the week instead", 409
+                )
+        base = (
+            next((p for p in state["plans"] if p["id"] == plan["basePlanId"]), None)
+            if plan.get("basePlanId")
+            else None
+        )
+        # The version this one replaced comes back only as it was left.
+        if (
+            base
+            and base["status"] == "draft"
+            and base["version"] == plan.get("baseVersion", 0) + 1
+            and not any(
+                p["status"] == "confirmed" and p["weekStart"] == plan["weekStart"]
+                for p in state["plans"]
+                if p["id"] != plan["id"]
+            )
+        ):
+            base["status"] = "confirmed"
+            base["version"] += 1
+            plan["baseVersion"] = base["version"]
+        plan["status"] = "draft"
+        plan.pop("fulfillment", None)
+        plan["version"] += 1
+        remember_workflow(
+            state,
+            plan["weekStart"],
+            {"planId": plan["id"], "step": "adjust", "focus": "shopping"},
+        )
+        audit_context = {"planId": plan["id"]}
+        message = "Week back to a draft"
     elif kind in {"plan.confirm", "plan.fulfill"}:
         plan = find(state["plans"], payload["id"])
         if plan["status"] == "confirmed":
@@ -1028,6 +1086,7 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             plan["weekStart"],
             {"planId": plan["id"], "step": "shopping", "focus": "shopping"},
         )
+        audit_context = {"planId": plan["id"]}
         message = "Plan confirmed; stock is unchanged"
     elif kind == "plan.presets":
         plan = find(state["plans"], payload["planId"])

@@ -47,8 +47,11 @@ LEASES = {
     "fulfillment": timedelta(minutes=30),
 }
 INTERRUPTED = "Stu was interrupted before finishing. Please try again."
+STOPPED = "Stopped"
 # Keeps running work referenced until it finishes; asyncio holds tasks weakly.
 _RUNNING: set[asyncio.Task[None]] = set()
+# The same work by task id, so a stop can cancel it in this process.
+_WORK: dict[UUID, asyncio.Task[None]] = {}
 
 
 class KitchenAITask(Base):
@@ -229,7 +232,7 @@ class KitchenAITasks:
             plan = next(p for p in state["plans"] if p["id"] == request.planId)
         async with self.sessions() as session, session.begin():
             session.add(task)
-        self._spawn(self._run_fulfillment(task.id, scope, state, plan))
+        self._spawn(self._run_fulfillment(task.id, scope, state, plan), task.id)
         return {"task": task_json(task, now), "state": state}
 
     async def _run_fulfillment(
@@ -239,6 +242,9 @@ class KitchenAITasks:
             fingerprint = menu_hash(state, plan)
             output = await generate_fulfillment(self.ai.provider, state, plan)
             for attempt in range(3):
+                # Stopped from another instance while Stu was working.
+                if not await self._still_running(task_id):
+                    return
                 latest = await self.repository.get(scope)
                 try:
                     await self.repository.command(
@@ -392,6 +398,15 @@ class KitchenAITasks:
         await self._resolve(scope, task_id, "applied")
         return {**saved, "planId": draft["id"]}
 
+    async def stop(self, scope: HouseholdScope, task_id: UUID) -> dict[str, Any]:
+        """Stop Stu: the task fails as stopped and what it was making never lands."""
+        await self._load(scope, task_id)
+        await self._finish(task_id, error=STOPPED)
+        await self._resolve(scope, task_id, "dismissed")
+        if (work := _WORK.get(task_id)) is not None:
+            work.cancel()
+        return await self.get(scope, task_id)
+
     async def dismiss(self, scope: HouseholdScope, task_id: UUID) -> dict[str, Any]:
         await self._load(scope, task_id)
         await self._resolve(scope, task_id, "dismissed")
@@ -484,10 +499,13 @@ class KitchenAITasks:
             lease_until=now + LEASES[kind],
         )
 
-    def _spawn(self, work: Coroutine[Any, Any, None]) -> None:
+    def _spawn(self, work: Coroutine[Any, Any, None], task_id: UUID | None = None) -> None:
         task = asyncio.get_running_loop().create_task(work)
         _RUNNING.add(task)
         task.add_done_callback(_RUNNING.discard)
+        if task_id is not None:
+            _WORK[task_id] = task
+            task.add_done_callback(lambda _: _WORK.pop(task_id, None))
 
     async def _running(
         self,
@@ -533,6 +551,11 @@ class KitchenAITasks:
             )
         task.status, task.error = "failed", INTERRUPTED
         return task
+
+    async def _still_running(self, task_id: UUID) -> bool:
+        async with self.sessions() as session:
+            task = await session.get(KitchenAITask, task_id)
+        return task is not None and task.status == "running"
 
     async def _finish(
         self, task_id: UUID, *, result: dict[str, Any] | None = None, error: str | None = None

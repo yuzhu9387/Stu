@@ -91,6 +91,26 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   expect((await state(page.request)).weeklyPrompts?.find(p => p.weekStart === week)?.workflow?.step).toBe("shopping");
 });
 
+test("Stu preparing the lists can be cancelled, putting the week back to a draft", async ({ page }, testInfo) => {
+  await login(page); await seed(page.request);
+  await command(page.request, "plan.confirm", { id: "week" });
+  // No AI runs here: Stu is shown still working on the week's lists.
+  let task = { id: "lists", kind: "fulfillment", status: "running", resolution: "open", planId: "week", weekStart: week, message: "", answering: false, result: null, error: null as string | null, createdAt: new Date().toISOString(), now: new Date().toISOString() };
+  await page.route("**/api/v1/kitchen/ai-tasks/**", async route => {
+    const url = route.request().url();
+    if (url.includes("kind=fulfillment") || url.endsWith("/ai-tasks/lists")) return route.fulfill({ json: { task: { ...task, now: new Date().toISOString() } } });
+    if (url.endsWith("/ai-tasks/lists/stop")) { task = { ...task, status: "failed", resolution: "dismissed", error: "Stopped" }; return route.fulfill({ json: { task } }); }
+    return route.fallback();
+  });
+  await page.goto(`/plan?week=${week}&plan=week&step=shopping`);
+  await expect(page.getByText("Week confirmed · Stu is preparing your lists…")).toBeVisible();
+  await page.screenshot({ path: `/tmp/stu-stop-${testInfo.project.name}.png`, fullPage: true });
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Confirm plan", exact: true })).toBeVisible();
+  await expect(page.getByText(/Stu is preparing/)).toHaveCount(0);
+  expect((await state(page.request)).plans.find(plan => plan.id === "week")?.status).toBe("draft");
+});
+
 test("real login and Chinese fridge edits survive reload, with no demo seed", async ({ page }) => {
   await login(page);
   expect((await state(page.request)).inventory).toEqual([]);

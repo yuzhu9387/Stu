@@ -6,7 +6,6 @@ import { dayLabel, mondayOf, shiftWeek, slots, weekDays, weekLabel, weeksBetween
 import { WeekPicker } from "./week-picker";
 import { ANALYSIS_METRICS, planMetrics, type MetricResult, type PlanWarning } from "./analysis";
 import { planRuleWarnings } from "./plan-rules";
-import { PageButton } from "./fridge-doors";
 import type { ChatTurn } from "./ai-tasks";
 import { useStored } from "./browser-store";
 import { takeChatFocus } from "./chat-refs";
@@ -56,7 +55,7 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds
 type Step = "preferences" | "adjust" | "confirmed" | "shopping";
 
 /** A stable four-step journey: unavailable steps remain visible. */
-function StepRail({ stage, hasDraft, editing, busy, blocked, stamping, onStep, onConfirm, onEdit, onCalendar }: { onCalendar?: () => void; stage: Stage; hasDraft: boolean; editing: boolean; busy: boolean; blocked: boolean; stamping: boolean; onStep: (step: Step) => void | Promise<void>; onConfirm: () => void; onEdit: () => void }) {
+function StepRail({ stage, hasDraft, editing, busy, blocked, stamping, onStep, onConfirm, onEdit }: { stage: Stage; hasDraft: boolean; editing: boolean; busy: boolean; blocked: boolean; stamping: boolean; onStep: (step: Step) => void | Promise<void>; onConfirm: () => void; onEdit: () => void }) {
   const settled = stage === "confirmed" || stage === "shopping";
   const segments = [
     { n: "1", label: "Meals & preferences", active: stage === "setup", done: settled, action: !settled && hasDraft && stage !== "setup" ? () => onStep("preferences") : undefined, aria: "Back to step 1, meals and preferences" },
@@ -70,7 +69,7 @@ function StepRail({ stage, hasDraft, editing, busy, blocked, stamping, onStep, o
     if (index === 2) return <li key={index} className={`kw-state-transition is-${kind}`}><button type="button" aria-label={segment.aria} disabled={disabled || !segment.action} onClick={() => { void Promise.resolve(segment.action?.()).catch(() => {}); }}><span aria-hidden="true">{segment.n}</span></button><span className="kw-transition-label">{segment.label}</span></li>;
     const body = <><span className="kw-stepper-n" aria-hidden="true">{segment.n}</span><span className="kw-step-label">{segment.label}</span><span className="kw-step-short">{index === 0 ? "Meals" : index === 1 ? "Plan" : "Prep"}</span></>;
     return <li key={index} className={`is-${kind}`} aria-current={segment.active ? "step" : undefined}>{segment.action ? <button type="button" aria-label={segment.aria} disabled={disabled} onClick={() => { void Promise.resolve(segment.action?.()).catch(() => {}); }}>{body}</button> : <span className="kw-stepper-static">{body}</span>}</li>;
-  })}</ol>{onCalendar && <PageButton onward className="kw-step-rail-calendar" icon="📅" label="Calendar" name="View calendar" onClick={onCalendar} />}</div>;
+  })}</ol></div>;
 }
 
 interface Props {
@@ -81,6 +80,9 @@ interface Props {
   onGenerate: (prompt: string) => Promise<string | null>; onApplyFix: (meal: Meal) => Promise<void>;
   /** When the week's draft started, while Stu is drafting it (even after a refresh). */
   confirmingSince?:number|null; fulfillmentError?:string|null;
+  /** Stop Stu preparing the lists: skip them (the week stays confirmed) or
+   * cancel (the week goes back to a draft). Resolves with the error, if any. */
+  onStopConfirm?: (reopen: boolean) => Promise<string | null>;
   generatingSince?: number | null; generationError?: string | null; onDismissGenerationError?: () => void;
   onPlanMyself?: () => Promise<void>;
   selected: string[]; onSelect: (ids: string[]) => void;
@@ -90,7 +92,7 @@ interface Props {
   onConfirm: () => Promise<string | null>; onEdit: () => Promise<void>; focusTick: number; onPrep: () => void; onGuidance: () => void; onWeek: (delta: number) => void;
   /** The Monday of the week we are in now; planning mostly looks at it and the next. */
   thisWeek?: string;
-  shoppingContent?: ReactNode; onCalendar?: () => void;
+  shoppingContent?: ReactNode;
   children: ReactNode; demo: boolean; busy: boolean;
 }
 
@@ -100,9 +102,11 @@ function weekStatus(state: KitchenState, monday: string) {
   return plans.some(p => p.status === "confirmed") ? "confirmed" : plans.length ? "draft" : "none";
 }
 
-export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot, onGoal, onSavePreferences, onGenerate, confirmingSince = null, fulfillmentError = null, generatingSince = null, generationError = null, onDismissGenerationError, onPlanMyself, onApplyFix, selected, onSelect, turn = null, onChat, onApply, onKeep, onConfirm, onEdit, focusTick, onPrep, onGuidance, onWeek, thisWeek = mondayOf(), onCalendar, shoppingContent, children, demo, busy }: Props) {
+export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot, onGoal, onSavePreferences, onGenerate, confirmingSince = null, fulfillmentError = null, onStopConfirm, generatingSince = null, generationError = null, onDismissGenerationError, onPlanMyself, onApplyFix, selected, onSelect, turn = null, onChat, onApply, onKeep, onConfirm, onEdit, focusTick, onPrep, onGuidance, onWeek, thisWeek = mondayOf(), shoppingContent, children, demo, busy }: Props) {
   const confirmationElapsed = useElapsed(confirmingSince);
   const [confirmPosting,setConfirmPosting] = useState(false);
+  const [stopping,setStopping] = useState(false);
+  const [stopError,setStopError] = useState<string|null>(null);
   const [applying, setApplying] = useState<string | null>(null);
   // Editing a confirmed week: step 1's box asks Stu for a change instead of
   // generating a new week, so it starts empty.
@@ -196,6 +200,13 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
     catch(error){setConfirmError(failure(error,"Unable to confirm. Please try again."));}
     finally{setConfirmPosting(false);}
   }
+  async function stop(reopen: boolean) {
+    if(!onStopConfirm||stopping)return;
+    setStopError(null);setStopping(true);
+    try { const error = await onStopConfirm(reopen); if(error)setStopError(error); }
+    catch(error){setStopError(failure(error,"Unable to stop Stu. Please try again."));}
+    finally{setStopping(false);}
+  }
   const previousStatus=useRef(plan?.status);
   useEffect(()=>{if(previousStatus.current==="draft"&&plan?.status==="confirmed"){const start=window.setTimeout(()=>setStamping(true),0),end=window.setTimeout(()=>setStamping(false),1800);previousStatus.current=plan?.status;return()=>{window.clearTimeout(start);window.clearTimeout(end);};}previousStatus.current=plan?.status;},[plan?.status]);
   async function generate() {
@@ -229,9 +240,10 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
         </button>;
       })}</div>
     </header>
-    <StepRail onCalendar={plan ? onCalendar : undefined} stage={stage} hasDraft={plan?.status === "draft"} editing={editing} busy={busy || waiting || confirmPosting || confirmingSince !== null} blocked={false} stamping={stamping} onStep={goToStep} onConfirm={() => void confirm()} onEdit={() => void edit()} />
+    <StepRail stage={stage} hasDraft={plan?.status === "draft"} editing={editing} busy={busy || waiting || confirmPosting || confirmingSince !== null} blocked={false} stamping={stamping} onStep={goToStep} onConfirm={() => void confirm()} onEdit={() => void edit()} />
     {generating && stage !== "setup" && <div className="kw-panel" role="status">Stu is drafting your week… {clock(elapsed)}</div>}
-    {(confirmPosting || confirmingSince !== null) && <div className="kw-confirm-generating" role="status" aria-live="polite"><div className="kw-confirm-orbit" aria-hidden="true"><span>🧊</span><span>🛒</span><span>🥣</span></div><div><strong>{demo?"Preparing your demo week…":plan?.status==="confirmed"?"Week confirmed · Stu is preparing your lists…":"Stu is preparing your week…"}</strong><span>Shopping cart + prep day · {clock(confirmationElapsed)}{plan?.status==="confirmed"?" · meals can be marked on the calendar":""}</span></div><div className="kw-confirm-progress" aria-hidden="true" /></div>}
+    {(confirmPosting || confirmingSince !== null) && <div className="kw-confirm-generating"><div className="kw-confirm-orbit" aria-hidden="true"><span>🧊</span><span>🛒</span><span>🥣</span></div><div className="kw-confirm-text" role="status" aria-live="polite"><strong>{demo?"Preparing your demo week…":plan?.status==="confirmed"?"Week confirmed · Stu is preparing your lists…":"Stu is preparing your week…"}</strong><span>Shopping cart + prep day · {clock(confirmationElapsed)}{plan?.status==="confirmed"?" · meals can be marked on the calendar":""}</span></div>{onStopConfirm&&confirmingSince!==null&&<div className="kw-confirm-actions"><button className="kw-button secondary" disabled={stopping} title="Stop Stu and use the app’s own shopping list and prep day; the week stays confirmed" onClick={()=>void stop(false)}>Skip</button><button className="kw-button secondary" disabled={stopping} title="Stop Stu and put the week back to a draft" onClick={()=>void stop(true)}>Cancel</button></div>}<div className="kw-confirm-progress" aria-hidden="true" /></div>}
+    {stopError && <p className="kw-inline-error" role="alert">{stopError}</p>}
     {(confirmError || fulfillmentError) && <div className="kw-confirm-block" role="alert"><strong>{plan?.status === "confirmed" ? "Shopping list and prep day aren’t ready" : editing ? "Can’t save yet" : "Can’t confirm yet"}</strong><p>{confirmError || fulfillmentError}</p><button className="kw-button secondary" disabled={confirmPosting || confirmingSince !== null} onClick={()=>void confirm()}>Try again</button></div>}
     {(stage === "confirmed" || stage === "shopping") && editError && <p className="kw-inline-error" role="alert">{editError}</p>}
 

@@ -1,6 +1,7 @@
 /* The fridge is home: the recipe book and two round buttons stand beside it. */
 .kw-fridge-home{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start}
-.kw-fridge-doors{position:sticky;top:110px;display:flex;flex-direction:column;align-items:center;gap:16px;padding-top:24px}
+/* The doors start level with the compartments' top edge (measured; 87px on a one-line header). */
+.kw-fridge-doors{position:sticky;top:110px;display:flex;flex-direction:column;align-items:center;gap:16px;padding-top:var(--doors-offset,87px)}
 .kw-door-book,.kw-door-round{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:3px solid #35251f;font:inherit;font-weight:900;cursor:pointer;color:#35251f;transition:transform .12s}
 .kw-door-book:hover,.kw-door-round:hover{transform:translateY(-2px)}
 .kw-door-book:focus-visible,.kw-door-round:focus-visible,.kw-home-back:focus-visible{outline:3px solid #c9492f;outline-offset:3px}
@@ -11,7 +12,7 @@
 .kw-door-round.is-plan{background:#eef4e5}
 /* Ways between pages (home to the fridge, back to the plan, on to the
    calendar or the shopping): a small picture and a name, drawn like the doors. */
-.kw-page-button{display:inline-flex;align-items:center;gap:7px;border:3px solid #35251f;border-radius:14px;background:#fff;color:#35251f;font:inherit;font-size:15px;font-weight:900;padding:5px 14px 5px 8px;cursor:pointer;white-space:nowrap;box-shadow:0 3px 0 #35251f;transition:transform .12s,box-shadow .12s,background .12s}
+.kw-page-button{box-sizing:border-box;height:40px;display:inline-flex;align-items:center;gap:7px;border:3px solid #35251f;border-radius:14px;background:#fff;color:#35251f;font:inherit;font-size:15px;font-weight:900;padding:5px 14px 5px 8px;cursor:pointer;white-space:nowrap;box-shadow:0 3px 0 #35251f;transition:transform .12s,box-shadow .12s,background .12s}
 .kw-page-button.is-onward{padding:5px 8px 5px 12px}
 .kw-page-button:hover{background:#eef7fb;transform:translateY(-1px);box-shadow:0 4px 0 #35251f}
 .kw-page-button:active{transform:translateY(2px);box-shadow:0 1px 0 #35251f}
@@ -19,12 +20,10 @@
 .kw-page-button-arrow{width:9px;height:14px;color:#8d7d70;flex:none;transition:transform .12s}
 .kw-page-button:hover .kw-page-button-arrow{transform:translateX(-2px);color:#35251f}
 .kw-page-button.is-onward:hover .kw-page-button-arrow{transform:translateX(2px)}
-.kw-page-button-icon{display:inline-grid;place-items:center;font-size:19px;line-height:1}
-.kw-home-back{margin:0 0 16px}
-.kw-plan-back{margin:0 0 16px}
-.kw-calendar-heading .kw-calendar-onward{margin-left:auto}
-.kw-step-rail-calendar{margin-left:auto}
-.kw-home-back-fridge{width:20px;height:27px;color:#35251f;flex:none}
+.kw-page-button-icon{display:inline-grid;place-items:center;width:22px;height:22px;font-size:18px;line-height:1}
+/* One row of ways between pages: back on the left, onward on the right. */
+.kw-page-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px}
+.kw-home-back-fridge{width:17px;height:22px;color:#35251f;flex:none}
 @media(max-width:760px){
   .kw-fridge-home{grid-template-columns:minmax(0,1fr)}
   /* On a phone they float at the bottom right, over the fridge as it scrolls. */

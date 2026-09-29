@@ -48,6 +48,8 @@ import "./workflow.css";
 const pages:Page[]=["calendar","plan","fridge","recipes","guidance","knowledge","prep"];
 const titles:Record<Page,string>={calendar:"Calendar",plan:"Plan",prep:"Weekend prep",fridge:"Fridge",recipes:"Recipes",guidance:"Settings",knowledge:"Nutrition knowledge"};
 const clone=<T,>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
+/** The time now, for event handlers (never read during render). */
+const clockNow=()=>Date.now();
 
 function preferredPlan(plans:WeeklyPlan[],target:Page,week:string){
   const choices=plans.filter(p=>p.weekStart===week),confirmed=choices.find(p=>p.status==="confirmed");
@@ -164,11 +166,12 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   const fulfilled=useRef(new Set<string>());
   useEffect(()=>{
     const task=fulfillment.task;
-    if(page!=="plan"||!task||task.status!=="done"||task.resolution!=="open"||plan?.status!=="confirmed"||dirty||fulfilled.current.has(task.id))return;
-    fulfilled.current.add(task.id);setupChoices.clear();
-    router.push(`/plan?${new URLSearchParams({week:plan.weekStart,plan:plan.id,step:"shopping"})}`);
+    // Stu's lists arrived for a week already confirmed (Confirm went on to
+    // Shopping at once): take the finished task off the page, stay where you are.
+    if(!task||task.status!=="done"||task.resolution!=="open"||plan?.status!=="confirmed"||fulfilled.current.has(task.id))return;
+    fulfilled.current.add(task.id);
     void fulfillment.dismiss(task.id).catch(()=>fulfilled.current.delete(task.id));
-  },[fulfillment,plan,page,dirty,router,setupChoices]);
+  },[fulfillment,plan]);
   const [demoSince,setDemoSince]=useState<number|null>(null);
   const generatingSince=demo?demoSince:genTask.task?.status==="running"?genTask.task.startedAt:null;
   const generationError=!demo&&genTask.task?.status==="failed"&&genTask.task.resolution==="open"?genTask.task.error:null;
@@ -342,12 +345,16 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
       let revision=state.revision;
       for(const change of pendingWrites(plan,setupChoices.choices)){const result=await kitchen.send("meal.include",{planId:plan.id,mealId:change.mealId,included:change.included});revision=result.state.revision;}
       if(demo){
-        setDemoConfirmSince(Date.now());
+        setDemoConfirmSince(clockNow());
         try{await new Promise(resolve=>window.setTimeout(resolve,1000));await kitchen.send("plan.confirm",{id:plan.id});setupChoices.clear();navigate("plan",undefined,week,plan.id,"shopping");}
         finally{setDemoConfirmSince(null);}
       }else{
-        const response=await api<{task:AiTask}>("/api/v1/kitchen/ai-tasks/fulfillment",{method:"POST",body:JSON.stringify({planId:plan.id,expectedRevision:revision})});
+        // The week is confirmed at once (the calendar can record meals now);
+        // Stu prepares the shopping list and prep day in the background.
+        const response=await api<{task:AiTask;state?:KitchenState}>("/api/v1/kitchen/ai-tasks/fulfillment",{method:"POST",body:JSON.stringify({planId:plan.id,expectedRevision:revision})});
+        if(response.state)kitchen.accept(response.state);
         fulfillment.set(response.task);
+        if(plan.status==="draft"){setupChoices.clear();navigate("plan",undefined,week,plan.id,"shopping");}
       }
       return null;
     }catch(e){return e instanceof Error?e.message:"Unable to confirm. Please try again.";}

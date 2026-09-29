@@ -49,6 +49,36 @@ class FulfillmentAdvice(Contract):
     warnings: list[str] = Field(max_length=40)
 
 
+def canonical(value: Any) -> Any:
+    """The same content in the same shape: unordered lists sorted, records by id."""
+    if isinstance(value, dict):
+        unordered = {
+            "mealTypes",
+            "tags",
+            "allergies",
+            "allergens",
+            "equipment",
+            "dependencies",
+            "analysisMetrics",
+        }
+        return {
+            key: sorted(item) if key in unordered and isinstance(item, list) else canonical(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        items = [canonical(item) for item in value]
+        if items and all(isinstance(item, dict) and "id" in item for item in items):
+            return sorted(items, key=lambda item: item["id"])
+        return items
+    return value
+
+
+def digest(content: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(canonical(content), sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
+
+
 def inputs_hash(state: dict[str, Any], plan: dict[str, Any]) -> str:
     from recipe_agent.domain.kitchen.contracts import WeeklyPlan, Workspace
 
@@ -58,41 +88,69 @@ def inputs_hash(state: dict[str, Any], plan: dict[str, Any]) -> str:
     # the aggregate ("freezer" versus "Freezer"). Both mean the same stock.
     for item in state["inventory"]:
         item["location"] = item["location"].strip().casefold()
-    content = {
-        "meals": plan["meals"],
-        "prep": plan["prep"],
-        "recipes": state["recipes"],
-        "inventory": state["inventory"],
-        "settings": state["settings"],
-    }
+    return digest(
+        {
+            "meals": plan["meals"],
+            "prep": plan["prep"],
+            "recipes": state["recipes"],
+            "inventory": state["inventory"],
+            "settings": state["settings"],
+        }
+    )
 
-    def canonical(value: Any) -> Any:
-        if isinstance(value, dict):
-            unordered = {
-                "mealTypes",
-                "tags",
-                "allergies",
-                "allergens",
-                "equipment",
-                "dependencies",
-                "analysisMetrics",
-            }
-            return {
-                key: sorted(item)
-                if key in unordered and isinstance(item, list)
-                else canonical(item)
-                for key, item in value.items()
-            }
-        if isinstance(value, list):
-            items = [canonical(item) for item in value]
-            if items and all(isinstance(item, dict) and "id" in item for item in items):
-                return sorted(items, key=lambda item: item["id"])
-            return items
-        return value
 
-    return hashlib.sha256(
-        json.dumps(canonical(content), sort_keys=True, ensure_ascii=False).encode()
-    ).hexdigest()
+# What recording a meal or prep changes; Stu's lists do not depend on it.
+MEAL_RECORD = {"status", "liked", "note"}
+PREP_RECORD = {"status", "liked", "actualPortions", "outputInventoryId"}
+
+
+def menu_hash(state: dict[str, Any], plan: dict[str, Any]) -> str:
+    """What Stu's lists for a confirmed week are made from: the meals and prep
+    as planned, the recipes and the household's settings. Meals eaten, skipped
+    or changed and prep done since (and the stock they moved) leave it as is."""
+    from recipe_agent.domain.kitchen.contracts import WeeklyPlan, Workspace
+
+    state = Workspace.model_validate(state).model_dump(mode="json", exclude_none=True)
+    plan = WeeklyPlan.model_validate(plan).model_dump(mode="json", exclude_none=True)
+    return digest(
+        {
+            "meals": [{k: v for k, v in m.items() if k not in MEAL_RECORD} for m in plan["meals"]],
+            "prep": [{k: v for k, v in t.items() if k not in PREP_RECORD} for t in plan["prep"]],
+            "recipes": state["recipes"],
+            "settings": state["settings"],
+        }
+    )
+
+
+def settle(plan: dict[str, Any], raw: Any) -> Any:
+    """Stu's lists for a week confirmed before they arrived: a meal recorded
+    meanwhile keeps what happened (no batch prep is linked to it), prep done
+    meanwhile stays done, and a new batch left with no meal to feed is let go."""
+    if not isinstance(raw, dict):
+        return raw
+    output = deepcopy(raw)
+    planned = {m["id"] for m in plan["meals"] if m["status"] == "planned"}
+    output["assignments"] = [
+        a
+        for a in output.get("assignments") or []
+        if isinstance(a, dict) and a.get("mealId") in planned
+    ]
+    current = {t["id"]: t for t in plan["prep"]}
+    tasks = [
+        deepcopy(current[t["id"]])
+        if isinstance(t, dict)
+        and t.get("id") in current
+        and current[t["id"]]["status"] != "planned"
+        else t
+        for t in output.get("prep") or []
+    ]
+    used = {a.get("prepId") for a in output["assignments"]}
+    used |= {c.get("prepId") for m in plan["meals"] for c in m["components"]}
+    used |= {d for t in tasks if isinstance(t, dict) for d in t.get("dependencies") or []}
+    output["prep"] = [
+        t for t in tasks if not isinstance(t, dict) or t.get("id") in current or t.get("id") in used
+    ]
+    return output
 
 
 def recipe_hash(recipe: dict[str, Any]) -> str:

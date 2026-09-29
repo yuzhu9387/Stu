@@ -31,7 +31,7 @@ from recipe_agent.domain.kitchen.engine import KitchenError
 from recipe_agent.domain.kitchen.fulfillment import (
     FulfillmentRequest,
     generate_fulfillment,
-    inputs_hash,
+    menu_hash,
 )
 from recipe_agent.domain.kitchen.scheduling import validate_week
 from recipe_agent.infrastructure.db.base import Base
@@ -201,27 +201,42 @@ class KitchenAITasks:
     async def start_fulfillment(
         self, scope: HouseholdScope, request: FulfillmentRequest
     ) -> dict[str, Any]:
+        """Confirm the week at once (the calendar can record meals from now on),
+        then Stu prepares the shopping list and prep day in the background. A
+        confirmed week can ask for its lists again, e.g. after a failure."""
         state = await self.repository.get(scope)
-        if state["revision"] != request.expectedRevision:
-            raise KitchenError("Workspace changed; reload before confirming", 409)
         plan = next((p for p in state["plans"] if p["id"] == request.planId), None)
-        if plan is None or plan["status"] != "draft":
-            raise ValueError("Choose a draft to confirm")
+        if plan is None:
+            raise ValueError("Choose a plan to confirm")
         now = datetime.now(UTC)
         running = await self._running(scope, "fulfillment", now, plan_id=plan["id"])
         if running is not None:
-            return {"task": task_json(running, now)}
+            return {"task": task_json(running, now), "state": state}
+        if state["revision"] != request.expectedRevision:
+            raise KitchenError("Workspace changed; reload before confirming", 409)
         task = self._new(scope, "fulfillment", plan["weekStart"], plan["id"], request, now)
+        if plan["status"] == "draft":
+            recorded = await self.repository.command(
+                scope,
+                {
+                    "type": "plan.confirm",
+                    "payload": {"id": plan["id"]},
+                    "expectedRevision": state["revision"],
+                    "operationId": f"confirm:{task.id}",
+                },
+            )
+            state = recorded["state"]
+            plan = next(p for p in state["plans"] if p["id"] == request.planId)
         async with self.sessions() as session, session.begin():
             session.add(task)
         self._spawn(self._run_fulfillment(task.id, scope, state, plan))
-        return {"task": task_json(task, now)}
+        return {"task": task_json(task, now), "state": state}
 
     async def _run_fulfillment(
         self, task_id: UUID, scope: HouseholdScope, state: dict[str, Any], plan: dict[str, Any]
     ) -> None:
         try:
-            fingerprint = inputs_hash(state, plan)
+            fingerprint = menu_hash(state, plan)
             output = await generate_fulfillment(self.ai.provider, state, plan)
             for attempt in range(3):
                 latest = await self.repository.get(scope)
@@ -232,7 +247,7 @@ class KitchenAITasks:
                             "type": "plan.fulfill",
                             "payload": {
                                 "id": plan["id"],
-                                "inputHash": fingerprint,
+                                "menuHash": fingerprint,
                                 "output": output,
                             },
                             "expectedRevision": latest["revision"],

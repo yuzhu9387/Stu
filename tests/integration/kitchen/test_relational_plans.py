@@ -589,7 +589,13 @@ async def test_a_meal_done_while_the_week_is_being_edited_reaches_the_edit_in_th
     await driver.send("plan.confirm", {"id": "p-1"})
     _, relational = await driver.both()
     base = relational["plans"][0]
-    edit = {**base, "id": "p-2", "status": "draft", "basePlanId": "p-1", "baseVersion": base["version"]}
+    edit = {
+        **base,
+        "id": "p-2",
+        "status": "draft",
+        "basePlanId": "p-1",
+        "baseVersion": base["version"],
+    }
     await driver.send("plan.save", {"plan": edit})
     await driver.send("meal.status", {"planId": "p-1", "mealId": "m-1", "status": "skipped"})
     await assert_identical(driver)

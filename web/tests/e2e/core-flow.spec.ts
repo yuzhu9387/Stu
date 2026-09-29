@@ -56,7 +56,7 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
   await page.getByRole("button", { name: "Go to step 2, adjust", exact: true }).click();
   await page.getByRole("button", { name: "Confirm plan", exact: true }).click();
-  await expect(page.getByText("Stu is preparing your week…", {exact:true})).toBeVisible();
+  await expect(page.getByText(/Stu is preparing your (week|lists)…/)).toBeVisible();
   await page.screenshot({path:`/tmp/stu-confirm-${testInfo.project.name}.png`,fullPage:true});
   await expect(page.getByRole("region", { name: "Shopping and prep", exact: true })).toBeVisible();
   const shoppingToggle = page.getByRole("button", { name: /Shopping cart.*picked up/ });
@@ -254,15 +254,16 @@ test("planning hides execution, locks recur and recipe details open a real new t
   expect((await state(page.request)).plans.every(p=>!p.meals[0].locked)).toBe(true);
 });
 
-test("failed AI confirmation keeps the draft and displays retry",async({page})=>{
+test("failed AI lists keep the week confirmed and display retry",async({page})=>{
   await login(page);await seed(page.request);
   const p=(await state(page.request)).plans[0];p.prompt="E2E provider failure";
   await command(page.request,"plan.save",{plan:p});
   await page.goto(`/plan?week=${week}&plan=week`);
   await page.getByRole("button",{name:"Confirm plan",exact:true}).click();
-  await expect(page.getByText("Stu is preparing your week…",{exact:true})).toBeVisible();
+  // Confirmed at once: the calendar can record meals while Stu prepares the lists.
+  await expect.poll(async()=>(await state(page.request)).plans[0].status).toBe("confirmed");
   await expect(page.getByRole("button",{name:"Try again",exact:true})).toBeVisible();
-  expect((await state(page.request)).plans[0].status).toBe("draft");
+  await expect(page.getByText("Shopping list and prep day aren’t ready",{exact:true})).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button",{name:"Try again",exact:true})).toBeVisible();
 });

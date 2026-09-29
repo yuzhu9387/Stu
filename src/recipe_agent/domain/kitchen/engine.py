@@ -962,6 +962,30 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
                 plan["weekStart"],
                 {"planId": plan["id"], "step": "adjust", "focus": "shopping"},
             )
+    elif kind == "plan.fulfill" and find(state["plans"], payload["id"])["status"] == "confirmed":
+        # Confirmed first, Stu's lists after: the shopping list and batch prep
+        # arrive for a week that may already be under way. They stand if the
+        # menu is as Stu saw it; what was recorded meanwhile keeps what happened.
+        from recipe_agent.domain.kitchen.fulfillment import attach_fulfillment, menu_hash, settle
+        from recipe_agent.domain.kitchen.scheduling import recompute_plan_timing
+
+        plan = find(state["plans"], payload["id"])
+        if menu_hash(state, plan) != payload.get("menuHash"):
+            raise KitchenError("The week changed while Stu was preparing its lists; ask again", 409)
+        attach_fulfillment(state, plan, settle(plan, payload["output"]))
+        timed = recompute_plan_timing(state, plan)
+        plan["meals"] = [
+            meal
+            if meal["status"] != "planned" or meal["locked"]
+            else find(timed["meals"], meal["id"])
+            for meal in plan["meals"]
+        ]
+        plan["prep"] = [
+            task if task["status"] != "planned" else find(timed["prep"], task["id"])
+            for task in plan["prep"]
+        ]
+        plan["version"] += 1
+        message = "Shopping list and prep day are ready"
     elif kind in {"plan.confirm", "plan.fulfill"}:
         plan = find(state["plans"], payload["id"])
         if plan["status"] == "confirmed":

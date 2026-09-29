@@ -293,25 +293,37 @@ async def test_server_remembers_clarification_scope_after_client_reload(session_
         await app.state.runtime.aclose()
 
 
-async def test_confirm_is_durable_and_atomic_and_failure_keeps_draft(session_factory):
+BATCH = {
+    "decisions": [
+        {"recipeId": "rice", "prepareAhead": True, "reason": "Batch", "steps": ["Cook rice"]}
+    ],
+    "warnings": ["Check rice quantities"],
+}
+
+
+async def confirm(client, revision=0):
+    response = await client.post(
+        "/api/v1/kitchen/ai-tasks/fulfillment",
+        json={"planId": "plan", "expectedRevision": revision},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def test_confirm_is_immediate_and_stus_lists_follow(session_factory):
     repository = MemoryRepository(workspace())
-    output = {
-        "decisions": [
-            {"recipeId": "rice", "prepareAhead": True, "reason": "Batch", "steps": ["Cook rice"]}
-        ],
-        "warnings": ["Check rice quantities"],
-    }
-    provider = GatedProvider(output)
+    provider = GatedProvider(BATCH)
     app, client = await client_for(session_factory, repository, provider)
     try:
         async with client:
-            request = {"planId": "plan", "expectedRevision": 0}
-            started = await client.post("/api/v1/kitchen/ai-tasks/fulfillment", json=request)
-            assert started.status_code == 200, started.text
-            task = started.json()["task"]
-            assert repository.state["plans"][0]["status"] == "draft"
-            same = await client.post("/api/v1/kitchen/ai-tasks/fulfillment", json=request)
-            assert same.json()["task"]["id"] == task["id"]
+            started = await confirm(client)
+            task = started["task"]
+            # The week is confirmed at once: the calendar can record meals now.
+            assert repository.state["plans"][0]["status"] == "confirmed"
+            assert started["state"]["plans"][0]["status"] == "confirmed"
+            assert not repository.state["plans"][0].get("fulfillment")
+            same = await confirm(client)
+            assert same["task"]["id"] == task["id"]
             found = await client.get(
                 "/api/v1/kitchen/ai-tasks/latest", params={"kind": "fulfillment", "planId": "plan"}
             )
@@ -320,82 +332,81 @@ async def test_confirm_is_durable_and_atomic_and_failure_keeps_draft(session_fac
             await kitchen_ai_tasks.drain()
             done = (await client.get(f"/api/v1/kitchen/ai-tasks/{task['id']}")).json()["task"]
             assert done["status"] == "done", done
-            assert repository.state["plans"][0]["status"] == "confirmed"
-            assert repository.state["plans"][0]["fulfillment"]["warnings"] == output["warnings"]
+            week = repository.state["plans"][0]
+            assert week["status"] == "confirmed"
+            assert week["fulfillment"]["warnings"] == BATCH["warnings"]
+            assert week["prep"] and all(t["recipeId"] == "rice" for t in week["prep"])
     finally:
         await app.state.runtime.aclose()
 
 
-async def test_confirm_rejects_a_fridge_change_during_ai_work(session_factory):
+async def test_a_meal_recorded_while_stu_works_keeps_what_happened(session_factory):
     repository = MemoryRepository(workspace())
-    provider = GatedProvider(
-        {
-            "decisions": [
-                {
-                    "recipeId": "rice",
-                    "prepareAhead": True,
-                    "reason": "Batch",
-                    "steps": ["Cook rice"],
-                }
-            ],
-            "warnings": ["Check quantities"],
-        }
-    )
+    provider = GatedProvider(BATCH)
     app, client = await client_for(session_factory, repository, provider)
     try:
         async with client:
-            task = (
-                await client.post(
-                    "/api/v1/kitchen/ai-tasks/fulfillment",
-                    json={"planId": "plan", "expectedRevision": 0},
-                )
-            ).json()["task"]
+            task = (await confirm(client))["task"]
+            first = repository.state["plans"][0]["meals"][0]["id"]
+            await repository.command(
+                "scope",
+                {
+                    "type": "meal.status",
+                    "payload": {"planId": "plan", "mealId": first, "status": "skipped"},
+                    "expectedRevision": repository.state["revision"],
+                    "operationId": "skip",
+                },
+            )
+            provider.gate.set()
+            await kitchen_ai_tasks.drain()
+            done = (await client.get(f"/api/v1/kitchen/ai-tasks/{task['id']}")).json()["task"]
+            assert done["status"] == "done", done
+            meals = {m["id"]: m for m in repository.state["plans"][0]["meals"]}
+            assert meals[first]["status"] == "skipped"
+            assert not any(c.get("prepId") for c in meals[first]["components"])
+            assert any(c.get("prepId") for m in meals.values() for c in m["components"])
+            assert repository.state["plans"][0]["fulfillment"]
+    finally:
+        await app.state.runtime.aclose()
+
+
+async def test_a_menu_change_while_stu_works_refuses_the_lists_but_keeps_the_week(
+    session_factory,
+):
+    repository = MemoryRepository(workspace())
+    provider = GatedProvider(BATCH)
+    app, client = await client_for(session_factory, repository, provider)
+    try:
+        async with client:
+            task = (await confirm(client))["task"]
             repository.state["settings"]["people"] = 4
             provider.gate.set()
             await kitchen_ai_tasks.drain()
             done = (await client.get(f"/api/v1/kitchen/ai-tasks/{task['id']}")).json()["task"]
             assert done["status"] == "failed"
             assert "changed" in done["error"]
-            assert repository.state["plans"][0]["status"] == "draft"
+            assert repository.state["plans"][0]["status"] == "confirmed"
             assert not repository.state["plans"][0].get("fulfillment")
     finally:
         await app.state.runtime.aclose()
 
 
-async def test_confirm_provider_failure_can_be_retried(session_factory):
+async def test_stus_lists_can_be_asked_for_again_after_a_failure(session_factory):
     repository = MemoryRepository(workspace())
-    provider = GatedProvider(
-        AIUnavailable("API key missing"),
-        {
-            "decisions": [
-                {
-                    "recipeId": "rice",
-                    "prepareAhead": True,
-                    "reason": "Batch",
-                    "steps": ["Cook rice"],
-                }
-            ],
-            "warnings": ["Check quantities"],
-        },
-    )
+    provider = GatedProvider(AIUnavailable("API key missing"), BATCH)
     provider.gate.set()
     app, client = await client_for(session_factory, repository, provider)
     try:
         async with client:
-            request = {"planId": "plan", "expectedRevision": 0}
-            first = (
-                await client.post("/api/v1/kitchen/ai-tasks/fulfillment", json=request)
-            ).json()["task"]
+            first = (await confirm(client))["task"]
             await kitchen_ai_tasks.drain()
             failed = (await client.get(f"/api/v1/kitchen/ai-tasks/{first['id']}")).json()["task"]
             assert failed["status"] == "failed"
-            assert repository.state["plans"][0]["status"] == "draft"
-            retry = (
-                await client.post("/api/v1/kitchen/ai-tasks/fulfillment", json=request)
-            ).json()["task"]
+            assert repository.state["plans"][0]["status"] == "confirmed"
+            retry = (await confirm(client, repository.state["revision"]))["task"]
             await kitchen_ai_tasks.drain()
             assert retry["id"] != first["id"]
-            assert repository.state["plans"][0]["status"] == "confirmed"
+            assert repository.state["plans"][0]["fulfillment"]["warnings"] == BATCH["warnings"]
     finally:
         await app.state.runtime.aclose()
 

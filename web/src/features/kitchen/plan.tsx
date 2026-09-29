@@ -6,6 +6,7 @@ import { dayLabel, mondayOf, shiftWeek, slots, weekDays, weekLabel, weeksBetween
 import { WeekPicker } from "./week-picker";
 import { ANALYSIS_METRICS, planMetrics, type MetricResult, type PlanWarning } from "./analysis";
 import { planRuleWarnings } from "./plan-rules";
+import { PageButton } from "./fridge-doors";
 import type { ChatTurn } from "./ai-tasks";
 import { useStored } from "./browser-store";
 import { takeChatFocus } from "./chat-refs";
@@ -69,7 +70,7 @@ function StepRail({ stage, hasDraft, editing, busy, blocked, stamping, onStep, o
     if (index === 2) return <li key={index} className={`kw-state-transition is-${kind}`}><button type="button" aria-label={segment.aria} disabled={disabled || !segment.action} onClick={() => { void Promise.resolve(segment.action?.()).catch(() => {}); }}><span aria-hidden="true">{segment.n}</span></button><span className="kw-transition-label">{segment.label}</span></li>;
     const body = <><span className="kw-stepper-n" aria-hidden="true">{segment.n}</span><span className="kw-step-label">{segment.label}</span><span className="kw-step-short">{index === 0 ? "Meals" : index === 1 ? "Plan" : "Prep"}</span></>;
     return <li key={index} className={`is-${kind}`} aria-current={segment.active ? "step" : undefined}>{segment.action ? <button type="button" aria-label={segment.aria} disabled={disabled} onClick={() => { void Promise.resolve(segment.action?.()).catch(() => {}); }}>{body}</button> : <span className="kw-stepper-static">{body}</span>}</li>;
-  })}</ol>{onCalendar && <button className="kw-view-calendar" onClick={onCalendar}>View calendar <span aria-hidden="true">→</span></button>}</div>;
+  })}</ol>{onCalendar && <PageButton onward className="kw-step-rail-calendar" icon="📅" label="Calendar" name="View calendar" onClick={onCalendar} />}</div>;
 }
 
 interface Props {

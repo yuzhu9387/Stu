@@ -23,7 +23,7 @@ import { PrepPage } from "./prep";
 import { KitchenProfileMenu } from "./profile-menu";
 import { ShoppingPrepPage } from "./shopping-prep";
 import { hasPlannedMeals, planningStep, readyDraft, rememberedPlan } from "./workflow";
-import { HomeBack } from "./fridge-doors";
+import { HomeBack, PageButton } from "./fridge-doors";
 import { RecipesPage, RecipeSource } from "./recipes";
 import { requestChatFocus, useChatRefs } from "./chat-refs";
 import { pendingWrites, slotKey, useSetupChoices, useChosenPlan } from "./slot-choices";
@@ -422,11 +422,12 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
     </header><main className="kw-main" aria-label={titles[page]}>
     {demo&&<span className="kw-demo-ribbon">Interactive demo · simulated AI</span>}
     {/* The fridge is home; every other page has the way back to it. */}
-    {page!=="fridge"&&<HomeBack onClick={()=>navigate("fridge")}/>}
+    {/* Home is the fridge; the calendar sits between the plan and the shopping, so its way back is the plan. */}
+    {page==="calendar"?<PageButton className="kw-plan-back" icon="📋" label="Plan" name="← Plan" onClick={()=>navigate("plan",undefined,week,"")}/>:page!=="fridge"&&<HomeBack onClick={()=>navigate("fridge")}/>}
 
     {!selected&&!recipe&&feedback&&(page!=="plan"&&page!=="calendar"||restore)&&<div className="kw-page-notice">{feedback}</div>}
     {kitchen.loading?<div className="kw-loading">Loading your kitchen…</div>:kitchen.unauthorized?<div className="kw-auth"><Login locale="en-US" onAuthenticated={()=>void kitchen.reload()}/></div>:kitchen.error?<div className="kw-load-error"><h2>We couldn’t load your kitchen</h2><p>{kitchen.error}</p><button className="kw-button" onClick={()=>void kitchen.reload()}>Try again</button><a href="/demo">Explore the interactive demo</a></div>:<>
-      {page==="calendar"&&<header className="kw-calendar-heading"><h1 aria-label="Calendar">{"This Week's Menu! 🍳"}</h1><div className="kw-weekbar"><button className="kw-week-step" aria-label="Previous week" onClick={()=>navigate(page,undefined,shiftWeek(week,-1),"")}><span aria-hidden="true">◀</span></button><WeekPicker week={week} thisWeek={defaultWeek} onPick={target=>navigate(page,undefined,target,"")}/><button className="kw-week-step" aria-label="Next week" onClick={()=>navigate(page,undefined,shiftWeek(week,1),"")}><span aria-hidden="true">▶</span></button>{plan&&<label className={`kw-version-control ${plan.status}`}><span className="kw-version-dot" aria-hidden="true"/><span className="kw-version-caption">VERSION</span><select aria-label="Plan version" className="kw-version-select" value={plan.id} onChange={e=>navigate(page,undefined,week,e.target.value)}>{options.map(p=><option value={p.id} key={p.id}>{p.status==="confirmed"?"Confirmed":"Draft"} · v{p.version}</option>)}</select><span className="kw-version-chevron" aria-hidden="true">⌄</span></label>}</div><button className="kw-button kw-prep-link" onClick={()=>plan?.status==="confirmed"?void goStep("shopping","prep"):navigate("prep")}>Shopping & Prep → 🥣</button></header>}
+      {page==="calendar"&&<header className="kw-calendar-heading"><h1 aria-label="Calendar">{"This Week's Menu! 🍳"}</h1><div className="kw-weekbar"><button className="kw-week-step" aria-label="Previous week" onClick={()=>navigate(page,undefined,shiftWeek(week,-1),"")}><span aria-hidden="true">◀</span></button><WeekPicker week={week} thisWeek={defaultWeek} onPick={target=>navigate(page,undefined,target,"")}/><button className="kw-week-step" aria-label="Next week" onClick={()=>navigate(page,undefined,shiftWeek(week,1),"")}><span aria-hidden="true">▶</span></button>{plan&&<label className={`kw-version-control ${plan.status}`}><span className="kw-version-dot" aria-hidden="true"/><span className="kw-version-caption">VERSION</span><select aria-label="Plan version" className="kw-version-select" value={plan.id} onChange={e=>navigate(page,undefined,week,e.target.value)}>{options.map(p=><option value={p.id} key={p.id}>{p.status==="confirmed"?"Confirmed":"Draft"} · v{p.version}</option>)}</select><span className="kw-version-chevron" aria-hidden="true">⌄</span></label>}</div><PageButton onward className="kw-calendar-onward" icon="🛒" label="Shopping & prep" name="Shopping & prep →" onClick={()=>plan?.status==="confirmed"?void goStep("shopping","prep"):navigate("prep")}/></header>}
 
       {/* One banner at a time: the week in view comes first; next week's ready
           draft is mentioned only once this week needs nothing. An empty draft

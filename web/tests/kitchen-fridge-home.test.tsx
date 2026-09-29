@@ -22,13 +22,24 @@ it("opens on the fridge, with Recipes, Calendar and Plan beside it and no top na
   expect(screen.queryByRole("button", { name: "← 冰箱" })).not.toBeInTheDocument();
 });
 
-it("goes to the calendar from beside the fridge, and ← 冰箱 comes home", async () => {
+it("goes to the calendar from beside the fridge; from there, back to Plan or on to Shopping & prep", async () => {
   render(<KitchenWorkspace demo initialPage="fridge" />);
   fireEvent.click(within(await screen.findByRole("navigation", { name: "Kitchen" })).getByRole("button", { name: /Calendar/ }));
   expect(await screen.findByRole("region", { name: "Weekly meal calendar" })).toBeInTheDocument();
   expect(new URLSearchParams(nav.query).get("page")).toBe("calendar");
-  fireEvent.click(screen.getByRole("button", { name: "← 冰箱" }));
-  expect(await screen.findByRole("heading", { name: "Fridge" })).toBeInTheDocument();
+  // The calendar sits between the plan and the shopping: its buttons go there.
+  expect(screen.queryByRole("button", { name: "← 冰箱" })).not.toBeInTheDocument();
+  const onward = screen.getByRole("button", { name: "Shopping & prep →" });
+  expect(onward).toHaveClass("kw-page-button");
+  fireEvent.click(screen.getByRole("button", { name: "← Plan" }));
+  expect(new URLSearchParams(nav.query).get("page")).toBe("plan");
+  // The plan's way to the calendar is the same kind of button.
+  const calendar = await screen.findByRole("button", { name: "View calendar" });
+  expect(calendar).toHaveClass("kw-page-button");
+  fireEvent.click(calendar);
+  fireEvent.click(await screen.findByRole("button", { name: "Shopping & prep →" }));
+  expect(new URLSearchParams(nav.query).get("page")).toBe("plan");
+  expect(new URLSearchParams(nav.query).get("step")).toBe("shopping");
 });
 
 it("opens Plan and Recipes from beside the fridge too", async () => {

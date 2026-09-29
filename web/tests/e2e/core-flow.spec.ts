@@ -72,6 +72,8 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await prepToggle.click();
   await expect(prepToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("region", { name: "Ingredients for 鸡肉丸" })).toContainText("300 g");
+  // The open panel is saved in the background (Stu's lists may be landing too): wait for it before reloading.
+  await expect.poll(async () => (await state(page.request)).weeklyPrompts?.find(p => p.weekStart === week)?.workflow?.focus).toBe("prep");
   await page.reload();
   await expect(prepToggle).toHaveAttribute("aria-expanded", "true");
   await page.screenshot({ path: `/tmp/stu-workflow-${testInfo.project.name}-prep.png`, fullPage: true });
@@ -80,8 +82,8 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await page.getByRole("button", { name: "View calendar", exact: true }).click();
   await expect(page.getByRole("region", { name: "Weekly meal calendar" })).toHaveClass(/kw-calendar-plan/);
   await expect(page.getByRole("combobox", { name: "Plan version" })).toBeVisible();
-  await page.getByRole("button", { name: "← 冰箱", exact: true }).click();
-  await page.getByRole("navigation", { name: "Kitchen" }).getByRole("button", { name: /Plan/ }).click();
+  // From the calendar the way back is the plan.
+  await page.getByRole("button", { name: "← Plan", exact: true }).click();
   await expect(prepToggle).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Edit plan", exact: true }).click();
   await page.getByRole("button", { name: "Confirm plan", exact: true }).click();
@@ -204,7 +206,7 @@ test("Figma navigation, recipe drawer and all page layouts work at desktop and p
     await page.goto(`/demo?week=${week}&plan=plan-demo&page=${destination}`);
     // Home is the fridge with its doors; every other page has the way back to it.
     if (destination === "fridge") await expect(page.getByRole("navigation", { name: "Kitchen" })).toBeVisible();
-    else await expect(page.getByRole("button", { name: "← 冰箱", exact: true })).toBeVisible();
+    else await expect(page.getByRole("button", { name: destination === "calendar" ? "← Plan" : "← 冰箱", exact: true })).toBeVisible();
     await expect(page.getByText("Loading your kitchen…")).toHaveCount(0);
     const logo = page.getByRole("img", { name: "Stu baby logo", exact: true });
     await expect(logo).toBeVisible();

@@ -27,7 +27,7 @@
 - 冰箱里可以多选食物，选中后底部只出现一个按钮 **🔪 + Prep**（悬停提示 "Add to prep day"）。
 - 一次 + Prep 就是一道菜。周末吃掉的份数不记；做完只手动填"多出来的份数"，默认进冷冻室。日历不动。
 - Calendar 页的抽屉是做饭用的：✓ Done、✗ Skip、↺ Changed。Changed 只有一个可选的备注框。
-- Plan 页的抽屉直接进编辑，按菜分组；保留从冰箱或菜谱选菜，以及每道菜消耗几份；空着的栏位保存时由 Stu 补全。
+- Plan 页的抽屉直接进编辑，按菜分组；保留从冰箱或菜谱选菜，以及每道菜消耗几份；空着的栏位保存时由 Stu 补全。补全的内容只属于这一餐，**不存进菜谱书**。
 - 菜谱来源：文字、图片、小红书、B站、YouTube/Instagram 链接。
 - 每个环节电脑和手机都会用。
 
@@ -56,13 +56,14 @@
   - **来源**：冰箱里的一样东西 / 一个菜谱 / 🧺 Make your own。
   - **消耗几份**。
   - **营养**：主类 + Also contains。
-  - **食材**：来自菜谱；冰箱里的成品菜不需要。
+  - **食材**：选了菜谱就显示菜谱的；否则是这道菜自己的食材表（可编辑）；冰箱里的成品菜不需要。
   - **步骤**：这道菜在这一餐里的步骤。
-  - **准备时间**：来自菜谱；冰箱成品菜是加热时间。
+  - **准备时间**：选了菜谱就用菜谱的；否则是这道菜自己的时间；冰箱成品菜是加热时间。
 - 卡片下面：+ Add dish、🧺 Make your own、Choose recipe。整餐的日期、餐次、总时间放在抽屉最上方。
 - **保存时补全**：
   - 有空栏位（没有食材、步骤、时间或营养）的菜，保存前先请 Stu 补全，按钮会写出要补几处（"Save · Stu fills 3 blanks"）。
-  - 补全后的菜自动存成菜谱（来源 "Created from meal plan"），并通过 recipeId 和这道菜关联；购物清单和耗时计算照常使用它。
+  - 补全的食材、步骤、时间、营养只存在这一餐的这道菜上，**不存进菜谱书**。购物清单和耗时计算会用到这道菜自己的食材和时间。
+  - 想留下来的话，抽屉里仍有 "Save to recipe 📖"，手动存进菜谱书。
   - Stu 失败或超时：照常保存，空栏位留空，提示"之后可以再补"。
 - 删除一道菜会连它的步骤一起删（现有的 `removeComponent`）。
 - 键盘 Delete 删整餐（已上线的 A1）不受影响；在输入框里按键不算。
@@ -81,7 +82,7 @@
 - 冰箱多选：电脑上点卡片左上角的圆点进入多选；手机上长按一样东西进入多选。单点仍然打开这样东西的详情。选中后底部出现一条操作栏："2 selected · 🔪 + Prep · ✕"。
 - 点 + Prep：
   1. 用选中的食材请 Stu 出一道菜（复用 compose：菜名、用量、步骤、时间、营养），也可以改成现有菜谱或改名。
-  2. 这道菜成为**本周末 prep day** 的一个 prep 任务：名字、recipeId（Stu 出的菜谱要先存成菜谱）、inputs = 各食材要用的份数。
+  2. 这道菜成为**本周末 prep day** 的一个 prep 任务：名字、步骤、时间都存在任务上，inputs = 各食材要用的份数。Stu 出的菜**不存进菜谱书**；选了现有菜谱时才带 recipeId。
   3. 本周末的 prep day 属于下周的计划（和现在的 Prep 页一致：下周一之前的那个周末）。下周还没有计划时，先建一个只有 prep、没有餐的草稿计划。
 - Prep day 页：每道菜一张卡，显示来源食材、步骤、时间，加上 ✓ Done / Remove。
   - Done 时只问一个数：**多出来几份**（默认 0），以及放哪里（默认 ❄️ 冷冻，可切 🧊 冷藏）。
@@ -119,8 +120,9 @@
 | Meal 状态加 `changed` | Postgres 枚举 `executionstatus` 加一个值（迁移）；引擎 `meal.status` 接受 changed，不扣库存，可以撤销；分析和统计把 changed 当作"没按计划"。 |
 | Meal 加 `note` | 可选，最多 500 字，存在 meals 表新列里（迁移）。 |
 | prep 完成可指定位置 | `prep.status` 接受 `location`（freezer / fridge），`actualPortions` 可以是 0。 |
-| 补全接口 | `POST /api/v1/kitchen/fill`：输入一餐的草稿（每道菜已有的信息），返回补全后的菜谱；只预览、不保存。demo 用确定的假数据。 |
-| + Prep | 前端组合现有能力：compose → recipe.save → prep.save（下周计划不存在时先 plan.save 一个空草稿）。 |
+| 一道菜自己的信息 | MealComponent 加可选的 `ingredients`（同菜谱的食材格式）和 `activeMinutes` / `elapsedMinutes`；存在 meal_components 的新 JSON 和数字列（迁移）。没有菜谱的菜，购物清单用它自己的食材，耗时计算用它自己的时间；菜谱的优先。 |
+| 补全接口 | `POST /api/v1/kitchen/fill`：输入一餐的草稿（每道菜已有的信息），返回每道菜补全后的食材、步骤、时间、营养；只预览、不保存，也不建菜谱。demo 用确定的假数据。 |
+| + Prep | 前端组合现有能力：compose → prep.save（下周计划不存在时先 plan.save 一个空草稿）。不建菜谱。 |
 | 购物清单 | 工作区新增 `shoppingList: [{id, name, quantity?, checked}]`，关系表 `shopping_items`（迁移）；命令 `shopping.save`、`shopping.delete`、`shopping.putAway`（一次建好冰箱条目并删掉这些行）。 |
 | 链接导入 | `POST /api/v1/kitchen/import-link {url}` → 抓取、清理成文字 → 复用 extract。 |
 | 问 Stu | `POST /api/v1/kitchen/ask {message}` → `{reply}`；只读。 |
@@ -160,5 +162,5 @@
 ## 10. 假设（审的时候请特别看）
 
 - Changed 不自动扣冰箱，实际吃掉的东西在冰箱里手动改。
-- Plan 编辑时补全出来的菜会自动存成菜谱，菜谱书里会多出这些菜（来源写 "Created from meal plan"）。
+- ~~补全的菜自动存成菜谱~~ → 已改：补全和 + Prep 出的菜都不存进菜谱书，只存在这一餐或这个 prep 任务上。
 - + Prep 加到"下周计划"的 prep day（即本周末），和现有 Prep 页的对应关系一致。

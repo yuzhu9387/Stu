@@ -34,3 +34,10 @@
 .kw-drawer-prompt .kw-unsaved>p{flex-basis:100%;margin:-4px 0 2px}
 .kw-drawer-prompt .kw-unsaved>.kw-button{margin:0}
 .kw-drawer-prompt .kw-unsaved>.kw-text-button{display:inline-flex}
+
+/* Calendar drawer: a meal that went differently, with an optional note. */
+.kw-hero-action.changed{background:#fff4d6}
+.kw-changed-note{display:flex;flex-direction:column;gap:8px;margin:10px 0;border:2px dashed #c9492f;border-radius:12px;background:#fff4ef;padding:10px}
+.kw-changed-note .kw-row{gap:8px;align-items:center}
+.kw-changed-shown{display:flex;align-items:center;gap:5px;margin:8px 0;font-weight:800;color:#8a5d00}
+.kw-changed-shown span{font-weight:600;color:#35251f}

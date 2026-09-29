@@ -1,6 +1,9 @@
 export type FoodType = "Protein" | "Carbs" | "Vegetables" | "Dairy" | "Other";
 export type MealSlot = "breakfast" | "lunch" | "dinner";
-export type ExecutionStatus = "planned" | "completed" | "skipped";
+/** "changed" is for meals only: it went differently; nothing left the fridge. */
+export type ExecutionStatus = "planned" | "completed" | "skipped" | "changed";
+/** Meals whose planned food was not eaten as planned. */
+export const notEaten = (meal: { status: ExecutionStatus }) => meal.status === "skipped" || meal.status === "changed";
 export interface Ingredient { name: string; quantity: number; unit: string; group?: string }
 export interface StepDetail { index: number; title?: string; titleEn?: string; activeMinutes?: number; waitMinutes?: number }
 export interface ReheatInstruction { method: "microwave"|"steamer"|"pan"|"oven"|"other"; instruction: string }
@@ -10,8 +13,8 @@ export interface Recipe { id: string; name: string; type: FoodType; secondaryTyp
 export interface InventoryItem { id: string; name: string; type: FoodType; secondaryTypes?: FoodType[]; portions: number; location: string; prepared: boolean; addedOn: string; recipeId?: string; priority: boolean; expiresOn?: string; notes?: string; portionGrams?: number; emoji?: string; nameEn?: string }
 /** Fridge portions a dish cooked from several foods takes from one of them. */
 export interface StockUse { inventoryId: string; portions: number }
-export interface MealComponent { id: string; name: string; type: FoodType; portions: number; recipeId?: string; inventoryId?: string; prepId?: string; uses?: StockUse[]; secondaryTypes?: FoodType[] }
-export interface Meal { id: string; day: string; slot: MealSlot; included?: boolean; components: MealComponent[]; activeMinutes: number; elapsedMinutes: number; steps: string[]; status: ExecutionStatus; liked: boolean; locked: boolean }
+export interface MealComponent { id: string; name: string; type: FoodType; portions: number; recipeId?: string; inventoryId?: string; prepId?: string; uses?: StockUse[]; secondaryTypes?: FoodType[]; ingredients?: Ingredient[]; activeMinutes?: number; elapsedMinutes?: number }
+export interface Meal { id: string; day: string; slot: MealSlot; included?: boolean; components: MealComponent[]; activeMinutes: number; elapsedMinutes: number; steps: string[]; status: ExecutionStatus; liked: boolean; locked: boolean; note?: string }
 export interface PrepTask { id: string; name: string; type: FoodType | "Baking"; recipeId?: string; plannedPortions: number; actualPortions: number; activeMinutes: number; elapsedMinutes: number; steps: string[]; status: ExecutionStatus; liked: boolean; outputInventoryId?: string; inputs: {inventoryId: string; portions: number}[]; equipment: string[]; dependencies: string[] }
 export interface ChatMessage { id: string; role: "user" | "assistant"; text: string; mealIds?: string[] }
 export type PlanStep = "preferences" | "adjust" | "confirmed" | "shopping";

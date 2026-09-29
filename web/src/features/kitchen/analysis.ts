@@ -1,6 +1,7 @@
 import { mealHas } from "./food-groups";
 import { slots, weekDays } from "./data";
 import type { AnalysisMetric, KitchenState, Meal, MealComponent, Recipe, WeeklyPlan } from "./types";
+import { notEaten } from "./types";
 
 /** Plan analysis for frame 105:513.
  *
@@ -37,7 +38,7 @@ const REPEAT_NOTE_THRESHOLD = 3;
 
 /** Slots the household actually intends to cook. */
 function cooked(plan: WeeklyPlan): Meal[] {
-  return plan.meals.filter(m => (m.included ?? true) && m.status !== "skipped");
+  return plan.meals.filter(m => (m.included ?? true) && !notEaten(m));
 }
 
 function dishKey(component: MealComponent) {

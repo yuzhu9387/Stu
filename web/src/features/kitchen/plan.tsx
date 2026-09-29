@@ -12,6 +12,7 @@ import { takeChatFocus } from "./chat-refs";
 import { prepSchedule } from "./schedule";
 import { slotKey, useChosenPlan, type SetupChoices } from "./slot-choices";
 import type { ChatProposal, KitchenState, Meal, WeeklyPlan } from "./types";
+import { notEaten } from "./types";
 
 /** Frame 47:9's prompt shortcuts. They only fill the prompt the generator
  * already reads — nothing hidden is sent. */
@@ -311,7 +312,7 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
         <details className="kw-reference" aria-label="Plan review summary">
           <summary>Details</summary>
           <p>Prep: {prepTiming ? `${prepTiming.activeMinutes} min active · ${prepTiming.ordinaryReadyMinutes} min elapsed` : "Timing needs review"} · limit {state.settings.maxPrepMinutes} min</p>
-          <p>{weekDays(week).map(day => { const active = plan.meals.filter(m => m.day === day && m.status !== "skipped").reduce((sum, m) => sum + m.activeMinutes, 0); return `${dayLabel(day)} ${active}/${state.settings.maxDailyActiveMinutes} min`; }).join(" · ")}</p>
+          <p>{weekDays(week).map(day => { const active = plan.meals.filter(m => m.day === day && !notEaten(m)).reduce((sum, m) => sum + m.activeMinutes, 0); return `${dayLabel(day)} ${active}/${state.settings.maxDailyActiveMinutes} min`; }).join(" · ")}</p>
           <p>{["Protein", "Carbs", "Vegetables"].map(type => `${plan.meals.filter(m => m.components.some(c => c.type === type)).length} meals with ${type.toLowerCase()}`).join(" · ")}</p>
           <h3>How the analysis is counted</h3>
           {ANALYSIS_METRICS.filter(metric => (state.settings.analysisMetrics ?? ANALYSIS_METRICS.map(m => m.id)).includes(metric.id)).map(metric => <p key={metric.id}><strong>{metric.label}:</strong> {metric.rule}</p>)}
@@ -370,7 +371,7 @@ function ProposalCard({ plan, proposal, disabled, applying, onApply, onKeep, onA
  * up to three fixes to choose from. After a change is applied, a note says
  * which concerns it settled and which are still open. */
 function Analysis({ plan, rules, proposedRules, metrics, baseline, applying, error, onApplyFix, onGuidance, onDismiss }: { plan: WeeklyPlan; rules: PlanWarning[]; proposedRules: {message:string}[]; metrics: MetricResult[]; baseline: MetricResult[] | null; applying: string | null; error: string | null; onApplyFix: (id: string, mealId: string, component: Meal["components"][number]) => Promise<void>; onGuidance: () => void; onDismiss: () => void }) {
-  const empty = !plan.meals.some(m => (m.included ?? true) && m.status !== "skipped" && m.components.length);
+  const empty = !plan.meals.some(m => (m.included ?? true) && !notEaten(m) && m.components.length);
   const outcome = baseline && !applying ? baseline.filter(before => before.status === "warn").map(before => {
     const now = metrics.find(m => m.id === before.id);
     const resolved = !now || now.status !== "warn";

@@ -1,10 +1,11 @@
 import type { PlanWarning } from "./analysis";
 import { prepSchedule } from "./schedule";
 import type { KitchenState, Meal, WeeklyPlan } from "./types";
+import { notEaten } from "./types";
 
 const staples = new Set(["rice", "steamedrice", "plainsteamedrice", "cookedrice", "whiterice", "brownrice", "cookedbrownrice", "米饭", "白米饭", "糙米饭", "清水", "water", "milk", "牛奶", "plainbread", "白面包"]);
 const key = (name: string) => name.replace(/[^\p{L}\p{N}]/gu, "");
-const active = (meal: Meal) => meal.included !== false && meal.status !== "skipped";
+const active = (meal: Meal) => meal.included !== false && !notEaten(meal);
 
 /** Match the server's calendar-day rotation, including stock/prep recipe
  * aliases and the authoritative neighbouring week. These are advice only. */
@@ -17,7 +18,7 @@ export function planRuleWarnings(state: KitchenState, plan: WeeklyPlan): PlanWar
     const recipeId = c.recipeId ?? stock?.recipeId ?? prep?.recipeId;
     const recipe = state.recipes.find(r => r.id === recipeId);
     const name = recipe?.name ?? stock?.name ?? prep?.name ?? c.name;
-    if (!external && !recipe && !stock && !prep && !c.uses?.length) warnings.push({
+    if (!external && !recipe && !stock && !prep && !c.uses?.length && c.activeMinutes === undefined) warnings.push({
       id: `missing-recipe:${meal.id}:${c.id}`, severity: "warning", title: `${c.name}: recipe not saved`,
       detail: `${meal.day} ${meal.slot}. This dish is kept in your plan. Open the meal to edit and add its recipe; cooking time is an estimate.`,
     });

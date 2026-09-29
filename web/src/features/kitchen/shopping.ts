@@ -1,4 +1,4 @@
-import type { KitchenState, WeeklyPlan } from "./types";
+import type { Ingredient, KitchenState, WeeklyPlan } from "./types";
 
 export interface ShoppingItem {
   key: string; name: string; unit: string; group: string;
@@ -36,14 +36,17 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
     return need - amount;
   }
   /** Buy a recipe's ingredients, except those in `have` (already set aside). */
-  function addRecipe(id: string | undefined, portions: number, name: string, have = new Set<string>()) {
+  /** A recipe's ingredients — or, with no recipe, the dish's `own`, for the
+   * portions it lists — except those in `have` (already set aside). */
+  function addRecipe(id: string | undefined, portions: number, name: string, have = new Set<string>(), own?: { ingredients?: Ingredient[]; portions: number }) {
     if (portions <= 0) return;
     const recipe = id ? recipes.get(id) : undefined;
-    if (!recipe?.ingredients.length || !recipe.servings) {
+    const source = recipe?.ingredients.length && recipe.servings ? { ingredients: recipe.ingredients, servings: recipe.servings } : own?.ingredients?.length ? { ingredients: own.ingredients, servings: own.portions } : null;
+    if (!source) {
       warnings.add(`${name}: add a recipe with ingredients to complete this shopping list.`);
       return;
     }
-    for (const ingredient of recipe.ingredients) {
+    for (const ingredient of source.ingredients) {
       if (pantryStaple(ingredient) || have.has(normalize(ingredient.name))) continue;
       if (!ingredient.quantity || !ingredient.unit.trim()) {
         warnings.add(`${ingredient.name} (${name}): check the amount in the recipe.`);
@@ -52,7 +55,7 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
       const rawUnit = normalize(ingredient.unit), [unit, factor] = units[rawUnit] ?? [rawUnit, 1];
       const key = JSON.stringify([normalize(ingredient.name), unit]);
       const item = ingredients.get(key) ?? { key, name: ingredient.name, unit, group: ingredient.group || "Other", required: 0, inStock: 0, toBuy: 0, dishes: [] };
-      item.required += ingredient.quantity * factor * portions / recipe.servings;
+      item.required += ingredient.quantity * factor * portions / source.servings;
       if (!item.dishes.includes(name)) item.dishes.push(name);
       ingredients.set(key, item);
     }
@@ -86,7 +89,7 @@ export function shoppingList(state: KitchenState, plan: WeeklyPlan, asOf = new I
       }
       if (have.size && !component.recipeId) continue;
       const stored = state.inventory.find(i => i.id === component.inventoryId);
-      addRecipe(component.recipeId ?? task?.recipeId ?? stored?.recipeId, need, component.name, have);
+      addRecipe(component.recipeId ?? task?.recipeId ?? stored?.recipeId, need, component.name, have, component);
     }
   }
   const rawBalances = new Map(balances);

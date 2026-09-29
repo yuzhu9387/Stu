@@ -1,8 +1,9 @@
 import type {KitchenState,Meal,WeeklyPlan} from "./types";
+import { notEaten } from "./types";
 const copy=<T,>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
 const weekday=(meal:Meal)=>(new Date(`${meal.day}T12:00:00Z`).getUTCDay()+6)%7;
 function reconcile(before:WeeklyPlan,after:WeeklyPlan){
-  const demand=(p:WeeklyPlan)=>{const result=new Map<string,number>();p.meals.filter(m=>m.status!=="skipped").forEach(m=>m.components.forEach(c=>{if(c.prepId)result.set(c.prepId,(result.get(c.prepId)??0)+c.portions);}));return result;};
+  const demand=(p:WeeklyPlan)=>{const result=new Map<string,number>();p.meals.filter(m=>!notEaten(m)).forEach(m=>m.components.forEach(c=>{if(c.prepId)result.set(c.prepId,(result.get(c.prepId)??0)+c.portions);}));return result;};
   const old=demand(before),next=demand(after),dependencies=new Set(after.prep.flatMap(t=>t.dependencies));
   after.prep=after.prep.flatMap(t=>{if(t.status!=="planned"||!old.get(t.id)||dependencies.has(t.id))return [t];const need=next.get(t.id)??0;if(!need)return [];const factor=need/old.get(t.id)!;return [{...t,plannedPortions:t.plannedPortions*factor,activeMinutes:t.activeMinutes*factor,elapsedMinutes:t.elapsedMinutes*factor,inputs:t.inputs.map(i=>({...i,portions:i.portions*factor}))}];});
 }

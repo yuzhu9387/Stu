@@ -110,5 +110,7 @@ async def test_a_week_holding_only_prep_dishes_is_still_drafted_on_friday(sessio
             raise AIUnavailable("AI provider unavailable; configure a key")
 
     now = datetime(2026, 9, 19, 1, tzinfo=UTC)
-    await run_due_kitchen_jobs(session_factory, Settings(_env_file=None), now=now, provider=Unavailable())
+    await run_due_kitchen_jobs(
+        session_factory, Settings(_env_file=None), now=now, provider=Unavailable()
+    )
     assert asked, "Stu was not asked to draft the week"

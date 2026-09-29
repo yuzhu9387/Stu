@@ -135,7 +135,13 @@ def superseded(state):
     its place: the old version, holding the same + Prep dish, is a draft again."""
     state = run(state, "plan.confirm", {"id": "plan"})
     old = state["plans"][0]
-    revision = {**old, "id": "rev", "status": "draft", "basePlanId": "plan", "baseVersion": old["version"]}
+    revision = {
+        **old,
+        "id": "rev",
+        "status": "draft",
+        "basePlanId": "plan",
+        "baseVersion": old["version"],
+    }
     state = run(state, "plan.save", {"plan": revision})
     return run(state, "plan.confirm", {"id": "rev"})
 
@@ -165,7 +171,11 @@ def test_a_week_holding_only_prep_dishes_is_not_yet_planned():
 
     week = {"id": "p", "weekStart": "2026-10-05", "status": "draft", "version": 1, "prompt": ""}
     state = run(initial_state(), "inventory.save", {"item": household()["inventory"][0]})
-    state = run(state, "plan.save", {"plan": {**week, "meals": [], "prep": [fridge_prep(inputs=[])], "chat": []}})
+    state = run(
+        state,
+        "plan.save",
+        {"plan": {**week, "meals": [], "prep": [fridge_prep(inputs=[])], "chat": []}},
+    )
     plan = state["plans"][0]
     assert prep_only(plan)
     # Opening the week's Plan starts at the first step, not at an empty board.

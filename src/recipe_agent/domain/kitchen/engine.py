@@ -296,7 +296,9 @@ def prep_only(plan: dict[str, Any]) -> bool:
         plan["status"] == "draft"
         and any(task.get("origin") == "fridge" for task in plan["prep"])
         and all(meal["locked"] for meal in plan["meals"])
-        and all(task.get("origin") == "fridge" or task["id"] in locked_prep for task in plan["prep"])
+        and all(
+            task.get("origin") == "fridge" or task["id"] in locked_prep for task in plan["prep"]
+        )
     )
 
 

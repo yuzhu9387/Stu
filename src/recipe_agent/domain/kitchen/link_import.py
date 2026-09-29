@@ -172,10 +172,12 @@ class Reader(HTMLParser):
         self.title: list[str] = []
         self.meta: dict[str, str] = {}
         self.data: list[str] = []
+        self.scripts: list[str] = []
         self.text: list[str] = []
         self.skipping: list[str] = []
         self.in_title = False
         self.in_data = False
+        self.in_script = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key.lower(): value or "" for key, value in attrs}
@@ -192,6 +194,10 @@ class Reader(HTMLParser):
         elif tag == "script" and values.get("type", "").lower() == "application/ld+json":
             self.in_data = True
             self.data.append("")
+        elif tag == "script":
+            # Read as data (a video page's description), never run.
+            self.in_script = True
+            self.scripts.append("")
         if tag in SKIPPED:
             self.skipping.append(tag)
         elif tag in BLOCKS and not self.skipping:
@@ -202,6 +208,7 @@ class Reader(HTMLParser):
             self.in_title = False
         if tag == "script":
             self.in_data = False
+            self.in_script = False
         if self.skipping and self.skipping[-1] == tag:
             self.skipping.pop()
 
@@ -210,6 +217,9 @@ class Reader(HTMLParser):
             self.title.append(data)
         elif self.in_data:
             self.data[-1] += data
+        elif self.in_script:
+            if len(self.scripts[-1]) < MAX_BYTES:
+                self.scripts[-1] += data
         elif not self.skipping:
             self.text.append(data)
 
@@ -226,6 +236,36 @@ def recipes_in(value: Any) -> Iterator[dict[str, Any]]:
         for key in ("@graph", "mainEntity", "itemListElement"):
             if key in value:
                 yield from recipes_in(value[key])
+
+
+# Where video pages keep the whole description the meta tag cuts short.
+PAGE_DATA = (
+    ("ytInitialPlayerResponse", ("videoDetails", "title"), ("videoDetails", "shortDescription")),
+    ("__INITIAL_STATE__", ("videoData", "title"), ("videoData", "desc")),
+)
+
+
+def page_data(scripts: list[str]) -> list[str]:
+    """A video's title and description from the JSON its page assigns to a
+    known name, decoded as data."""
+    found: list[str] = []
+    decoder = json.JSONDecoder()
+    for script in scripts:
+        for name, *paths in PAGE_DATA:
+            match = re.search(re.escape(name) + r"\s*=\s*\{", script)
+            if not match:
+                continue
+            try:
+                value, _ = decoder.raw_decode(script, match.end() - 1)
+            except ValueError:
+                continue
+            for path in paths:
+                node: Any = value
+                for key in path:
+                    node = node.get(key) if isinstance(node, dict) else None
+                if isinstance(node, str) and node.strip():
+                    found.append(node.strip())
+    return list(dict.fromkeys(found))
 
 
 def steps_of(value: Any) -> Iterator[str]:
@@ -261,6 +301,7 @@ def page_text(html: str) -> str:
             if (value := reader.meta.get(key))
         )
     )
+    descriptions += [value for value in page_data(reader.scripts) if value not in descriptions]
     lines += [f"Description: {value}" for value in descriptions]
     found = 0
     for raw in reader.data:

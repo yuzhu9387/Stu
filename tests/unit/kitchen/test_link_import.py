@@ -213,3 +213,39 @@ async def test_a_slow_page_is_given_up_on(monkeypatch):
             "https://recipes.example/slow", transport=httpx.MockTransport(slow), resolver=resolver
         )
     assert str(caught.value) == UNREADABLE
+
+
+def test_a_youtube_page_gives_its_whole_description():
+    full = "番茄炒蛋做法: 鸡蛋3个 番茄2个 盐少许。1. 番茄切块 2. 鸡蛋炒熟盛出 3. 番茄炒软后回锅"
+    player = json.dumps(
+        {"videoDetails": {"title": "番茄炒蛋", "shortDescription": full}}, ensure_ascii=False
+    )
+    page = f"""<html><head><title>番茄炒蛋 - YouTube</title>
+    <meta name="description" content="番茄炒蛋做法: 鸡蛋3个 番茄2个…">
+    <script>var ytInitialPlayerResponse = {player};var meta = 1;</script>
+    </head><body><p>About Press Copyright</p></body></html>"""
+    text = page_text(page)
+    assert full in text
+
+
+def test_a_bilibili_page_gives_its_video_description():
+    state = {
+        "videoData": {
+            "title": "十分钟快手菜",
+            "desc": "准备: 土豆1个 青椒1个。先炒土豆丝再下青椒。",
+        }
+    }
+    page = f"""<html><head><title>十分钟快手菜_哔哩哔哩_bilibili</title></head><body>
+    <script>window.__INITIAL_STATE__={json.dumps(state, ensure_ascii=False)};(function(){{}})()
+    </script>
+    </body></html>"""
+    text = page_text(page)
+    assert "先炒土豆丝再下青椒" in text and "十分钟快手菜" in text
+
+
+def test_page_data_that_is_not_json_is_ignored():
+    page = (
+        "<html><head><title>x</title><script>var ytInitialPlayerResponse = {broken;</script>"
+        "</head><body><p>A long enough page body to read.</p></body></html>"
+    )
+    assert "A long enough page body to read." in page_text(page)

@@ -554,7 +554,13 @@ async def test_an_empty_ingredient_list_and_an_empty_note_survive_the_tables(dri
     plan["prep"] = []
     plan["meals"][0]["note"] = ""
     plan["meals"][0]["components"] = [
-        {"id": "m-1-c1", "name": "蒜蓉菠菜", "type": "Vegetables", "portions": 2.0, "ingredients": []}
+        {
+            "id": "m-1-c1",
+            "name": "蒜蓉菠菜",
+            "type": "Vegetables",
+            "portions": 2.0,
+            "ingredients": [],
+        }
     ]
     await driver.send("plan.save", {"plan": plan})
     await assert_identical(driver)
@@ -562,6 +568,12 @@ async def test_an_empty_ingredient_list_and_an_empty_note_survive_the_tables(dri
     await driver.send("meal.status", {"planId": "p-1", "mealId": "m-1", "status": "skipped"})
     _, relational = await driver.both()
     confirmed = relational["plans"][0]
-    revision = {**confirmed, "id": "p-2", "status": "draft", "basePlanId": "p-1", "baseVersion": confirmed["version"]}
+    revision = {
+        **confirmed,
+        "id": "p-2",
+        "status": "draft",
+        "basePlanId": "p-1",
+        "baseVersion": confirmed["version"],
+    }
     await driver.send("plan.save", {"plan": revision})
     await assert_identical(driver)

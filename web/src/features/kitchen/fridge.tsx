@@ -6,7 +6,6 @@ import { useFridgeDrag, type Columns } from "./fridge-drag";
 import { AlsoContains, AlsoMark } from "./also-contains";
 import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
 import { FridgeDoors, type Door } from "./fridge-doors";
-import { AskStu } from "./ask-stu";
 import { ChoiceBar, useFoodChoice } from "./fridge-select";
 import { PrepFromFridge } from "./prep-drawer";
 import { ShoppingDrawer, ShoppingNote } from "./shopping-note";
@@ -98,7 +97,7 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
   const short = [...groups.values()].filter(g => g.needed > g.onHand + g.planned);
 
   return <section className={`kw-support-page kw-fridge-page ${choice.choosing ? "is-choosing" : ""}`}>
-    <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}<AskStu state={state} demo={demo} /></header>
+    <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
     <div className="kw-fridge-home"><div className="kw-fridge" ref={fridgeRef}>
       <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><ShoppingNote rows={state.shoppingList ?? []} onOpen={() => setShopping(true)} /><FridgeViewControls view={view} /></header>

@@ -117,13 +117,13 @@
 
 | 改动 | 说明 |
 |---|---|
-| Meal 状态加 `changed` | Postgres 枚举 `executionstatus` 加一个值（迁移）；引擎 `meal.status` 接受 changed，不扣库存，可以撤销；分析和统计把 changed 当作"没按计划"。 |
+| Meal 状态加 `changed` | meals.status 是普通字符串列（String(16)），不是 Postgres 枚举，所以不需要枚举迁移，只在代码里的 ExecutionStatus 加一个值；引擎 `meal.status` 接受 changed，不扣库存，可以撤销；分析和统计把 changed 当作"没按计划"。 |
 | Meal 加 `note` | 可选，最多 500 字，存在 meals 表新列里（迁移）。 |
 | prep 完成可指定位置 | `prep.status` 接受 `location`（freezer / fridge），`actualPortions` 可以是 0。 |
 | 一道菜自己的信息 | MealComponent 加可选的 `ingredients`（同菜谱的食材格式）和 `activeMinutes` / `elapsedMinutes`；存在 meal_components 的新 JSON 和数字列（迁移）。没有菜谱的菜，购物清单用它自己的食材，耗时计算用它自己的时间；菜谱的优先。 |
 | 补全接口 | `POST /api/v1/kitchen/fill`：输入一餐的草稿（每道菜已有的信息），返回每道菜补全后的食材、步骤、时间、营养；只预览、不保存，也不建菜谱。demo 用确定的假数据。 |
 | + Prep | 前端组合现有能力：compose → prep.save（下周计划不存在时先 plan.save 一个空草稿）。不建菜谱。 |
-| 购物清单 | 工作区新增 `shoppingList: [{id, name, quantity?, checked}]`，关系表 `shopping_items`（迁移）；命令 `shopping.save`、`shopping.delete`、`shopping.putAway`（一次建好冰箱条目并删掉这些行）。 |
+| 购物清单 | 工作区新增 `shoppingList: [{id, name, quantity?, checked}]`，关系表 `shopping_note_items`（迁移 0037；旧的计划模块已经占用了 `shopping_items` 这个表名）；命令 `shopping.save`、`shopping.delete`、`shopping.putAway`（一次建好冰箱条目并删掉这些行）。 |
 | 链接导入 | `POST /api/v1/kitchen/import-link {url}` → 抓取、清理成文字 → 复用 extract。 |
 | 问 Stu | `POST /api/v1/kitchen/ask {message}` → `{reply}`；只读。 |
 | MCP | `kitchen_command` 自动支持新命令；`kitchen_read` 会带上 shoppingList。 |

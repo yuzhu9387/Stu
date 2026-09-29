@@ -249,3 +249,16 @@ def test_page_data_that_is_not_json_is_ignored():
         "</head><body><p>A long enough page body to read.</p></body></html>"
     )
     assert "A long enough page body to read." in page_text(page)
+
+
+async def test_a_page_without_a_recipe_says_to_paste_instead(monkeypatch):
+    async def fetched(url):
+        return "Title: About us\nPage text: We are a small company making kitchen tools."
+
+    monkeypatch.setattr(kitchen_ai, "fetch_page_text", fetched)
+    provider = SequenceProvider({"recipes": []})
+    with pytest.raises(LinkError) as caught:
+        await KitchenAI(MemoryRepository(household()), None, provider).import_link(
+            "household", ImportLinkRequest(url="https://recipes.example/about")
+        )
+    assert "Paste the text or a screenshot instead" in str(caught.value)

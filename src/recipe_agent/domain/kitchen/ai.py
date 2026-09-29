@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from typing import Any, Protocol, Self
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from recipe_agent.config import Settings
 from recipe_agent.domain.identity.service import HouseholdScope
@@ -24,7 +24,7 @@ from recipe_agent.domain.kitchen.compact_generation import (
 )
 from recipe_agent.domain.kitchen.contracts import NOT_EATEN
 from recipe_agent.domain.kitchen.contracts import FoodType as FoodTypeName
-from recipe_agent.domain.kitchen.link_import import fetch_page_text
+from recipe_agent.domain.kitchen.link_import import LinkError, fetch_page_text
 from recipe_agent.domain.kitchen.repetition import blocked_dishes, name_aliases, repetition_context
 from recipe_agent.domain.kitchen.scheduling import (
     plan_rule_violations,
@@ -1995,9 +1995,15 @@ class KitchenAI:
         saved. A page that cannot be read says so (LinkError)."""
         url = request.url.strip()
         text = await fetch_page_text(url)
-        result = await self.extract(
-            scope, ExtractRequest(text=f"Recipe page: {url}\n\n{text}"[:30000])
-        )
+        try:
+            result = await self.extract(
+                scope, ExtractRequest(text=f"Recipe page: {url}\n\n{text}"[:30000])
+            )
+        except ValidationError as exc:
+            # Stu found no recipe in what the page says.
+            raise LinkError(
+                "No recipe was found on that page. Paste the text or a screenshot instead."
+            ) from exc
         for recipe in result["recipes"]:
             recipe["source"] = url
         return result

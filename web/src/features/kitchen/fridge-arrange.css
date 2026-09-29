@@ -83,24 +83,17 @@ body.kw-dragging .kw-food-remove{visibility:hidden}
 .kw-shelf-group:first-child{margin-top:0}
 .kw-fridge-heading{flex-wrap:wrap}
 
-/* ── 🔪 + Prep: choosing fridge foods, the bar along the bottom ──
-   The circle sits in the box's other top corner from its ×. With a mouse it
-   is always there; on a touch screen a long press starts choosing, and the
-   circles show while choosing. */
-.kw-food-pick{position:absolute;top:-7px;left:-7px;z-index:3;display:grid;place-items:center;width:22px;height:22px;padding:0;border:2px solid #35251f;border-radius:999px;background:#fff;color:transparent;font:inherit;font-size:12px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 2px 0 #35251f;transition:background .12s,color .12s}
-.kw-food-pick:hover{background:#fff4d6}
-.kw-food-pick[aria-pressed=true]{background:#f4af14;color:#35251f}
-.kw-food-pick:disabled{cursor:not-allowed;opacity:.35;box-shadow:none}
-.kw-food-cell.is-chosen>.kw-food-card{outline:3px solid #f4af14;outline-offset:2px}
-body.kw-dragging .kw-food-pick{visibility:hidden}
-@media(hover:none){.kw-fridge-page:not(.is-choosing) .kw-food-pick{display:none}}
+/* ── 🔪 + Prep: choosing fridge foods (hold one, or ⌘/Ctrl/Shift-click),
+   the chosen ones lit, and the bar along the bottom ── */
+.kw-food-cell.is-chosen>.kw-food-card{outline:4px solid #f4af14;outline-offset:2px;background:#fff8e1;box-shadow:0 6px 0 #35251f;transform:translateY(-2px)}
+.kw-fridge-page.is-choosing .kw-food-cell:not(.is-chosen)>.kw-food-card{opacity:.82}
 .kw-choice-bar{position:fixed;left:50%;bottom:24px;z-index:60;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:6px 6px 6px 18px;border:3px solid #35251f;border-radius:999px;background:#35251f;color:#fff8ef;box-shadow:0 6px 0 rgba(53,37,31,.25);font-weight:900}
 .kw-choice-count{font-size:14px;white-space:nowrap}
 .kw-choice-prep{border:2px solid #fff8ef;border-radius:999px;background:#f4af14;color:#35251f;padding:8px 16px;font:inherit;font-size:15px;font-weight:900;white-space:nowrap;cursor:pointer}
 .kw-choice-prep:hover{background:#ffc53d}
 .kw-choice-clear{display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:999px;background:transparent;color:#fff8ef;font:inherit;font-size:16px;cursor:pointer}
 .kw-choice-clear:hover{background:rgba(255,248,239,.14)}
-.kw-choice-prep:focus-visible,.kw-choice-clear:focus-visible,.kw-food-pick:focus-visible{outline:3px solid #c9492f;outline-offset:2px}
+.kw-choice-prep:focus-visible,.kw-choice-clear:focus-visible{outline:3px solid #c9492f;outline-offset:2px}
 /* Beside the floating doors on a phone. */
 @media(max-width:760px){.kw-choice-bar{left:16px;right:90px;bottom:max(18px,env(safe-area-inset-bottom));transform:none;justify-content:space-between;padding-left:14px}.kw-choice-count{font-size:13px}.kw-choice-prep{padding:8px 12px;font-size:14px}}
 

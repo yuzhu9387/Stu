@@ -114,10 +114,11 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
                 {row.map(item => item.id === dragId
                   ? <span className="kw-food-card kw-food-placeholder" key={item.id} data-fridge-item={item.id} aria-hidden="true" />
                   : <div className={`kw-food-cell ${choice.has(item.id) ? "is-chosen" : ""}`} key={item.id} data-fridge-item={item.id}>
-                    <button className={`kw-food-card type-${item.type}`} aria-label={`${item.name}, ${item.portions} portions, ${item.prepared ? "prepared" : "raw"}`} onPointerDown={event => start(event, item.id)} onClick={() => { if (!clicked()) return; if (choice.choosing) choice.toggle(item); else setEditing({ ...item }); }}>
+                    {/* Hold a food (or ⌘/Ctrl/Shift-click it) to choose it for + Prep;
+                        while choosing, a click chooses; otherwise it opens the food. */}
+                    <button className={`kw-food-card type-${item.type}`} aria-label={`${item.name}, ${item.portions} portions, ${item.prepared ? "prepared" : "raw"}`} aria-pressed={choice.choosing ? choice.has(item.id) : undefined} title="Hold to choose for + Prep" onPointerDown={event => start(event, item.id)} onClick={event => { if (!clicked()) return; if (choice.choosing || event.metaKey || event.ctrlKey || event.shiftKey) choice.toggle(item); else setEditing({ ...item }); }}>
                       <FoodCardBody item={item} />
                     </button>
-                    <button type="button" className="kw-food-pick" aria-label={`Select ${item.name}`} aria-pressed={choice.has(item.id)} disabled={item.portions <= 0} title={item.portions > 0 ? "Choose for + Prep" : "Nothing left"} onClick={() => choice.toggle(item)}><span aria-hidden="true">✓</span></button>
                     <button type="button" className="kw-food-remove" aria-label={`Remove ${item.name}`} title="Remove" onClick={() => remove(item)}>×</button>
                   </div>)}
                 {last && <button className="kw-food-add" aria-label={`Add food to ${location}`} onClick={() => setEditing(blank(location))}>+</button>}

@@ -6,6 +6,7 @@ export type Columns = Record<string, string[]>;
 type Rect = { x: number; y: number; w: number; h: number };
 
 const MOUSE_DISTANCE = 6;   // px a mouse moves before a press becomes a drag
+const MOUSE_HOLD = 450;     // ms a still mouse press takes to become a long press
 const TOUCH_HOLD = 260;     // ms a finger rests before a press becomes a drag
 const TOUCH_SLOP = 10;      // px a finger may drift during the hold (more is a scroll)
 const EASE = "transform 260ms cubic-bezier(.2,.8,.2,1)";
@@ -24,8 +25,9 @@ const same = (a: Columns, b: Columns) => Object.keys(a).length === Object.keys(b
  * settles into that slot. `commit` saves; if it fails, everything eases back.
  *
  * Boxes carry `data-fridge-item={id}` and compartments `data-compartment={key}`
- * inside `container`. A finger that holds and lets go without moving has
- * long-pressed the box: `onHold` gets it, and nothing moves.
+ * inside `container`. A press that holds still has long-pressed the box:
+ * `onHold` gets it and nothing moves (a mouse held still, or a finger that
+ * holds and lets go without moving).
  */
 export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns: Columns, commit: (next: Columns) => Promise<unknown>, onHold?: (id: string) => void) {
   const [preview, setPreview] = useState<Columns | null>(null);
@@ -128,7 +130,7 @@ export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns:
     const move = (e: PointerEvent) => {
       if (!active) {
         const distance = Math.hypot(e.clientX - origin.x, e.clientY - origin.y);
-        if (kind === "mouse" && distance > MOUSE_DISTANCE) activate(e.clientX, e.clientY);
+        if (kind === "mouse" && distance > MOUSE_DISTANCE) { window.clearTimeout(hold); activate(e.clientX, e.clientY); }
         else if (kind !== "mouse" && distance > TOUCH_SLOP) stop();
         if (!active) return;
       }
@@ -154,6 +156,7 @@ export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns:
       window.removeEventListener("keydown", key);
     }
     if (kind !== "mouse") hold = window.setTimeout(() => activate(origin.x, origin.y), TOUCH_HOLD);
+    else if (onHold) hold = window.setTimeout(() => { stop(); suppressClick.current = true; onHold(id); }, MOUSE_HOLD);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { demoComposition } from "@/features/kitchen/basket";
@@ -16,6 +16,9 @@ const command = (state: KitchenState, type: string, payload: Record<string, unkn
 // A Wednesday: this weekend's prep day belongs to the week of Monday, Oct 5.
 const TODAY = "2026-09-30", NEXT = "2026-10-05";
 const food = (state: KitchenState, name: string) => state.inventory.find(i => i.name === name)!;
+const card = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name}, `) });
+/** ⌘-click: choose a food without holding it. */
+const choose = (name: string) => fireEvent.click(card(name), { metaKey: true });
 
 /** A kitchen whose commands run in the demo engine; `latest()` reads it. */
 function kitchen(initial = createDemoState()) {
@@ -94,8 +97,8 @@ describe("🔪 + Prep on the fridge", () => {
   it("turns the chosen foods into a dish on next week's prep day, not in the recipe book", async () => {
     const k = kitchen(), recipes = k.latest().recipes.length;
     render(<Fridge k={k} />);
-    fireEvent.click(screen.getByRole("button", { name: "Select 熟糙米饭" }));
-    fireEvent.click(screen.getByRole("button", { name: "Select 西兰花" }));
+    choose("熟糙米饭");
+    choose("西兰花");
     const bar = screen.getByRole("toolbar", { name: "Selected foods" });
     expect(bar).toHaveTextContent("2 selected");
     const prep = within(bar).getByRole("button", { name: "🔪 + Prep" });
@@ -120,7 +123,7 @@ describe("🔪 + Prep on the fridge", () => {
   it("can use a recipe instead of Stu's dish", async () => {
     const k = kitchen();
     render(<Fridge k={k} />);
-    fireEvent.click(screen.getByRole("button", { name: "Select 西兰花" }));
+    choose("西兰花");
     fireEvent.click(within(screen.getByRole("toolbar", { name: "Selected foods" })).getByRole("button", { name: "🔪 + Prep" }));
     const drawer = screen.getByRole("dialog", { name: "🔪 + Prep" });
     fireEvent.change(within(drawer).getByLabelText("Or use a recipe"), { target: { value: "recipe-broccoli" } });
@@ -134,18 +137,51 @@ describe("🔪 + Prep on the fridge", () => {
     const state = createDemoState();
     food(state, "鸡肉丸").portions = 0;
     render(<Fridge k={kitchen(state)} />);
-    expect(screen.getByRole("button", { name: "Select 鸡肉丸" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Select 熟糙米饭" }));
-    fireEvent.click(screen.getByRole("button", { name: /^西兰花, 4 portions/ }));
+    // No corner circles: a chosen card is highlighted instead.
+    expect(screen.queryByRole("button", { name: /^Select / })).not.toBeInTheDocument();
+    choose("鸡肉丸");
+    expect(screen.queryByRole("toolbar", { name: "Selected foods" })).not.toBeInTheDocument();
+    choose("熟糙米饭");
+    fireEvent.click(card("西兰花"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Select 西兰花" })).toHaveAttribute("aria-pressed", "true");
+    expect(card("西兰花")).toHaveAttribute("aria-pressed", "true");
+    expect(card("西兰花").closest(".kw-food-cell")).toHaveClass("is-chosen");
     const bar = screen.getByRole("toolbar", { name: "Selected foods" });
     expect(bar).toHaveTextContent("2 selected");
     fireEvent.click(within(bar).getByRole("button", { name: "Clear selection" }));
     expect(screen.queryByRole("toolbar", { name: "Selected foods" })).not.toBeInTheDocument();
+    expect(card("西兰花")).not.toHaveAttribute("aria-pressed");
     // Not choosing: a tap opens the food again.
-    fireEvent.click(screen.getByRole("button", { name: /^西兰花, 4 portions/ }));
+    fireEvent.click(card("西兰花"));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("holding a food on the fridge", () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }); });
+  afterEach(() => { vi.useRealTimers(); });
+  const hold = (name: string, ms: number, pointerType = "mouse") => {
+    const target = card(name);
+    fireEvent.pointerDown(target, { pointerType, button: 0, clientX: 10, clientY: 10 });
+    act(() => { vi.advanceTimersByTime(ms); });
+    fireEvent.pointerUp(window, { pointerType, button: 0, clientX: 10, clientY: 10 });
+    fireEvent.click(target);
+  };
+
+  it("chooses it with a mouse, and a quick click still opens it", () => {
+    render(<Fridge k={kitchen()} />);
+    hold("西兰花", 500);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Selected foods" })).toHaveTextContent("1 selected");
+    fireEvent.click(within(screen.getByRole("toolbar", { name: "Selected foods" })).getByRole("button", { name: "Clear selection" }));
+    hold("西兰花", 100);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("chooses it with a finger too", () => {
+    render(<Fridge k={kitchen()} />);
+    hold("熟糙米饭", 500, "touch");
+    expect(screen.getByRole("toolbar", { name: "Selected foods" })).toHaveTextContent("1 selected");
   });
 });
 

@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import type { InventoryItem } from "./types";
 
-/** Foods chosen on the fridge for 🔪 + Prep. Choosing starts from a card's
- * corner circle (or a long press on a phone); while anything is chosen a tap
- * on a card chooses it too. A food with nothing left cannot be chosen. */
+/** Foods chosen on the fridge for 🔪 + Prep. Choosing starts by holding a
+ * card (mouse or finger) or ⌘/Ctrl/Shift-clicking it; while anything is
+ * chosen a tap on a card chooses it too. A food with nothing left cannot be
+ * chosen. */
 export function useFoodChoice(inventory: InventoryItem[]) {
   const [ids, setIds] = useState<string[]>([]);
   const chosen = ids.map(id => inventory.find(item => item.id === id)).filter((item): item is InventoryItem => !!item && item.portions > 0);

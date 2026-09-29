@@ -55,3 +55,4 @@
 .kw-dish-time{margin:0;font-size:12px;font-weight:700;color:#6b584e}
 .kw-dish-time-field{max-width:160px}
 @media(max-width:520px){.kw-dish-ingredient{grid-template-columns:minmax(0,1fr) 58px 52px auto}}
+.kw-dish-card .kw-dish-keep{align-self:flex-start}

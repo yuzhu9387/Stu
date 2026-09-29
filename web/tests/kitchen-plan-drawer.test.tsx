@@ -107,6 +107,28 @@ describe("the plan drawer", () => {
     expect((p.onSave.mock.calls[0][0] as Meal).components[1]).toMatchObject({ ingredients: [{ name: "菠菜", quantity: 150, unit: "g" }], activeMinutes: 7 });
   });
 
+  it("keeps Save to recipe for a dish written here, starting from the dish's own details", () => {
+    const { state, meal } = draft();
+    meal.components[1] = { ...meal.components[1], ingredients: [{ name: "菠菜", quantity: 150, unit: "g" }], activeMinutes: 6, elapsedMinutes: 9 };
+    meal.steps = [...meal.steps, "蒜蓉菠菜: 焯水", "蒜蓉菠菜: 炒"];
+    render(<MealDrawer {...props(state, meal)} />);
+    expect(within(screen.getByRole("group", { name: `Dish ${state.recipes.find(r => r.id === "recipe-rice")!.name}` })).queryByRole("button", { name: "Save to recipe 📖" })).not.toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("group", { name: "Dish 蒜蓉菠菜" })).getByRole("button", { name: "Save to recipe 📖" }));
+    expect(screen.getByRole("heading", { name: "Edit and add recipe" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("菠菜")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("150")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/焯水[\s\S]*炒/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("6")).toBeInTheDocument();
+  });
+
+  it("the calendar drawer lists a dish's own ingredients too", () => {
+    const { state, meal } = draft();
+    meal.components[1] = { ...meal.components[1], ingredients: [{ name: "菠菜", quantity: 200, unit: "g" }] };
+    render(<MealDrawer {...props(state, meal, false)} />);
+    const list = screen.getByRole("heading", { name: "食材清单 Ingredients" }).closest("section")!;
+    expect(within(list).getByText("菠菜", { exact: false })).toBeInTheDocument();
+  });
+
   it("the calendar drawer still opens on the cooking view", () => {
     const { state, meal } = draft();
     render(<MealDrawer {...props(state, meal, false)} />);

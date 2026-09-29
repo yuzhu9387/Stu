@@ -11,13 +11,13 @@ import type { Ingredient, KitchenState, Meal, MealComponent, WeeklyPlan } from "
 /** Steps as saved: each line trimmed, blank lines gone. */
 const tidy = (text: string) => text.split("\n").map(line => line.trim()).filter(Boolean).join("\n");
 
-interface Props { dish: MealComponent; index: number; meal: Meal; state: KitchenState; plan: WeeklyPlan; basketLine: string; recipeHref: (id: string) => string; onMeal: (meal: Meal) => void; onSource: (value: string) => void; onRemove: () => void }
+interface Props { dish: MealComponent; index: number; meal: Meal; state: KitchenState; plan: WeeklyPlan; basketLine: string; recipeHref: (id: string) => string; onMeal: (meal: Meal) => void; onSource: (value: string) => void; onRemove: () => void; onSaveRecipe?: () => void }
 
 /** One dish of a meal being planned: where it comes from and how many
  * portions, its food groups, ingredients, steps and time. A recipe or a
  * ready-made fridge dish brings its own; a hand-written dish keeps them here,
  * and Stu fills what is left blank when the meal is saved. */
-export function DishCard({ dish, index, meal, state, plan, basketLine, recipeHref, onMeal, onSource, onRemove }: Props) {
+export function DishCard({ dish, index, meal, state, plan, basketLine, recipeHref, onMeal, onSource, onRemove, onSaveRecipe }: Props) {
   const recipe = state.recipes.find(r => r.id === dish.recipeId);
   const stock = state.inventory.find(i => i.id === dish.inventoryId);
   const ready = !!dish.prepId || !!stock?.prepared;
@@ -74,5 +74,6 @@ export function DishCard({ dish, index, meal, state, plan, basketLine, recipeHre
     {recipe
       ? <p className="kw-dish-time">{recipe.activeMinutes} min active · from the recipe</p>
       : <label className="kw-label kw-dish-time-field">Prep time (min)<input className="kw-input" type="number" min="0" placeholder={ready ? "reheat" : "Stu fills"} value={dish.activeMinutes ?? ""} onChange={e => { const value = e.target.value === "" ? undefined : Number(e.target.value); set({ activeMinutes: value, elapsedMinutes: value === undefined ? undefined : Math.max(value, dish.elapsedMinutes ?? 0) }); }} /></label>}
+    {onSaveRecipe && <button type="button" className="kw-text-button kw-dish-keep" onClick={onSaveRecipe}>Save to recipe 📖</button>}
   </section>;
 }

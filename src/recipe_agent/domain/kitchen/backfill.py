@@ -787,6 +787,22 @@ class WorkspaceBackfill:
             )
             self.report.add("weekly_prompts")
 
+    async def shopping_note(self) -> None:
+        for position, raw in enumerate(self.state.get("shoppingList") or []):
+            quantity = raw.get("quantity")
+            self.session.add(
+                s.ShoppingItem(
+                    id=uuid4(),
+                    household_id=self.household_id,
+                    legacy_id=str(raw["id"]),
+                    name=raw["name"],
+                    quantity=None if quantity is None else _dec(quantity),
+                    checked=bool(raw.get("checked")),
+                    position=position,
+                )
+            )
+            self.report.add("shopping_note_items")
+
     async def run(self) -> BackfillReport:
         for step in (
             self.settings,
@@ -798,6 +814,7 @@ class WorkspaceBackfill:
             self.ratings,
             self.presets,
             self.prompts,
+            self.shopping_note,
             self.audit_and_ledger,
         ):
             await step()
@@ -810,6 +827,7 @@ _ROOTS: tuple[Any, ...] = (
     s.KitchenAuditEntry,
     s.WeeklyPlan,
     s.WeeklyPrompt,
+    s.ShoppingItem,
     s.InventoryLedgerEntry,
     s.InventoryBatch,
     s.KitchenRecipe,

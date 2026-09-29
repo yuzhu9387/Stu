@@ -608,6 +608,8 @@ async def project_workspace(
     batches = await _project_batches(session, household_id, state, vocabulary, recipes)
     await project_plans(session, household_id, state, batches, previous)
     await project_prompts(session, household_id, state)
+    if previous is None or previous.get("shoppingList") != state.get("shoppingList"):
+        await project_shopping_note(session, household_id, state)
     appended = await _project_audit(session, household_id, state)
     await _append_ledger(session, household_id, state, batches, appended)
 
@@ -873,6 +875,34 @@ async def project_prompts(session: AsyncSession, household_id: UUID, state: dict
         else:
             row.prompt = raw.get("prompt", "")
             row.workflow = raw.get("workflow")
+    await session.flush()
+
+
+async def project_shopping_note(
+    session: AsyncSession, household_id: UUID, state: dict[str, Any]
+) -> None:
+    """The fridge door's shopping note, row for row in its order."""
+    incoming = state.get("shoppingList") or []
+    rows = {
+        row.legacy_id: row
+        for row in (
+            await session.scalars(
+                select(s.ShoppingItem).where(s.ShoppingItem.household_id == household_id)
+            )
+        ).all()
+    }
+    keep = {str(raw["id"]) for raw in incoming}
+    for legacy_id in set(rows) - keep:
+        await session.execute(delete(s.ShoppingItem).where(s.ShoppingItem.id == rows[legacy_id].id))
+    for position, raw in enumerate(incoming):
+        row = rows.get(str(raw["id"]))
+        if row is None:
+            row = s.ShoppingItem(id=uuid4(), household_id=household_id, legacy_id=str(raw["id"]))
+            session.add(row)
+        row.name = raw["name"]
+        row.quantity = _optional_dec(raw.get("quantity"))
+        row.checked = bool(raw.get("checked"))
+        row.position = position
     await session.flush()
 
 

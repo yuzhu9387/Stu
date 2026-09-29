@@ -98,6 +98,7 @@ class RelationalWorkspaceReader:
             "mealStylePresets": await self._presets(household_id),
             "recipeRatings": await self._ratings(recipe_by_id),
             "weeklyPrompts": await self._prompts(household_id),
+            "shoppingList": await self._shopping_note(household_id),
             "settings": await self._settings(household_id),
             "audit": await self._audit(household_id),
         }
@@ -702,6 +703,21 @@ class RelationalWorkspaceReader:
                 select(s.WeeklyPrompt)
                 .where(s.WeeklyPrompt.household_id == household_id)
                 .order_by(s.WeeklyPrompt.week_start)
+            )
+        ]
+
+    async def _shopping_note(self, household_id: UUID) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": row.legacy_id,
+                "name": row.name,
+                **({"quantity": _num(row.quantity)} if row.quantity is not None else {}),
+                "checked": row.checked,
+            }
+            for row in await self._all(
+                select(s.ShoppingItem)
+                .where(s.ShoppingItem.household_id == household_id)
+                .order_by(s.ShoppingItem.position, s.ShoppingItem.id)
             )
         ]
 

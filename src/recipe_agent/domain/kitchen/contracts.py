@@ -585,6 +585,15 @@ class WeeklyPrompt(Contract):
         return value
 
 
+class ShoppingItem(Contract):
+    """A row on the shopping note stuck to the fridge door: "牛奶 2"."""
+
+    id: Identifier
+    name: Identifier
+    quantity: Number | None = None
+    checked: bool = False
+
+
 class Workspace(Contract):
     revision: int = Field(default=0, ge=0)
     recipes: list[Recipe] = Field(default_factory=list)
@@ -597,6 +606,7 @@ class Workspace(Contract):
     recipeRatings: list[RecipeRating] = Field(default_factory=list)
     mealStylePresets: list[MealStylePreset] = Field(default_factory=default_meal_style_presets)
     weeklyPrompts: list[WeeklyPrompt] = Field(default_factory=list)
+    shoppingList: list[ShoppingItem] = Field(default_factory=list, max_length=200)
     settings: KitchenSettings = Field(default_factory=KitchenSettings)
     audit: list[AuditEntry] = Field(default_factory=list)
 
@@ -609,6 +619,7 @@ class Workspace(Contract):
             self.plans,
             self.audit,
             self.settings.guidance,
+            self.shoppingList,
         )
         for values in collections:
             unique(values)

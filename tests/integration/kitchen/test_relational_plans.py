@@ -517,3 +517,30 @@ async def test_a_fridge_prep_keeps_its_origin_and_its_extra_box(driver):
     assert (task["origin"], task["status"], task["actualPortions"]) == ("fridge", "completed", 3.0)
     extra = next(i for i in relational["inventory"] if i["id"] == task["outputInventoryId"])
     assert (extra["portions"], extra["location"]) == (3.0, "fridge")
+
+
+async def test_the_shopping_note_survives_the_tables_and_its_rows_go_into_the_fridge(driver):
+    await seed(driver)
+    for row in (
+        {"id": "row-milk", "name": "牛奶", "quantity": 2.0, "checked": False},
+        {"id": "row-bread", "name": "面包", "checked": False},
+        {"id": "row-eggs", "name": "鸡蛋", "quantity": 0.5, "checked": True},
+    ):
+        await driver.send("shopping.save", {"item": row})
+    await assert_identical(driver)
+    await driver.send(
+        "shopping.save",
+        {"item": {"id": "row-milk", "name": "牛奶", "quantity": 2.0, "checked": True}},
+    )
+    await driver.send("shopping.delete", {"id": "row-bread"})
+    await assert_identical(driver)
+    _, relational = await driver.both()
+    assert [r["id"] for r in relational["shoppingList"]] == ["row-milk", "row-eggs"]
+    await driver.send(
+        "shopping.putAway",
+        {"items": [{"id": "row-milk", "location": "fridge"}, {"id": "row-eggs", "portions": 6.0}]},
+    )
+    await assert_identical(driver)
+    _, relational = await driver.both()
+    assert relational["shoppingList"] == []
+    assert {i["name"]: i["portions"] for i in relational["inventory"]} == {"牛奶": 2.0, "鸡蛋": 6.0}

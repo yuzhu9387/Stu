@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, get_args
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -13,6 +13,7 @@ from recipe_agent.domain.kitchen.contracts import (
     DEFAULT_PINNED_TAGS,
     NOT_EATEN,
     ChatMessage,
+    FoodType,
     InventoryItem,
     KitchenCommand,
     KitchenSettings,
@@ -23,6 +24,7 @@ from recipe_agent.domain.kitchen.contracts import (
     PrepTask,
     Recipe,
     RecipeRating,
+    ShoppingItem,
     WeeklyPlan,
     WeeklyPrompt,
     Workspace,
@@ -225,6 +227,58 @@ def storage_location(value: str) -> str:
     """The fridge's own compartments are stored as the tables store them."""
     value = value.strip()
     return value.casefold() if value.casefold() in {"fridge", "freezer", "pantry"} else value
+
+
+def put_away(state: dict[str, Any], items: Any) -> str:
+    """Rows of the shopping note brought home: each becomes a new fridge batch,
+    as received shopping does, and leaves the note. A food already in the
+    fridge keeps its type and icon; a new one is Other unless told otherwise.
+    A number on the row is how many portions, unless the household says."""
+    if not isinstance(items, list) or not items or len(items) > 200:
+        raise KitchenError("Choose what to put in the fridge")
+    rows = {row["id"]: row for row in state["shoppingList"]}
+    today = datetime.now(ZoneInfo(state["settings"].get("timezone", "UTC"))).date().isoformat()
+    taken: list[str] = []
+    for raw in items:
+        if not isinstance(raw, dict) or raw.get("id") not in rows or raw["id"] in taken:
+            raise KitchenError("That is not on the shopping note")
+        row = rows[raw["id"]]
+        taken.append(row["id"])
+        portions = raw.get("portions", row.get("quantity") or 1)
+        if (
+            isinstance(portions, bool)
+            or not isinstance(portions, (int, float))
+            or not 0 < portions < float("inf")
+        ):
+            raise KitchenError("Portions must be a positive number")
+        location = raw.get("location", "fridge")
+        if not isinstance(location, str) or not location.strip() or len(location) > 60:
+            raise KitchenError("Choose where it goes")
+        kind = raw.get("type", "Other")
+        if kind not in get_args(FoodType):
+            raise KitchenError("Choose a food group")
+        known = next(
+            (i for i in state["inventory"] if i["name"].casefold() == row["name"].casefold()), None
+        )
+        shared = {k: known[k] for k in ("emoji", "nameEn") if known and known.get(k) is not None}
+        saved = parse(
+            InventoryItem,
+            {
+                "id": str(uuid4()),
+                "name": row["name"],
+                "type": known["type"] if known else kind,
+                "portions": portions,
+                "location": storage_location(location),
+                "prepared": False,
+                "addedOn": today,
+                "priority": False,
+                **shared,
+            },
+        )
+        state["inventory"].append(saved)
+        share_food_attributes(state, saved)
+    state["shoppingList"] = [row for row in state["shoppingList"] if row["id"] not in taken]
+    return f"Put {len(taken)} item{'' if len(taken) == 1 else 's'} in the fridge"
 
 
 def from_fridge(collection: str, entity: dict[str, Any]) -> bool:
@@ -546,6 +600,26 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
         upsert(state[collection], saved)
         if kind == "inventory.save":
             share_food_attributes(state, saved, edited=existed)
+    elif kind == "shopping.save":
+        # A row on the fridge door's shopping note, added or changed in place.
+        row = parse(ShoppingItem, payload["item"])
+        row["name"] = row["name"].strip()
+        if not row["name"]:
+            raise KitchenError("A shopping row needs a name")
+        rows = state["shoppingList"]
+        index = next((i for i, old in enumerate(rows) if old["id"] == row["id"]), None)
+        if index is not None:
+            rows[index] = row
+        elif len(rows) >= 200:
+            raise KitchenError("The shopping note is full")
+        else:
+            rows.append(row)
+        message = "Shopping note saved"
+    elif kind == "shopping.delete":
+        state["shoppingList"].remove(find(state["shoppingList"], payload["id"]))
+        message = "Taken off the shopping note"
+    elif kind == "shopping.putAway":
+        message = put_away(state, payload.get("items"))
     elif kind == "inventory.receive":
         # What was bought comes home: each item is a new batch, once. A batch
         # already recorded (the same shopping line received twice) is left as is.

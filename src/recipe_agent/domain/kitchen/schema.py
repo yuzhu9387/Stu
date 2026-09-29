@@ -665,6 +665,23 @@ class PlanPreset(Base):
     )
 
 
+class ShoppingItem(Base):
+    """A row on the shopping note stuck to the fridge door: "牛奶 2"."""
+
+    __tablename__ = "shopping_note_items"
+    __table_args__ = (
+        UniqueConstraint("household_id", "legacy_id", name="uq_shopping_note_item_legacy"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    household_id: Mapped[UUID] = _household()
+    legacy_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 class WeeklyPrompt(Base):
     """Saved before a plan exists, so the Friday dispatcher can read it."""
 

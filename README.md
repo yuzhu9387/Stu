@@ -20,7 +20,8 @@ Pushing to `main` deploys to Google Cloud Run (see [Deploy](#deploy)).
 Freezer and fridge side by side, foods grouped on shelves by food group (or
 sorted by date or name), as many small cards to a shelf as the screen fits.
 Beside it: the recipe book, the Calendar and the Plan. Every other page has the
-little fridge button back home. Drag a box between shelves or compartments;
+little fridge button back home; the Calendar, which sits between the plan and the
+shopping, goes back to Plan and on to Shopping & prep. Drag a box between shelves or compartments;
 tap it to edit, or take it out with its ×.
 
 ### 🔪 + Prep: cook ahead from what is in the fridge
@@ -68,7 +69,8 @@ household's rules (allergies, the child's age, time limits, repeats). Adjust it
 in chat (apply only the changes you pick) or by hand: a meal opens straight into
 editing, one card per dish (source: fridge, recipe or make your own; portions;
 food groups; ingredients; steps; time). Leave blanks and Stu fills them when you
-save; what it fills stays with the meal. Confirm, then shop and prep.
+save; what it fills stays with the meal. Confirm, and the week is confirmed at once: meals can be marked on the Calendar
+while Stu prepares the shopping list and prep day in the background.
 
 ![Editing a meal while planning](docs/images/readme/plan-drawer.png)
 

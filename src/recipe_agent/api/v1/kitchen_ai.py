@@ -14,6 +14,7 @@ from recipe_agent.domain.kitchen.ai import (
     ChatRequest,
     ComposeRequest,
     ExtractRequest,
+    FillRequest,
     GenerateRequest,
     KitchenAI,
     PreferencesRequest,
@@ -70,6 +71,12 @@ async def extract(body: ExtractRequest, request: Request, scope: ScopeDependency
 async def compose(body: ComposeRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
     """Preview one dish made from a basket of fridge foods; nothing is saved."""
     return await invoke(service(request).compose(scope, body))
+
+
+@router.post("/fill")
+async def fill(body: FillRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
+    """Preview a meal's dishes with their blanks filled; nothing is saved."""
+    return await invoke(service(request).fill(scope, body))
 
 
 @router.post("/preferences")

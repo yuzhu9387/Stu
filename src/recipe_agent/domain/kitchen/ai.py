@@ -23,6 +23,7 @@ from recipe_agent.domain.kitchen.compact_generation import (
     drop_unused_recipes,
 )
 from recipe_agent.domain.kitchen.contracts import NOT_EATEN
+from recipe_agent.domain.kitchen.contracts import FoodType as FoodTypeName
 from recipe_agent.domain.kitchen.repetition import blocked_dishes, name_aliases, repetition_context
 from recipe_agent.domain.kitchen.scheduling import (
     plan_rule_violations,
@@ -73,6 +74,47 @@ class ComposeRequest(Input):
     # The meal's other dishes, so the new one goes with them.
     mealDishes: list[str] = Field(default_factory=list, max_length=8)
     note: str = Field(default="", max_length=1000)
+
+
+class FillIngredient(Input):
+    name: str = Field(min_length=1, max_length=200)
+    quantity: float = Field(ge=0)
+    unit: str = Field(max_length=40)
+    group: str | None = Field(default=None, max_length=60)
+
+
+class FillDish(Input):
+    """A dish as the household left it: whatever is missing, Stu fills."""
+
+    id: str = Field(min_length=1, max_length=200)
+    name: str = Field(min_length=1, max_length=200)
+    portions: float = Field(default=1, gt=0)
+    type: FoodTypeName | None = None
+    secondaryTypes: list[FoodTypeName] | None = Field(default=None, max_length=4)
+    ingredients: list[FillIngredient] | None = Field(default=None, max_length=40)
+    steps: list[str] | None = Field(default=None, max_length=30)
+    activeMinutes: float | None = Field(default=None, ge=0)
+    elapsedMinutes: float | None = Field(default=None, ge=0)
+
+
+class FillRequest(Input):
+    slot: typing.Literal["breakfast", "lunch", "dinner"]
+    dishes: list[FillDish] = Field(min_length=1, max_length=8)
+    note: str = Field(default="", max_length=1000)
+
+
+class FilledDish(Input):
+    id: str
+    type: FoodTypeName
+    secondaryTypes: list[FoodTypeName] = Field(default_factory=list, max_length=4)
+    ingredients: list[FillIngredient] = Field(default_factory=list, max_length=40)
+    steps: list[str] = Field(default_factory=list, max_length=30)
+    activeMinutes: float = Field(ge=0)
+    elapsedMinutes: float = Field(ge=0)
+
+
+class Filled(Input):
+    dishes: list[FilledDish] = Field(max_length=8)
 
 
 class ComposedUse(Input):
@@ -1772,6 +1814,73 @@ class KitchenAI:
                 {"inventoryId": key, "portions": value} for key, value in uses.items() if value > 0
             ],
         }
+
+    async def fill(self, scope: HouseholdScope, request: FillRequest) -> dict[str, Any]:
+        """Fill the blanks of a meal's dishes: food groups, ingredients, steps
+        and time. What the household wrote is returned as written. A preview:
+        nothing is saved, and no recipe is made."""
+        state = await self.repository.get(scope)
+        settings = state["settings"]
+        raw = await self.provider.complete(
+            [
+                {
+                    "role": "system",
+                    "content": SYSTEM
+                    + " For each dish, fill only what is missing: its main food group, the "
+                    "other groups it contains, ingredients with real amounts for the portions "
+                    "given, short practical steps, and honest active and elapsed minutes. Keep "
+                    "what the household already wrote. Follow the enabled guidance and the "
+                    "child's age; respect allergies. Use the household's language.",
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "slot": request.slot,
+                            "dishes": [d.model_dump(exclude_none=True) for d in request.dishes],
+                            "note": request.note,
+                            "settings": {
+                                "people": settings.get("people"),
+                                "childAge": settings.get("childAge"),
+                                "allergies": settings.get("allergies", []),
+                                "guidance": [
+                                    {"title": g["title"], "content": g["content"]}
+                                    for g in settings.get("guidance", [])
+                                    if g.get("enabled")
+                                ],
+                            },
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            ],
+            Filled.model_json_schema(),
+        )
+        filled = {d.id: d for d in Filled.model_validate(prune_extras(Filled, raw)).dishes}
+        dishes = []
+        for asked in request.dishes:
+            got = filled.get(asked.id)
+            if got is None:
+                continue
+            given = asked.model_dump(exclude_none=True)
+            ingredients = [
+                i.model_dump(exclude_none=True)
+                for i in got.ingredients
+                if i.quantity > 0 and i.unit.strip()
+            ]
+            dish = {
+                "id": asked.id,
+                "type": given.get("type", got.type),
+                "secondaryTypes": given.get("secondaryTypes", got.secondaryTypes),
+                "ingredients": given.get("ingredients") or ingredients,
+                "steps": given.get("steps") or [step for step in got.steps if step.strip()],
+                "activeMinutes": given.get("activeMinutes", got.activeMinutes),
+            }
+            dish["elapsedMinutes"] = max(
+                given.get("elapsedMinutes", got.elapsedMinutes), dish["activeMinutes"]
+            )
+            dishes.append(dish)
+        return {"dishes": dishes}
 
     async def extract(self, scope: HouseholdScope, request: ExtractRequest) -> dict[str, Any]:
         if not (request.text and request.text.strip()) and not request.imageData:

@@ -24,9 +24,10 @@ const same = (a: Columns, b: Columns) => Object.keys(a).length === Object.keys(b
  * settles into that slot. `commit` saves; if it fails, everything eases back.
  *
  * Boxes carry `data-fridge-item={id}` and compartments `data-compartment={key}`
- * inside `container`.
+ * inside `container`. A finger that holds and lets go without moving has
+ * long-pressed the box: `onHold` gets it, and nothing moves.
  */
-export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns: Columns, commit: (next: Columns) => Promise<unknown>) {
+export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns: Columns, commit: (next: Columns) => Promise<unknown>, onHold?: (id: string) => void) {
   const [preview, setPreview] = useState<Columns | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [ghost, setGhost] = useState<{ id: string; width: number; height: number } | null>(null);
@@ -114,7 +115,7 @@ export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns:
     if (event.button !== 0 || previewRef.current) return;
     suppressClick.current = false;
     const card = event.currentTarget, kind = event.pointerType, origin = { x: event.clientX, y: event.clientY };
-    let active = false, hold = 0;
+    let active = false, hold = 0, moved = false;
     const activate = (x: number, y: number) => {
       active = true; suppressClick.current = true;
       const r = card.getBoundingClientRect();
@@ -131,12 +132,17 @@ export function useFridgeDrag(container: RefObject<HTMLElement | null>, columns:
         else if (kind !== "mouse" && distance > TOUCH_SLOP) stop();
         if (!active) return;
       }
+      if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > TOUCH_SLOP) moved = true;
       pointer.current = { ...pointer.current, x: e.clientX, y: e.clientY };
       place();
       retarget(id, e.clientX, e.clientY);
     };
     const touchmove = (e: TouchEvent) => { if (active) e.preventDefault(); };
-    const up = () => { const was = active; stop(); if (was) finish(id, true); };
+    const up = () => {
+      const was = active; stop();
+      if (!was) return;
+      if (kind !== "mouse" && !moved && onHold) { finish(id, false); onHold(id); } else finish(id, true);
+    };
     const cancel = () => { const was = active; stop(); if (was) finish(id, false); };
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") cancel(); };
     function stop() {

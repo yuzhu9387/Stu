@@ -6,6 +6,8 @@ import { useFridgeDrag, type Columns } from "./fridge-drag";
 import { AlsoContains, AlsoMark } from "./also-contains";
 import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
 import { FridgeDoors, type Door } from "./fridge-doors";
+import { ChoiceBar, useFoodChoice } from "./fridge-select";
+import { PrepFromFridge } from "./prep-drawer";
 import "./fridge-arrange.css";
 import type { FoodType, InventoryItem, PageProps } from "./types";
 
@@ -54,9 +56,13 @@ function blank(location: string): InventoryItem {
   return { id: crypto.randomUUID(), name: "", type: "Protein", portions: 1, location, prepared: false, addedOn: new Date().toISOString().slice(0, 10), priority: false };
 }
 
-/** `onDoor` opens Recipes, Calendar or Plan from beside the fridge (home). */
-export function FridgePage({ state, plan, send, navigate, onDoor }: PageProps & { onDoor?: (door: Door) => void }) {
+/** `onDoor` opens Recipes, Calendar or Plan from beside the fridge (home);
+ * `onPrepDay` opens the prep day a + Prep dish went to. */
+export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDay }: PageProps & { onDoor?: (door: Door) => void; onPrepDay?: (week: string) => void }) {
   const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const choice = useFoodChoice(state.inventory);
+  // The foods + Prep was opened with, and the day it was opened on.
+  const [preparing, setPreparing] = useState<{ foods: InventoryItem[]; today: string } | null>(null);
   const [search, setSearch] = useState("");
   const view = useFridgeView();
   // The corner × takes a box straight out; a box a meal still needs stays, and the reason shows.
@@ -77,18 +83,18 @@ export function FridgePage({ state, plan, send, navigate, onDoor }: PageProps & 
     const order = view.sort === "arranged" ? locations.flatMap(location => next[location.toLowerCase()] ?? []) : state.inventory.map(item => item.id);
     const moves = locations.flatMap(location => (next[location.toLowerCase()] ?? []).filter(id => byId.get(id)?.location.toLowerCase() !== location.toLowerCase()).map(id => ({ id, location })));
     return send("inventory.arrange", { order, moves }, { quiet: true });
-  });
+  }, id => { const item = byId.get(id); if (item) choice.toggle(item); });
 
   const groups = new Map<string, { name: string; type: string; onHand: number; planned: number; needed: number }>();
   const group = (name: string, type: string) => { const key = `${type}:${name.toLocaleLowerCase()}`; if (!groups.has(key)) groups.set(key, { name, type, onHand: 0, planned: 0, needed: 0 }); return groups.get(key)!; };
   state.inventory.forEach(i => { group(i.name, i.type).onHand += i.portions; });
   // A quick task (no recipe, nothing made) is not food on its way to the fridge.
-  plan?.prep.filter(p => p.status === "planned" && (p.recipeId || p.plannedPortions > 0)).forEach(p => { group(p.name, p.type === "Baking" ? "Carbs" : p.type).planned += p.plannedPortions; p.inputs.forEach(input => { const item = state.inventory.find(i => i.id === input.inventoryId); if (item) group(item.name, item.type).needed += input.portions; }); });
+  plan?.prep.filter(p => p.status === "planned" && (p.recipeId || p.plannedPortions > 0 || p.origin === "fridge")).forEach(p => { group(p.name, p.type === "Baking" ? "Carbs" : p.type).planned += p.plannedPortions; p.inputs.forEach(input => { const item = state.inventory.find(i => i.id === input.inventoryId); if (item) group(item.name, item.type).needed += input.portions; }); });
   plan?.meals.filter(m => m.status === "planned").forEach(m => m.components.filter(c => c.inventoryId || c.prepId).forEach(c => { const item = state.inventory.find(i => i.id === c.inventoryId); const prep = plan.prep.find(p => p.id === c.prepId); group(item?.name || prep?.name || c.name, item?.type || (prep?.type === "Baking" ? "Carbs" : prep?.type) || c.type).needed += c.portions; }));
   plan?.meals.filter(m => m.status === "planned").forEach(m => m.components.flatMap(c => c.uses ?? []).forEach(u => { const item = state.inventory.find(i => i.id === u.inventoryId); if (item) group(item.name, item.type).needed += u.portions; }));
   const short = [...groups.values()].filter(g => g.needed > g.onHand + g.planned);
 
-  return <section className="kw-support-page kw-fridge-page">
+  return <section className={`kw-support-page kw-fridge-page ${choice.choosing ? "is-choosing" : ""}`}>
     <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
     <div className="kw-fridge-home"><div className="kw-fridge" ref={fridgeRef}>
@@ -105,10 +111,11 @@ export function FridgePage({ state, plan, send, navigate, onDoor }: PageProps & 
               {blocks.map((block, b) => <Fragment key={block.type ?? "all"}>{block.type && <h3 className="kw-shelf-group">{groupLabel(block.type)}</h3>}{block.rows.map((row, index) => { const last = b === blocks.length - 1 && index === block.rows.length - 1; return <div className="kw-shelf" key={index} style={{ gridTemplateColumns: `repeat(${perShelf},minmax(0,1fr))` }}>
                 {row.map(item => item.id === dragId
                   ? <span className="kw-food-card kw-food-placeholder" key={item.id} data-fridge-item={item.id} aria-hidden="true" />
-                  : <div className="kw-food-cell" key={item.id} data-fridge-item={item.id}>
-                    <button className={`kw-food-card type-${item.type}`} aria-label={`${item.name}, ${item.portions} portions, ${item.prepared ? "prepared" : "raw"}`} onPointerDown={event => start(event, item.id)} onClick={() => { if (clicked()) setEditing({ ...item }); }}>
+                  : <div className={`kw-food-cell ${choice.has(item.id) ? "is-chosen" : ""}`} key={item.id} data-fridge-item={item.id}>
+                    <button className={`kw-food-card type-${item.type}`} aria-label={`${item.name}, ${item.portions} portions, ${item.prepared ? "prepared" : "raw"}`} onPointerDown={event => start(event, item.id)} onClick={() => { if (!clicked()) return; if (choice.choosing) choice.toggle(item); else setEditing({ ...item }); }}>
                       <FoodCardBody item={item} />
                     </button>
+                    <button type="button" className="kw-food-pick" aria-label={`Select ${item.name}`} aria-pressed={choice.has(item.id)} disabled={item.portions <= 0} title={item.portions > 0 ? "Choose for + Prep" : "Nothing left"} onClick={() => choice.toggle(item)}><span aria-hidden="true">✓</span></button>
                     <button type="button" className="kw-food-remove" aria-label={`Remove ${item.name}`} title="Remove" onClick={() => remove(item)}>×</button>
                   </div>)}
                 {last && <button className="kw-food-add" aria-label={`Add food to ${location}`} onClick={() => setEditing(blank(location))}>+</button>}
@@ -121,6 +128,8 @@ export function FridgePage({ state, plan, send, navigate, onDoor }: PageProps & 
       {ghost && byId.get(ghost.id) && <div ref={ghostRef} className={`kw-food-card kw-food-ghost type-${byId.get(ghost.id)!.type}`} style={{ width: ghost.width, height: ghost.height }} aria-hidden="true"><FoodCardBody item={byId.get(ghost.id)!} /></div>}
     </div><FridgeDoors onOpen={door => onDoor ? onDoor(door) : navigate(door)} /></div>
 
+    {choice.choosing && !preparing && <ChoiceBar count={choice.chosen.length} onClear={choice.clear} onPrep={() => setPreparing({ foods: choice.chosen, today: new Intl.DateTimeFormat("en-CA", { timeZone: state.settings.timezone }).format(new Date()) })} />}
+    {preparing && <PrepFromFridge state={state} foods={preparing.foods} demo={demo} send={send} today={preparing.today} onClose={() => setPreparing(null)} onAdded={choice.clear} onPrepDay={onPrepDay} />}
     {editing && <FoodDialog key={editing.id} item={editing} state={state} plan={plan} send={send} navigate={navigate} onClose={() => setEditing(null)} />}
 
     <details className="kw-inventory-details"><summary>Search stock & weekly supply</summary>

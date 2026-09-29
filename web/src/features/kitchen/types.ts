@@ -15,7 +15,8 @@ export interface InventoryItem { id: string; name: string; type: FoodType; secon
 export interface StockUse { inventoryId: string; portions: number }
 export interface MealComponent { id: string; name: string; type: FoodType; portions: number; recipeId?: string; inventoryId?: string; prepId?: string; uses?: StockUse[]; secondaryTypes?: FoodType[]; ingredients?: Ingredient[]; activeMinutes?: number; elapsedMinutes?: number }
 export interface Meal { id: string; day: string; slot: MealSlot; included?: boolean; components: MealComponent[]; activeMinutes: number; elapsedMinutes: number; steps: string[]; status: ExecutionStatus; liked: boolean; locked: boolean; note?: string }
-export interface PrepTask { id: string; name: string; type: FoodType | "Baking"; recipeId?: string; plannedPortions: number; actualPortions: number; activeMinutes: number; elapsedMinutes: number; steps: string[]; status: ExecutionStatus; liked: boolean; outputInventoryId?: string; inputs: {inventoryId: string; portions: number}[]; equipment: string[]; dependencies: string[] }
+/** `origin: "fridge"`: a dish added with 🔪 + Prep, cooked from foods already on hand. */
+export interface PrepTask { id: string; name: string; type: FoodType | "Baking"; recipeId?: string; origin?: "fridge"; plannedPortions: number; actualPortions: number; activeMinutes: number; elapsedMinutes: number; steps: string[]; status: ExecutionStatus; liked: boolean; outputInventoryId?: string; inputs: {inventoryId: string; portions: number}[]; equipment: string[]; dependencies: string[] }
 export interface ChatMessage { id: string; role: "user" | "assistant"; text: string; mealIds?: string[] }
 export type PlanStep = "preferences" | "adjust" | "confirmed" | "shopping";
 export interface PlanningWorkflow { planId?: string; step: PlanStep; focus: "shopping" | "prep" }

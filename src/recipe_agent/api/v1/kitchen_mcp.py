@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from recipe_agent.api.v1.kitchen_ai import service, tasks
 from recipe_agent.config import get_settings
@@ -24,8 +24,11 @@ from recipe_agent.domain.identity.service import HouseholdScope, IdentityService
 from recipe_agent.domain.kitchen.ai import (
     AIUnavailable,
     ChatRequest,
+    ComposeRequest,
     ExtractRequest,
+    FillRequest,
     GenerateRequest,
+    ImportLinkRequest,
     KitchenAI,
 )
 
@@ -78,6 +81,12 @@ class TaskRef(BaseModel):
     taskId: UUID
 
 
+class ApplyTask(TaskRef):
+    """A finished chat task, and which of its meal changes to apply (all when absent)."""
+
+    mealIds: list[str] | None = Field(default=None, max_length=21)
+
+
 class LatestTask(BaseModel):
     kind: Literal["chat", "generate", "fulfillment"]
     planId: str | None = None
@@ -98,8 +107,9 @@ TASK_TOOLS: list[tuple[str, str, type[BaseModel]]] = [
     ),
     (
         "kitchen_task_apply",
-        "Apply a finished chat task's proposed changes to the plan.",
-        TaskRef,
+        "Apply a finished chat task's proposed changes to the plan; with mealIds, only "
+        "those meals (and the new recipes and prep they use).",
+        ApplyTask,
     ),
 ]
 
@@ -122,6 +132,24 @@ def tool_definitions() -> list[dict[str, Any]]:
             "Extract recipe candidates from text/image; does not save.",
             ExtractRequest,
         ),
+        (
+            "kitchen_import_link",
+            "Read a public recipe page or video link (http/https) and extract recipe "
+            "candidates; does not save. A page that cannot be read says so.",
+            ImportLinkRequest,
+        ),
+        (
+            "kitchen_fill",
+            "Fill the blanks of a meal's hand-written dishes (food group, ingredients, "
+            "steps, minutes); keeps what is given; does not save.",
+            FillRequest,
+        ),
+        (
+            "kitchen_compose",
+            "Make one dish from chosen fridge foods: a recipe and the portions it takes "
+            "from each; does not save (add it with meal.save or prep.save).",
+            ComposeRequest,
+        ),
     ]
     return [
         {
@@ -134,7 +162,14 @@ def tool_definitions() -> list[dict[str, Any]]:
             "description": "Validated household CRUD and execution. Commands: "
             + ", ".join(COMMANDS)
             + ". knowledge.save: {document:{id,title,content,category,enabled,sourceUrl?}}; "
-            "version and updatedAt are assigned by the server. knowledge.delete payload: {id}.",
+            "version and updatedAt are assigned by the server. knowledge.delete payload: {id}. "
+            "shopping.save: {item:{id,name,quantity?,checked}} (the fridge door's note). "
+            "shopping.delete: {id}. shopping.putAway: {items:[{id,location?,portions?,type?}]} "
+            "(into the fridge; the rows leave the note). meal.status: {planId,mealId,"
+            "status: planned|completed|skipped|changed, note?} (changed takes no stock). "
+            "prep.status: {planId,prepId,status,actualPortions?,location?: freezer|fridge}; "
+            'a prep task with origin "fridge" (+ Prep) can be done before its plan is '
+            "confirmed, and 0 extra portions leave no box.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -227,14 +262,20 @@ async def dispatch(
                         )
                     }
                 else:
-                    ref = TaskRef.model_validate(args)
-                    data = (
-                        {"task": await background.get(scope, ref.taskId)}
-                        if name == "kitchen_task"
-                        else await background.apply(scope, ref.taskId)
-                    )
+                    if name == "kitchen_task":
+                        ref = TaskRef.model_validate(args)
+                        data = {"task": await background.get(scope, ref.taskId)}
+                    else:
+                        chosen = ApplyTask.model_validate(args)
+                        data = await background.apply(scope, chosen.taskId, chosen.mealIds)
             elif name == "kitchen_chat":
                 data = await ai.chat(scope, ChatRequest.model_validate(args))
+            elif name == "kitchen_import_link":
+                data = await ai.import_link(scope, ImportLinkRequest.model_validate(args))
+            elif name == "kitchen_fill":
+                data = await ai.fill(scope, FillRequest.model_validate(args))
+            elif name == "kitchen_compose":
+                data = await ai.compose(scope, ComposeRequest.model_validate(args))
             else:
                 data = await ai.extract(scope, ExtractRequest.model_validate(args))
             result = {

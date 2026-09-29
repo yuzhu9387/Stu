@@ -363,7 +363,7 @@ async def test_mcp_endpoint_requires_scope_and_rejects_foreign_origin():
         assert response.status_code == 403
         response = await client.post("/api/v1/kitchen/mcp", json=message)
         assert response.status_code == 200
-        assert len(response.json()["result"]["tools"]) == 8
+        assert len(response.json()["result"]["tools"]) == 11
         assert (await client.get("/api/v1/kitchen/mcp")).status_code == 405
 
 

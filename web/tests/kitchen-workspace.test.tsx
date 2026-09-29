@@ -292,3 +292,38 @@ it("switches planning steps at once and remembers the step behind the scenes",as
   expect(commands).toEqual(["planning.workflow"]);
   finish({state:{...state,revision:state.revision+1},message:"Saved"});
 });
+
+describe("the Delete key on the plan page",()=>{
+  it("takes the picked meal out of the plan, and Undo puts it back",async()=>{
+    seedDraft();nav.query+="&page=plan&step=adjust";
+    render(<KitchenWorkspace demo/>);await loaded();
+    fireEvent.click(screen.getByLabelText(/^Open Wed.*dinner$/));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document.activeElement??document.body,{key:"Delete"});
+    await waitFor(()=>expect(store().plans[0].meals.some(m=>m.id===dinner)).toBe(false));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const toast=await screen.findByText(/^Removed .* dinner$/);
+    fireEvent.click(within(toast.closest(".kw-toast") as HTMLElement).getByRole("button",{name:"Undo"}));
+    await waitFor(()=>expect(store().plans[0].meals.some(m=>m.id===dinner)).toBe(true));
+  });
+
+  it("leaves the meal alone while typing in the drawer",async()=>{
+    seedDraft();nav.query+="&page=plan&step=adjust";
+    render(<KitchenWorkspace demo/>);await loaded();
+    fireEvent.click(screen.getByLabelText(/^Open Wed.*dinner$/));
+    fireEvent.click(await screen.findByLabelText("Edit meal"));
+    const field=screen.getAllByLabelText("Food")[0];
+    field.focus();fireEvent.keyDown(field,{key:"Backspace"});
+    expect(store().plans[0].meals.some(m=>m.id===dinner)).toBe(true);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("does nothing on the calendar page",async()=>{
+    seedDraft();
+    render(<KitchenWorkspace demo/>);await loaded();
+    fireEvent.click(screen.getByLabelText(/^Open Wed.*dinner$/));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document.activeElement??document.body,{key:"Delete"});
+    expect(store().plans[0].meals.some(m=>m.id===dinner)).toBe(true);
+  });
+});

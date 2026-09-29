@@ -142,6 +142,26 @@ describe("the Stu chat", () => {
     await waitFor(() => expect(p.onApply).toHaveBeenCalled());
   });
 
+  it("applies only the meals left ticked in a suggestion that changes several", async () => {
+    const plan = draft();
+    const [a, b] = [plan.meals[3], plan.meals[4]].map(m => ({ ...structuredClone(m), steps: ["Reheat"] }));
+    const p = props(plan, vi.fn<Ask>(async () => ({ reply: "Two swaps", scope: "", meals: [a, b], needsClarification: false })));
+    render(<WithTurn {...p} />);
+    fireEvent.change(composer(), { target: { value: "Simpler" } });
+    fireEvent.click(screen.getByLabelText("Send plan request"));
+    const card = await screen.findByRole("group", { name: "Proposed changes" });
+    const [first, second] = within(card).getAllByRole("checkbox");
+    expect([first, second].every(box => (box as HTMLInputElement).checked)).toBe(true);
+    expect(within(card).getByRole("button", { name: "Apply changes" })).toHaveTextContent("Apply 2 changes");
+    fireEvent.click(second);
+    expect(within(card).getByRole("button", { name: "Apply changes" })).toHaveTextContent("Apply change");
+    fireEvent.click(first);
+    expect(within(card).getByRole("button", { name: "Apply changes" })).toBeDisabled();
+    fireEvent.click(first);
+    fireEvent.click(within(card).getByRole("button", { name: "Apply changes" }));
+    await waitFor(() => expect(p.onApply).toHaveBeenCalledWith([a.id]));
+  });
+
   it("picks up where Stu was after a refresh: typing, then the suggestion", () => {
     const plan = draft();
     const after = { ...structuredClone(plan.meals[8]), steps: ["Reheat"] };

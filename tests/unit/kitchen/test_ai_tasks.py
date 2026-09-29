@@ -142,6 +142,49 @@ async def test_a_stored_proposal_is_applied_once_and_never_onto_a_changed_plan(s
         await app.state.runtime.aclose()
 
 
+async def test_only_the_chosen_meals_of_a_suggestion_are_applied(session_factory):
+    state = workspace()
+    first, second = (deepcopy(state["plans"][0]["meals"][i]) for i in (8, 9))
+    first["steps"] = ["Reheat", "Serve"]
+    # The second change needs a new recipe; left out, the recipe stays out too.
+    noodles = {**recipe(), "id": "noodles", "name": "Noodles", "steps": ["Boil noodles"]}
+    second["components"] = [{**second["components"][0], "name": "Noodles", "recipeId": "noodles"}]
+    answer = {
+        "reply": "Two changes",
+        "meals": [first, second],
+        "recipes": [noodles],
+        "needsClarification": False,
+    }
+    repository = MemoryRepository(state)
+    provider = GatedProvider(answer)
+    provider.gate.set()
+    app, client = await client_for(session_factory, repository, provider)
+    try:
+        async with client:
+            started = await client.post(
+                "/api/v1/kitchen/ai-tasks/chat",
+                json={"planId": "plan", "message": "Change two", "expectedRevision": 0},
+            )
+            await kitchen_ai_tasks.drain()
+            task = started.json()["task"]["id"]
+            nothing = await client.post(
+                f"/api/v1/kitchen/ai-tasks/{task}/apply", json={"mealIds": []}
+            )
+            assert nothing.status_code == 422
+            applied = await client.post(
+                f"/api/v1/kitchen/ai-tasks/{task}/apply", json={"mealIds": [first["id"]]}
+            )
+            assert applied.status_code == 200, applied.text
+            meals = {m["id"]: m for m in repository.state["plans"][0]["meals"]}
+            assert meals[first["id"]]["steps"] == ["Reheat", "Serve"]
+            assert meals[second["id"]]["components"][0]["name"] == "Rice"
+            assert "noodles" not in {r["id"] for r in repository.state["recipes"]}
+            again = await client.post(f"/api/v1/kitchen/ai-tasks/{task}/apply")
+            assert again.status_code == 409
+    finally:
+        await app.state.runtime.aclose()
+
+
 async def test_a_week_is_drafted_in_the_background(session_factory):
     repository = MemoryRepository(initial_state())
     provider = GatedProvider(compact_menu())
@@ -355,3 +398,22 @@ async def test_confirm_provider_failure_can_be_retried(session_factory):
             assert repository.state["plans"][0]["status"] == "confirmed"
     finally:
         await app.state.runtime.aclose()
+
+
+def test_a_partial_apply_takes_only_the_prep_its_meals_use():
+    from recipe_agent.infrastructure.jobs.kitchen_ai_tasks import chosen_prep
+
+    def task(identifier, portions, dependencies=()):
+        return {"id": identifier, "plannedPortions": portions, "dependencies": list(dependencies)}
+
+    current = [task("rice", 4), task("soup", 3)]
+    proposed = [task("rice", 6), task("soup", 5), task("stock", 2), task("dumplings", 4, ["stock"])]
+    meals = [{"components": [{"prepId": "dumplings"}, {"prepId": "soup"}]}]
+    kept = chosen_prep(current, proposed, meals)
+    # Stu's soup and the new dumplings (with the stock they need); rice as it was.
+    assert [(t["id"], t["plannedPortions"]) for t in kept] == [
+        ("rice", 4),
+        ("soup", 5),
+        ("stock", 2),
+        ("dumplings", 4),
+    ]

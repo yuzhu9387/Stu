@@ -5,7 +5,7 @@ from typing import Any, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from recipe_agent.api.dependencies import ScopeDependency
 from recipe_agent.config import get_settings
@@ -132,9 +132,19 @@ async def get_task(task_id: UUID, request: Request, scope: ScopeDependency) -> d
     return {"task": await run_task(tasks(request).get(scope, task_id))}
 
 
+class ApplyRequest(BaseModel):
+    """Which of Stu's meal changes to apply; all of them when absent."""
+
+    model_config = ConfigDict(extra="forbid")
+    mealIds: list[str] | None = Field(default=None, max_length=21)
+
+
 @router.post("/ai-tasks/{task_id}/apply")
-async def apply_task(task_id: UUID, request: Request, scope: ScopeDependency) -> dict[str, Any]:
-    return await run_task(tasks(request).apply(scope, task_id))
+async def apply_task(
+    task_id: UUID, request: Request, scope: ScopeDependency, body: ApplyRequest | None = None
+) -> dict[str, Any]:
+    meal_ids = body.mealIds if body else None
+    return await run_task(tasks(request).apply(scope, task_id, meal_ids))
 
 
 @router.post("/ai-tasks/{task_id}/dismiss")

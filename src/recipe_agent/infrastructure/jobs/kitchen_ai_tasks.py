@@ -115,6 +115,24 @@ async def drain() -> None:
         await asyncio.gather(*list(_RUNNING), return_exceptions=True)
 
 
+def chosen_prep(
+    current: list[dict[str, Any]], proposed: list[dict[str, Any]], meals: Any
+) -> list[dict[str, Any]]:
+    """The plan's prep, with Stu's version of the tasks the chosen meals use
+    (and what those tasks depend on); every other task stays as it was."""
+    by_id = {task["id"]: task for task in proposed}
+    wanted = {c.get("prepId") for meal in meals for c in meal["components"]} & set(by_id)
+    pending = list(wanted)
+    while pending:
+        for dependency in by_id[pending.pop()]["dependencies"]:
+            if dependency in by_id and dependency not in wanted:
+                wanted.add(dependency)
+                pending.append(dependency)
+    kept = [by_id[task["id"]] if task["id"] in wanted else task for task in current]
+    known = {task["id"] for task in current}
+    return kept + [task for task in proposed if task["id"] in wanted and task["id"] not in known]
+
+
 class KitchenAITasks:
     def __init__(self, sessions: async_sessionmaker[AsyncSession], ai: KitchenAI) -> None:
         self.sessions, self.ai = sessions, ai
@@ -301,8 +319,15 @@ class KitchenAITasks:
         return task_json(await self._expire(task, now), now)
 
     # ── resolving ───────────────────────────────────────────────────────────
-    async def apply(self, scope: HouseholdScope, task_id: UUID) -> dict[str, Any]:
-        """Save a chat proposal into its plan, if the plan is as Stu saw it."""
+    async def apply(
+        self, scope: HouseholdScope, task_id: UUID, meal_ids: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Save a chat proposal into its plan, if the plan is as Stu saw it.
+
+        `meal_ids` applies only those of Stu's meal changes; the rest are let go.
+        Then only the new recipes and prep those meals use come with them, and
+        the plan's other prep stays as it was (the engine re-sizes batches).
+        """
         task = await self._load(scope, task_id)
         if task.kind != "chat" or task.status != "done" or not task.result:
             raise KitchenError("There is nothing to apply from this answer", 409)
@@ -323,14 +348,28 @@ class KitchenAITasks:
                 id=str(uuid4()), status="draft", basePlanId=plan["id"], baseVersion=plan["version"]
             )
         changes = {meal["id"]: meal for meal in result["meals"]}
+        if meal_ids is not None:
+            if not meal_ids or set(meal_ids) - set(changes):
+                raise KitchenError("Choose one or more of Stu's changes to apply", 422)
+            changes = {key: meal for key, meal in changes.items() if key in meal_ids}
+        partial = len(changes) < len(result["meals"])
         draft["meals"] = [changes.get(meal["id"], meal) for meal in plan["meals"]]
+        recipes = result.get("recipes", [])
         if result.get("prep") is not None:
-            draft["prep"] = result["prep"]
+            draft["prep"] = (
+                chosen_prep(plan["prep"], result["prep"], changes.values())
+                if partial
+                else result["prep"]
+            )
+        if partial:
+            used = {c.get("recipeId") for m in changes.values() for c in m["components"]}
+            used |= {task.get("recipeId") for task in draft["prep"]}
+            recipes = [recipe for recipe in recipes if recipe["id"] in used]
         saved = await self.repository.command(
             scope,
             {
                 "type": "plan.save",
-                "payload": {"plan": draft, "recipes": result.get("recipes", [])},
+                "payload": {"plan": draft, "recipes": recipes},
                 "expectedRevision": state["revision"],
                 "operationId": str(uuid4()),
             },

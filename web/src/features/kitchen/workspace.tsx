@@ -9,7 +9,8 @@ import { useAiTask, type AiTask, type ChatTurn } from "./ai-tasks";
 import { useStored } from "./browser-store";
 import { CalendarGrid } from "./calendar";
 import { FridgeRail, usePlanBoard } from "./plan-board";
-import { createDemoState, mondayOf, shiftWeek, uid, weekDays } from "./data";
+import { applyChosen } from "./proposal-apply";
+import { createDemoState, dayLabel, mondayOf, shiftWeek, uid, weekDays } from "./data";
 import { WeekPicker } from "./week-picker";
 import { useNumberFieldTidying } from "./number-fields";
 import { Drawer } from "./drawer";
@@ -101,7 +102,9 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   useEffect(()=>{if(!dirty)return;const protect=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};window.addEventListener("beforeunload",protect);return()=>window.removeEventListener("beforeunload",protect);},[dirty]);
   const selected=opened?.fresh??plan?.meals.find(m=>m.id===opened?.id)??plan?.meals.find(m=>m.id===params.get("meal"))??null;
   const recipe=state.recipes.find(r=>r.id===recipeId);
-  const notify=(text:string)=>setMessage(text);
+  // A meal taken out with the Delete key, kept so the toast's Undo can put it back.
+  const [restore,setRestore]=useState<{planId:string;meal:Meal}|null>(null);
+  const notify=(text:string)=>{setMessage(text);setRestore(null);};
   function href(next:Page,{week:toWeek=week,plan:toPlan,meal,step}:{week?:string;plan?:string|null;meal?:string|null;step?:string|null}={}){
     const query=new URLSearchParams();
     if(demo)query.set("page",next);
@@ -190,6 +193,22 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
     try{await kitchen.send("change.undo",{auditId:note.undo},state.revision);if(noteSeq.current===seq)setCardNote(null);}
     catch(e){flashNote({mealId:note.mealId,text:failure(e,"Unable to undo."),error:true});}
   }
+  /** Plan page: the meal picked on the calendar leaves the plan with Delete or
+   * Backspace (not while typing, nor with unsaved drawer edits). */
+  async function removeMeal(meal:Meal){
+    if(!plan||!plan.meals.some(m=>m.id===meal.id))return;
+    if(meal.locked||meal.status!=="planned"){notify(meal.locked?"Unlock this weekly meal before removing it.":"Undo this meal’s done or skipped before removing it.");return;}
+    try{await kitchen.send("meal.delete",{planId:plan.id,mealId:meal.id});}catch(e){notify(failure(e,"Unable to remove this meal."));return;}
+    close();setUndoId(null);setMessage(`Removed ${dayLabel(meal.day)} ${meal.slot}`);setRestore({planId:plan.id,meal});
+  }
+  const deleteKey=useRef<((event:KeyboardEvent)=>void)|null>(null);
+  useEffect(()=>{deleteKey.current=event=>{
+    if(event.key!=="Delete"&&event.key!=="Backspace")return;
+    const target=event.target as HTMLElement|null;
+    if(page!=="plan"||!selected||dirty||target?.isContentEditable||["INPUT","TEXTAREA","SELECT"].includes(target?.tagName??""))return;
+    event.preventDefault();void removeMeal(selected);
+  };});
+  useEffect(()=>{const key=(event:KeyboardEvent)=>deleteKey.current?.(event);window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key);},[]);
   function select(meal:Meal,replace=false){if(dirty){notify("Save or discard your drawer edits before opening another meal.");return;}setOpened({id:meal.id,replace});router.push(href(page,{plan:plan?.id,meal:meal.id,step:params.get("step")}));}
   function add(day:string,slot:MealSlot){if(dirty)return;const meal:Meal={id:uid(),day,slot,components:[{id:uid(),name:"",type:"Other",portions:state.settings.people}],activeMinutes:0,elapsedMinutes:0,steps:[],status:"planned",liked:false,locked:false};setOpened(page==="plan"?{id:meal.id,fresh:meal,replace:true}:{id:meal.id,edit:true,fresh:meal});}
   /** In a draft on the plan page, an empty slot the household chose to cook
@@ -255,10 +274,10 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   }
   /** Save Stu's open suggestion into the plan — refused if the plan changed
    * since Stu made it. */
-  async function applyTurn(){
+  async function applyTurn(mealIds?:string[]){
     if(!plan||!turn?.result)throw new Error("There is nothing to apply.");
     if(!demo){
-      const saved=await api<CommandResult&{planId:string}>(`/api/v1/kitchen/ai-tasks/${turn.id}/apply`,{method:"POST"});
+      const saved=await api<CommandResult&{planId:string}>(`/api/v1/kitchen/ai-tasks/${turn.id}/apply`,{method:"POST",...(mealIds?{body:JSON.stringify({mealIds})}:{})});
       kitchen.accept(saved.state);if(chatTask.task)chatTask.set({...chatTask.task,resolution:"applied"});
       if(saved.planId!==plan.id)navigate("plan",undefined,week,saved.planId,"adjust");
       return;
@@ -266,7 +285,7 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
     if(turn.base!==planSnapshot(plan))throw new Error("This plan changed after Stu’s suggestion. Ask again before applying.");
     const proposal=turn.result;
     const draft={...clone(plan),id:plan.status==="confirmed"?uid():plan.id,status:"draft" as const,...(plan.status==="confirmed"?{basePlanId:plan.id,baseVersion:plan.version}:{})};
-    draft.meals=draft.meals.map(m=>proposal.meals.find(x=>x.id===m.id)??m);if(proposal.prep)draft.prep=clone(proposal.prep);
+    Object.assign(draft,clone(applyChosen(draft.meals,draft.prep,proposal,mealIds)));
     await kitchen.send("plan.save",{plan:draft});
     writeDemoTurn(JSON.stringify({...turn,resolution:"applied"}));
     if(draft.id!==plan.id)navigate("plan",undefined,week,draft.id,"adjust");
@@ -384,7 +403,7 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
     router.push(demo?`/demo?page=recipes${id?`&recipe=${encodeURIComponent(id)}`:""}`:id?`/recipes/${encodeURIComponent(id)}`:"/recipes");
   }
   const shared={state,plan,send,notify,navigate,demo};
-  const feedback=message&&<div className="kw-toast" role="status"><Check size={16}/><span>{message}</span>{undoId&&<button onClick={()=>void send("change.undo",{auditId:undoId}).then(ok=>{if(ok)setUndoId(null);})}>Undo last change</button>}<button className="kw-icon" aria-label="Dismiss message" onClick={()=>setMessage("")}>×</button></div>;
+  const feedback=message&&<div className="kw-toast" role="status"><Check size={16}/><span>{message}</span>{restore?<button onClick={()=>{const {planId,meal}=restore;setRestore(null);void send("meal.save",{planId,meal});}}>Undo</button>:undoId&&<button onClick={()=>void send("change.undo",{auditId:undoId}).then(ok=>{if(ok)setUndoId(null);})}>Undo last change</button>}<button className="kw-icon" aria-label="Dismiss message" onClick={()=>setMessage("")}>×</button></div>;
   const calendar=<CalendarGrid onUnlock={meal=>void cardAction(meal,"meal.lock",{planId:plan?.id,mealId:meal.id,locked:false},"Weekly meal unlocked")} week={week} plan={view} state={state} referencedIds={page==="plan"?contexts:[]} selectedId={selected?.id??null} onSelect={select} onReplace={meal=>select(meal,true)} onReference={plan?.status==="confirmed"?undefined:meal=>reference(meal,page!=="plan")} onAdd={add} onStatus={(meal,status)=>void cardAction(meal,"meal.status",{planId:plan?.id,mealId:meal.id,status},status==="completed"?"Done ✓":"Skipped",status==="completed")} onLike={meal=>void cardAction(meal,"meal.like",{planId:plan?.id,mealId:meal.id,liked:!meal.liked})} onInclude={(meal,included)=>{if(plan?.status==="draft")setupChoices.setSlot(meal.day,meal.slot,included);else void cardAction(meal,"meal.include",{planId:plan?.id,mealId:meal.id,included});}} planning={page==="plan"} slotState={slotState} note={cardNote} onUndo={note=>void undoCard(note)} onDismissNote={()=>setCardNote(null)} board={boardOn?board.calendar:undefined}/>;
   return <div ref={workspaceRef} className={`kw-workspace kw-page-${page} ${selected||recipe?"has-drawer":""}`}>
     <header className="kw-navigation">
@@ -394,7 +413,7 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
     </header><main className="kw-main" aria-label={titles[page]}>
     {demo&&<span className="kw-demo-ribbon">Interactive demo · simulated AI</span>}
 
-    {!selected&&!recipe&&feedback&&page!=="plan"&&page!=="calendar"&&<div className="kw-page-notice">{feedback}</div>}
+    {!selected&&!recipe&&feedback&&(page!=="plan"&&page!=="calendar"||restore)&&<div className="kw-page-notice">{feedback}</div>}
     {kitchen.loading?<div className="kw-loading">Loading your kitchen…</div>:kitchen.unauthorized?<div className="kw-auth"><Login locale="en-US" onAuthenticated={()=>void kitchen.reload()}/></div>:kitchen.error?<div className="kw-load-error"><h2>We couldn’t load your kitchen</h2><p>{kitchen.error}</p><button className="kw-button" onClick={()=>void kitchen.reload()}>Try again</button><a href="/demo">Explore the interactive demo</a></div>:<>
       {page==="calendar"&&<header className="kw-calendar-heading"><h1 aria-label="Calendar">{"This Week's Menu! 🍳"}</h1><div className="kw-weekbar"><button className="kw-week-step" aria-label="Previous week" onClick={()=>navigate(page,undefined,shiftWeek(week,-1),"")}><span aria-hidden="true">◀</span></button><WeekPicker week={week} thisWeek={defaultWeek} onPick={target=>navigate(page,undefined,target,"")}/><button className="kw-week-step" aria-label="Next week" onClick={()=>navigate(page,undefined,shiftWeek(week,1),"")}><span aria-hidden="true">▶</span></button>{plan&&<label className={`kw-version-control ${plan.status}`}><span className="kw-version-dot" aria-hidden="true"/><span className="kw-version-caption">VERSION</span><select aria-label="Plan version" className="kw-version-select" value={plan.id} onChange={e=>navigate(page,undefined,week,e.target.value)}>{options.map(p=><option value={p.id} key={p.id}>{p.status==="confirmed"?"Confirmed":"Draft"} · v{p.version}</option>)}</select><span className="kw-version-chevron" aria-hidden="true">⌄</span></label>}</div><button className="kw-button kw-prep-link" onClick={()=>plan?.status==="confirmed"?void goStep("shopping","prep"):navigate("prep")}>Shopping & Prep → 🥣</button></header>}
 

@@ -878,3 +878,10 @@ html{scroll-padding-top:96px}
   /* Beside the plan board's fridge the cards are narrower: the word alone. */
   .kw-workspace .kw-plan-board .kw-calendar-reference .kw-source-emoji{display:none}
 }
+
+/* A suggestion changing several meals: each can be left out before applying. */
+.kw-diff-choice{display:flex;align-items:center;gap:8px;cursor:pointer}
+.kw-diff-choice input{width:18px;height:18px;accent-color:#64734b;flex-shrink:0}
+.kw-diff-choice h4{margin:0}
+.kw-diff.is-left-out .kw-diff-sides{opacity:.4}
+.kw-diff-choice{margin-bottom:6px}

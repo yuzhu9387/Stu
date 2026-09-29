@@ -84,7 +84,7 @@ interface Props {
   selected: string[]; onSelect: (ids: string[]) => void;
   /** Stu's latest chat turn: running, or done with a suggestion or a question. */
   turn?: ChatTurn | null;
-  onChat: (text: string, answering: boolean) => Promise<void>; onApply: () => Promise<void>; onKeep?: () => Promise<void>;
+  onChat: (text: string, answering: boolean) => Promise<void>; onApply: (mealIds?: string[]) => Promise<void>; onKeep?: () => Promise<void>;
   onConfirm: () => Promise<string | null>; onEdit: () => Promise<void>; focusTick: number; onPrep: () => void; onGuidance: () => void; onWeek: (delta: number) => void;
   /** The Monday of the week we are in now; planning mostly looks at it and the next. */
   thisWeek?: string;
@@ -176,9 +176,9 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
     const text = prompt.trim(); if (!text) return;
     try { await onStep("adjust"); jumpToChat.current = true; setPrompt(""); void ask(text); } catch (e) { setSetupError(failure(e, "Unable to open the plan.")); }
   }
-  async function applyProposal() {
+  async function applyProposal(mealIds?: string[]) {
     setChatError(null); setBaseline(metrics); setApplyingProposal(true);
-    try { await onApply(); }
+    try { await onApply(mealIds); }
     catch (e) { setBaseline(null); setChatError(failure(e, "Unable to apply these changes.")); }
     finally { setApplyingProposal(false); }
   }
@@ -297,7 +297,7 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
           {waiting && <div className="kw-chat-message assistant is-typing"><span>Stu</span><p aria-label="Stu is thinking"><i /><i /><i /></p></div>}
         </div>}
         {waiting && <p className="kw-muted small" role="status">Stu is working in the background. A full-week rebuild can take 2–7 minutes. Refreshing or switching pages won’t interrupt this conversation.</p>}
-        {proposal && !waiting && <ProposalCard plan={plan} proposal={proposal} disabled={busy || waiting || applyingProposal} applying={applyingProposal} onApply={() => void applyProposal()} onKeep={() => void keep()} onAnswer={option => void ask(option)} />}
+        {proposal && !waiting && <ProposalCard key={proposal.reply} plan={plan} proposal={proposal} disabled={busy || waiting || applyingProposal} applying={applyingProposal} onApply={mealIds => void applyProposal(mealIds)} onKeep={() => void keep()} onAnswer={option => void ask(option)} />}
         {(chatError ?? turnError) && <p className="kw-inline-error" role="alert">{chatError ?? turnError}</p>}
         <form className="kw-chat-composer" onSubmit={e => { e.preventDefault(); void ask(message); }}>
           {selected.length > 0 && <div className="kw-contexts">{selected.map(id => { const m = plan.meals.find(m => m.id === id); return m ? <span className="kw-context" key={id}>{dayLabel(m.day)} · {m.slot}<button type="button" className="kw-icon" aria-label={`Remove ${m.slot} reference`} onClick={() => onSelect(selected.filter(x => x !== id))}><X size={11} /></button></span> : null; })}</div>}
@@ -329,20 +329,24 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
  * Changes come as Now → After for each meal — dishes that go are struck
  * through, dishes that arrive are highlighted — and nothing changes until
  * Apply. Stu's words are already in the conversation above. */
-function ProposalCard({ plan, proposal, disabled, applying, onApply, onKeep, onAnswer }: { plan: WeeklyPlan; proposal: ChatProposal; disabled: boolean; applying: boolean; onApply: () => void; onKeep: () => void; onAnswer: (option: string) => void }) {
+/** Several meals changed: each can be left out before applying (all are in
+ * to start); the button says how many will change. */
+function ProposalCard({ plan, proposal, disabled, applying, onApply, onKeep, onAnswer }: { plan: WeeklyPlan; proposal: ChatProposal; disabled: boolean; applying: boolean; onApply: (mealIds?: string[]) => void; onKeep: () => void; onAnswer: (option: string) => void }) {
+  const [left, setLeft] = useState<string[]>([]);
   if (proposal.needsClarification) return proposal.options?.length
     ? <div className="kw-proposal is-question" role="group" aria-label="Answer Stu">{proposal.options.map(option => <button type="button" key={option} className="kw-option" disabled={disabled} onClick={() => onAnswer(option)}>{option}</button>)}</div>
     : null;
   if (!proposal.meals.length) return null;
   const prepChanges = (proposal.prep ?? []).filter(task => { const old = plan.prep.find(p => p.id === task.id); return !old || old.name !== task.name || old.plannedPortions !== task.plannedPortions; });
-  const count = proposal.meals.length;
+  const chosen = proposal.meals.filter(meal => !left.includes(meal.id)).map(meal => meal.id), count = chosen.length, several = proposal.meals.length > 1;
   return <div className="kw-proposal" role="group" aria-label="Proposed changes">
     <ul className="kw-diff-list">{proposal.meals.map(next => {
       const before = plan.meals.find(m => m.id === next.id);
       const was = new Set(before?.components.map(c => c.name) ?? []), now = new Set(next.components.map(c => c.name));
       const timeChanged = before && before.activeMinutes !== next.activeMinutes;
-      return <li key={next.id} className="kw-diff">
-        <h4>{dayLabel(next.day)} · {slotName(next.slot)}</h4>
+      const on = !left.includes(next.id), label = `${dayLabel(next.day)} · ${slotName(next.slot)}`;
+      return <li key={next.id} className={`kw-diff ${on ? "" : "is-left-out"}`}>
+        {several ? <label className="kw-diff-choice"><input type="checkbox" checked={on} disabled={disabled} onChange={() => setLeft(current => on ? [...current, next.id] : current.filter(id => id !== next.id))} /><h4>{label}</h4></label> : <h4>{label}</h4>}
         <div className="kw-diff-sides">
           <div className="kw-diff-side is-before"><span className="kw-diff-tag">Now</span>
             {before?.components.length ? <ul>{before.components.map(c => <li key={c.id} className={now.has(c.name) ? undefined : "is-removed"}>{now.has(c.name) ? c.name : <s>{c.name}</s>}</li>)}</ul> : <p className="kw-diff-empty">Empty</p>}
@@ -357,7 +361,7 @@ function ProposalCard({ plan, proposal, disabled, applying, onApply, onKeep, onA
       </li>;
     })}</ul>
     {prepChanges.length > 0 && <p className="kw-diff-prep">Prep day also changes: {prepChanges.map(task => `${task.name} ×${task.plannedPortions}`).join(", ")}</p>}
-    <div className="kw-row"><button className="kw-cta small" aria-label="Apply changes" disabled={disabled} onClick={onApply}>{applying ? "Applying…" : count === 1 ? "Apply change" : `Apply ${count} changes`}</button><button className="kw-outline small" onClick={onKeep}>Keep current</button></div>
+    <div className="kw-row"><button className="kw-cta small" aria-label="Apply changes" disabled={disabled || !count} onClick={() => onApply(count < proposal.meals.length ? chosen : undefined)}>{applying ? "Applying…" : count === 1 ? "Apply change" : `Apply ${count} changes`}</button><button className="kw-outline small" onClick={onKeep}>Keep current</button></div>
   </div>;
 }
 

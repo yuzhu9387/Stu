@@ -51,3 +51,28 @@
 .kw-workspace .kw-calendar-reference .changed .kw-card-slot{padding-right:72px;overflow:hidden;white-space:nowrap}
 .kw-workspace .kw-calendar-reference .changed .kw-card-slot>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kw-meal-note{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:700;color:#2f7fa8}
+
+/* The meal card in three rows: the meal and its time; the dishes; where the
+   food comes from, with Done / Skip / Liked at the right of the same row.
+   The time and the source sit in the card's corners (the card is the
+   positioned box); a meal already eaten shows its stamp instead of a time.
+   (Scoped under .kw-meal-card to win over figma.css, which loads later.) */
+.kw-workspace .kw-calendar-reference article.kw-meal-card{justify-content:flex-start;gap:6px}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-open{flex:1 1 auto;padding:0 0 28px;gap:8px}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-slot{padding-right:52px;white-space:nowrap;overflow:hidden}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-slot>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-title strong{padding:0 2px}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta{position:static;height:0;min-height:0;margin:0}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span:first-child{position:absolute;top:10px;right:10px}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span+span{position:absolute;left:10px;bottom:13px;max-width:calc(100% - 112px)}
+.kw-workspace .kw-calendar-reference .kw-meal-card:is(.completed,.skipped,.changed) .kw-meal-meta>span:first-child{display:none}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-tools{min-height:24px;justify-content:flex-end;gap:6px}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-quick-actions{margin-left:auto;gap:6px}
+.kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span+span{white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+/* Phones keep the same three rows: the actions stay at the right of the
+   bottom row instead of the top-right corner (where the time now is). */
+@media(max-width:520px){
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-tools{position:static;top:auto;right:auto;left:auto;bottom:auto;min-height:30px}
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-open{padding-bottom:30px}
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span+span{bottom:16px}
+}

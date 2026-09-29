@@ -25,11 +25,13 @@ function kitchen(rows: ShoppingItem[]) {
 const openNote = () => fireEvent.click(screen.getByRole("button", { name: /^Shopping note/ }));
 
 describe("a shopping row as typed", () => {
-  it("reads a trailing number as the amount", () => {
-    expect(parseRow("牛奶 2")).toEqual({ name: "牛奶", quantity: 2 });
+  it("reads the amount however it is written", () => {
+    for (const text of ["牛奶 2", "牛奶2", "牛奶*2", "牛奶 * 2", "牛奶×2", "牛奶x2", "牛奶 x 2", "牛奶X2", "牛奶2盒", "牛奶 2 瓶", "2盒牛奶", "2 牛奶"]) expect(parseRow(text)).toEqual({ name: "牛奶", quantity: 2 });
     expect(parseRow(" 鸡蛋 ×12 ")).toEqual({ name: "鸡蛋", quantity: 12 });
+    expect(parseRow("三文鱼 1.5")).toEqual({ name: "三文鱼", quantity: 1.5 });
     expect(parseRow("香蕉")).toEqual({ name: "香蕉" });
-    expect(parseRow("维生素D3")).toEqual({ name: "维生素D3" });
+    // A number that is part of the name stays in it.
+    for (const name of ["维生素D3", "box2", "7up", "猪肉2斤"]) expect(parseRow(name)).toEqual({ name });
     expect(parseRow("  ")).toBeNull();
   });
 });
@@ -56,6 +58,16 @@ describe("the shopping note on the fridge door", () => {
     await waitFor(() => expect(k.latest().shoppingList?.find(r => r.name === "牛奶")?.checked).toBe(true));
     fireEvent.click(within(drawer).getByRole("button", { name: "Remove 鸡蛋" }));
     await waitFor(() => expect(k.latest().shoppingList?.map(r => r.name)).toEqual(["牛奶"]));
+  });
+
+  it("moves an amount typed into the name into the amount box", async () => {
+    const k = kitchen([row("a", "鸡蛋")]);
+    openNote();
+    const name = screen.getByLabelText("Name of 鸡蛋");
+    fireEvent.change(name, { target: { value: "鸡蛋*12" } });
+    fireEvent.blur(name);
+    await waitFor(() => expect(k.latest().shoppingList?.[0]).toMatchObject({ name: "鸡蛋", quantity: 12 }));
+    expect(screen.getByLabelText("Amount of 鸡蛋")).toHaveValue(12);
   });
 
   it("changes a row's name and amount in place", async () => {

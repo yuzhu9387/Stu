@@ -7,13 +7,25 @@ import { foodEmoji } from "./food-art";
 import type { FoodType, KitchenState, PageProps, ShoppingItem } from "./types";
 import "./shopping-note.css";
 
-/** A row as typed: "牛奶 2", "鸡蛋 x12" or "鸡蛋×12" carries an amount; a
- * number stuck to the name ("维生素D3") is part of it. */
+// Words that count things ("2盒", "12个"); a weight ("2斤") stays in the name.
+const COUNT = "(?:个|盒|瓶|袋|包|只|根|颗|把|罐|听|条|块|支|份|打|pcs?)";
+const NUMBER = "(\\d+(?:\\.\\d+)?)";
+// After the name: "*2", "×2" anywhere; "x2" after a space or a Chinese character;
+// "2" after a space or right after a Chinese character ("牛奶2").
+const TRAILING = new RegExp(`^(.+?)(?:\\s*[*×]\\s*|(?<=\\s|[^\\x00-\\x7F])[xX]\\s*|\\s+|(?<=[^\\x00-\\x7F]))${NUMBER}\\s*${COUNT}?$`, "i");
+// Before the name: "2盒牛奶", "2 牛奶".
+const LEADING = new RegExp(`^${NUMBER}\\s*(?:${COUNT}\\s*|\\s+)(.+)$`, "i");
+
+/** A row as typed. However the amount is written ("牛奶 2", "牛奶2",
+ * "鸡蛋*12", "鸡蛋×12", "2盒牛奶") it goes in the amount box; a number that is
+ * part of the name ("维生素D3", "7up") or a weight ("猪肉2斤") stays in it. */
 export function parseRow(text: string): { name: string; quantity?: number } | null {
   const value = text.trim();
   if (!value) return null;
-  const match = /^(.+?)(?:\s+[x×]?\s*|\s*×\s*)(\d+(?:\.\d+)?)$/.exec(value);
-  if (match && match[1].trim()) return { name: match[1].trim(), quantity: Number(match[2]) };
+  const trailing = TRAILING.exec(value);
+  if (trailing && trailing[1].trim()) return { name: trailing[1].trim(), quantity: Number(trailing[2]) };
+  const leading = LEADING.exec(value);
+  if (leading && leading[2].trim()) return { name: leading[2].trim(), quantity: Number(leading[1]) };
   return { name: value };
 }
 
@@ -38,7 +50,14 @@ export function ShoppingNote({ rows, onOpen }: { rows: ShoppingItem[]; onOpen: (
  * amount (saved when the field is left), or take it off. */
 function Row({ row, busy, save, remove }: { row: ShoppingItem; busy: boolean; save: (row: ShoppingItem) => void; remove: () => void }) {
   const [name, setName] = useState(row.name), [quantity, setQuantity] = useState(row.quantity === undefined ? "" : String(row.quantity));
-  const commitName = () => { const next = name.trim(); if (!next) setName(row.name); else if (next !== row.name) save({ ...row, name: next }); };
+  // An amount typed into the name moves to the amount box.
+  const commitName = () => {
+    const parsed = parseRow(name);
+    if (!parsed) { setName(row.name); return; }
+    const next = { ...row, name: parsed.name, ...(parsed.quantity !== undefined ? { quantity: parsed.quantity } : {}) };
+    if (next.name !== row.name || next.quantity !== row.quantity) save(next);
+    else setName(row.name);
+  };
   const commitQuantity = () => {
     const next = quantity.trim() === "" ? undefined : Number(quantity);
     if (next !== undefined && (!Number.isFinite(next) || next <= 0)) { setQuantity(row.quantity === undefined ? "" : String(row.quantity)); return; }

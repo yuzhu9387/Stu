@@ -158,3 +158,19 @@ def test_a_superseded_version_cannot_undo_what_it_cooked():
     cooked = next(a for a in state["audit"] if a["kind"] == "prep.status")
     with pytest.raises(KitchenError, match="superseded"):
         run(state, "change.undo", {"auditId": cooked["id"]})
+
+
+def test_a_week_holding_only_prep_dishes_is_not_yet_planned():
+    from recipe_agent.domain.kitchen.engine import initial_state, prep_only
+
+    week = {"id": "p", "weekStart": "2026-10-05", "status": "draft", "version": 1, "prompt": ""}
+    state = run(initial_state(), "inventory.save", {"item": household()["inventory"][0]})
+    state = run(state, "plan.save", {"plan": {**week, "meals": [], "prep": [fridge_prep(inputs=[])], "chat": []}})
+    plan = state["plans"][0]
+    assert prep_only(plan)
+    # Opening the week's Plan starts at the first step, not at an empty board.
+    assert not any(p.get("workflow") for p in state["weeklyPrompts"])
+    assert not prep_only({**plan, "prep": [{**plan["prep"][0], "origin": None}]})
+    assert not prep_only({**plan, "status": "confirmed"})
+    assert not prep_only({**plan, "prep": []})
+    assert not prep_only(planned()["plans"][0])  # a meal planned by hand

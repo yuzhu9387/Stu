@@ -118,6 +118,7 @@ async def run_due_kitchen_jobs(
     A draft/confirmed plan already present for the target week always wins. Crashes
     after plan persistence are safe: the next attempt finds that plan and marks done.
     """
+    from recipe_agent.domain.kitchen.engine import prep_only
     from recipe_agent.domain.kitchen.repository import KitchenRepository
 
     now = now or datetime.now(UTC)
@@ -140,7 +141,8 @@ async def run_due_kitchen_jobs(
         try:
             # Refresh after claim: an interactive edit during claiming must not be lost.
             state = await repository.get(scope)
-            if not any(p["weekStart"] == week for p in state["plans"]):
+            # A draft holding only + Prep dishes is not a planned week.
+            if not any(p["weekStart"] == week and not prep_only(p) for p in state["plans"]):
                 await ai.generate(
                     scope,
                     GenerateRequest(

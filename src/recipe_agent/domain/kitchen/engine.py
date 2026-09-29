@@ -281,6 +281,25 @@ def put_away(state: dict[str, Any], items: Any) -> str:
     return f"Put {len(taken)} item{'' if len(taken) == 1 else 's'} in the fridge"
 
 
+def prep_only(plan: dict[str, Any]) -> bool:
+    """A draft that holds + Prep dishes and nothing planned by hand: besides
+    them only the weekly locked meals (and their prep) every new plan starts
+    with. Its week is not yet planned; Friday's draft and the Plan page's
+    first step still come."""
+    locked_prep = {
+        component.get("prepId")
+        for meal in plan["meals"]
+        if meal["locked"]
+        for component in meal["components"]
+    }
+    return (
+        plan["status"] == "draft"
+        and any(task.get("origin") == "fridge" for task in plan["prep"])
+        and all(meal["locked"] for meal in plan["meals"])
+        and all(task.get("origin") == "fridge" or task["id"] in locked_prep for task in plan["prep"])
+    )
+
+
 def from_fridge(
     state: dict[str, Any], plan: dict[str, Any], collection: str, entity: dict[str, Any]
 ) -> bool:
@@ -901,7 +920,7 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             plan["fulfillment"] = {**deepcopy(baseline["fulfillment"]), "stale": True}
         plan["version"] = old["version"] + 1 if old else 1
         upsert(state["plans"], plan)
-        if not old:
+        if not old and not prep_only(plan):
             remember_workflow(
                 state,
                 plan["weekStart"],

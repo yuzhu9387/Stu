@@ -67,3 +67,48 @@ async def test_scheduled_generation_reads_saved_prompt_and_exposes_retry(session
         assert (
             await client.post("/api/v1/kitchen/generation-jobs/2026-09-21/retry")
         ).status_code == 404
+
+
+async def test_a_week_holding_only_prep_dishes_is_still_drafted_on_friday(session_factory):
+    account, household = uuid4(), uuid4()
+    async with session_factory() as session, session.begin():
+        session.add(Account(id=account, email="prep-only@example.test"))
+        session.add(Household(id=household, owner_account_id=account))
+    scope = HouseholdScope(account, household)
+    repository = KitchenRepository(session_factory)
+    task = {
+        "id": "egg-pancakes",
+        "name": "鸡蛋饼",
+        "type": "Protein",
+        "origin": "fridge",
+        "plannedPortions": 0,
+        "actualPortions": 0,
+        "activeMinutes": 10,
+        "elapsedMinutes": 15,
+        "steps": ["煎"],
+        "status": "planned",
+        "liked": False,
+        "inputs": [],
+        "equipment": [],
+        "dependencies": [],
+    }
+    plan = {"id": "prep-only", "weekStart": "2026-09-21", "status": "draft", "version": 1}
+    await repository.command(
+        scope,
+        {
+            "type": "plan.save",
+            "payload": {"plan": {**plan, "prompt": "", "meals": [], "prep": [task], "chat": []}},
+            "expectedRevision": 0,
+            "operationId": "prep",
+        },
+    )
+    asked = []
+
+    class Unavailable:
+        async def complete(self, messages, schema, **kwargs):
+            asked.append(messages)
+            raise AIUnavailable("AI provider unavailable; configure a key")
+
+    now = datetime(2026, 9, 19, 1, tzinfo=UTC)
+    await run_due_kitchen_jobs(session_factory, Settings(_env_file=None), now=now, provider=Unavailable())
+    assert asked, "Stu was not asked to draft the week"

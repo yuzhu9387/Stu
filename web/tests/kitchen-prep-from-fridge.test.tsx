@@ -8,6 +8,7 @@ import { FridgePage } from "@/features/kitchen/fridge";
 import { PrepPage } from "@/features/kitchen/prep";
 import { addToPrep, fridgePrepTask, nextWeekStart, prepPlan } from "@/features/kitchen/prep-from-fridge";
 import type { KitchenState, PrepTask } from "@/features/kitchen/types";
+import { planningStep } from "@/features/kitchen/workflow";
 
 const command = (state: KitchenState, type: string, payload: Record<string, unknown>) =>
   applyDemoCommand(state, { type, payload, expectedRevision: state.revision, operationId: crypto.randomUUID() }).state;
@@ -220,5 +221,17 @@ describe("a superseded version of the week", () => {
     render(<PrepPage state={state} plan={old} send={vi.fn()} demo notify={vi.fn()} navigate={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "✓ Done" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+  });
+});
+
+describe("a week holding only + Prep dishes", () => {
+  it("is not yet planned: its Plan opens at the first step", async () => {
+    const { k } = await prepOnly();
+    const plan = k.latest().plans.find(p => p.weekStart === NEXT)!;
+    expect(k.latest().weeklyPrompts?.find(w => w.weekStart === NEXT)?.workflow).toBeUndefined();
+    expect(planningStep(plan, null, undefined)).toBe("preferences");
+    // A meal planned by hand makes it a plan.
+    const meal = { ...createDemoState().plans[0].meals[0], id: "hand", day: NEXT };
+    expect(planningStep({ ...plan, meals: [meal] }, null, undefined)).toBe("adjust");
   });
 });

@@ -502,7 +502,7 @@ class RelationalWorkspaceReader:
                         part["uses"] = uses
                     if component.secondary_types is not None:
                         part["secondaryTypes"] = component.secondary_types
-                    if component.ingredients:
+                    if component.ingredients is not None:
                         part["ingredients"] = component.ingredients
                     if component.active_minutes is not None:
                         part["activeMinutes"] = _num(component.active_minutes)
@@ -522,7 +522,7 @@ class RelationalWorkspaceReader:
                         "status": _text(meal.status),
                         "liked": meal.liked,
                         "locked": meal.locked,
-                        **({"note": meal.note} if meal.note else {}),
+                        **({"note": meal.note} if meal.note is not None else {}),
                     }
                 )
 

@@ -544,3 +544,24 @@ async def test_the_shopping_note_survives_the_tables_and_its_rows_go_into_the_fr
     _, relational = await driver.both()
     assert relational["shoppingList"] == []
     assert {i["name"]: i["portions"] for i in relational["inventory"]} == {"牛奶": 2.0, "鸡蛋": 6.0}
+
+
+async def test_an_empty_ingredient_list_and_an_empty_note_survive_the_tables(driver):
+    # A dish whose own ingredients were cleared, and a meal saved with a blank
+    # note, read back as written; otherwise a later edit of the week is refused.
+    await seed(driver)
+    plan = plan_with_prep()
+    plan["prep"] = []
+    plan["meals"][0]["note"] = ""
+    plan["meals"][0]["components"] = [
+        {"id": "m-1-c1", "name": "蒜蓉菠菜", "type": "Vegetables", "portions": 2.0, "ingredients": []}
+    ]
+    await driver.send("plan.save", {"plan": plan})
+    await assert_identical(driver)
+    await driver.send("plan.confirm", {"id": "p-1"})
+    await driver.send("meal.status", {"planId": "p-1", "mealId": "m-1", "status": "skipped"})
+    _, relational = await driver.both()
+    confirmed = relational["plans"][0]
+    revision = {**confirmed, "id": "p-2", "status": "draft", "basePlanId": "p-1", "baseVersion": confirmed["version"]}
+    await driver.send("plan.save", {"plan": revision})
+    await assert_identical(driver)

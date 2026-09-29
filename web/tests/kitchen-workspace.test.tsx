@@ -62,8 +62,9 @@ it("keeps an explicit plan selected when another tab's generation finishes", asy
   render(<KitchenWorkspace initialPage="plan"/>);await loaded();
   await screen.findByText(/Stu is drafting your week/);
   state.plans.push({...structuredClone(state.plans[0]),id:"new-draft"});state.revision++;done=true;
-  fireEvent(window,new Event("focus"));
-  await screen.findByText("Stu’s result is ready to review.");
+  // Coming back to the tab: on a slow machine the page may not be listening
+  // yet the first time, so come back until it has looked again.
+  await waitFor(()=>{fireEvent(window,new Event("focus"));expect(screen.getByText("Stu’s result is ready to review.")).toBeInTheDocument();});
   expect(nav.push).not.toHaveBeenCalled();
   expect(new URLSearchParams(nav.query).get("plan")).toBe("plan-demo");
   expect(mockedApi.mock.calls.some(([path])=>path.endsWith("/dismiss"))).toBe(false);

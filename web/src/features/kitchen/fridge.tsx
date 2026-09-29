@@ -5,6 +5,7 @@ import { Fragment, useMemo, useRef, useState } from "react";
 import { useFridgeDrag, type Columns } from "./fridge-drag";
 import { AlsoContains, AlsoMark } from "./also-contains";
 import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
+import { FridgeDoors, type Door } from "./fridge-doors";
 import "./fridge-arrange.css";
 import type { FoodType, InventoryItem, PageProps } from "./types";
 
@@ -53,7 +54,8 @@ function blank(location: string): InventoryItem {
   return { id: crypto.randomUUID(), name: "", type: "Protein", portions: 1, location, prepared: false, addedOn: new Date().toISOString().slice(0, 10), priority: false };
 }
 
-export function FridgePage({ state, plan, send, navigate }: PageProps) {
+/** `onDoor` opens Recipes, Calendar or Plan from beside the fridge (home). */
+export function FridgePage({ state, plan, send, navigate, onDoor }: PageProps & { onDoor?: (door: Door) => void }) {
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [search, setSearch] = useState("");
   const view = useFridgeView();
@@ -89,7 +91,7 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
   return <section className="kw-support-page kw-fridge-page">
     <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
-    <div className="kw-fridge" ref={fridgeRef}>
+    <div className="kw-fridge-home"><div className="kw-fridge" ref={fridgeRef}>
       <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><FridgeViewControls view={view} /></header>
       <div className={`kw-fridge-body ${locations.length > 2 ? "wide" : ""}`}>
         {locations.map(location => {
@@ -117,7 +119,7 @@ export function FridgePage({ state, plan, send, navigate }: PageProps) {
         })}
       </div>
       {ghost && byId.get(ghost.id) && <div ref={ghostRef} className={`kw-food-card kw-food-ghost type-${byId.get(ghost.id)!.type}`} style={{ width: ghost.width, height: ghost.height }} aria-hidden="true"><FoodCardBody item={byId.get(ghost.id)!} /></div>}
-    </div>
+    </div><FridgeDoors onOpen={door => onDoor ? onDoor(door) : navigate(door)} /></div>
 
     {editing && <FoodDialog key={editing.id} item={editing} state={state} plan={plan} send={send} navigate={navigate} onClose={() => setEditing(null)} />}
 

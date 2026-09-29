@@ -459,7 +459,7 @@
    below the drawer (z-index 10) and any modal (60), so those still cover it. */
 .kw-workspace .kw-navigation{position:sticky;top:0;z-index:6}
 html{scroll-padding-top:96px}
-@media(max-width:760px){html{scroll-padding-top:134px}}
+@media(max-width:760px){html{scroll-padding-top:80px}}
 .kw-workspace .kw-chat{min-height:0}
 @media(max-width:680px){.kw-brief-strip>p{white-space:normal}}
 

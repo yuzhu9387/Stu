@@ -13,11 +13,12 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/use-feature-data", () => ({ useFeatureData: () => ({ status: "ready", data: { members: [], lark_binding: { is_linked: false } } }) }));
 beforeEach(() => { navigation.pathname = "/knowledge"; });
 
-it("renders the knowledge route with exactly one kitchen navigation and no legacy shell", async () => {
+it("renders the knowledge route with the way home to the fridge and no legacy shell", async () => {
   render(<LocaleProvider initialLocale="en-US"><AppShell><KitchenWorkspace initialPage="knowledge" demo /></AppShell></LocaleProvider>);
   await screen.findByRole("heading", { name: "Your reference library" });
-  expect(screen.getAllByRole("navigation")).toHaveLength(1);
-  expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  // The fridge is home: no top navigation, a way back instead.
+  expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "← 冰箱" })).toBeVisible();
   expect(screen.queryByText("Family Table")).not.toBeInTheDocument();
 });
 

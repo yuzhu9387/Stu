@@ -45,7 +45,8 @@ it("keeps the workspace and task subscriptions across main routes without reload
   expect(document.querySelector(".kw-page-recipes")).toBeInTheDocument();
   const workspace=view.container.querySelector<HTMLDivElement>(".kw-workspace")!;
   workspace.scrollIntoView=vi.fn();
-  fireEvent.click(screen.getByRole("button",{name:"Calendar"}));
+  // Going home to the fridge is app navigation: the page scrolls to its top.
+  fireEvent.click(screen.getByRole("button",{name:"← 冰箱"}));
   expect(workspace.scrollIntoView).toHaveBeenCalledOnce();
   act(()=>{nav.path="/recipes";nav.listeners.forEach(listener=>listener());});
   // History keeps the browser's restored scroll position.

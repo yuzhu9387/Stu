@@ -46,10 +46,11 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await page.goto(`/plan?week=${week}`);
   await page.getByRole("button", { name: "Back to step 1, meals and preferences", exact: true }).click();
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
-  await page.goto(`/calendar?week=${week}`);
-  const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav.getByRole("button").first()).toHaveText(/Calendar/);
-  await nav.getByRole("button", { name: "Plan", exact: true }).click();
+  // The fridge is home: Plan opens from the round button beside it.
+  await page.goto(`/fridge?week=${week}`);
+  const doors = page.getByRole("navigation", { name: "Kitchen" });
+  await expect(doors.getByRole("button")).toHaveText([/Recipes/, /Calendar/, /Plan/]);
+  await doors.getByRole("button", { name: /Plan/ }).click();
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
   await page.getByRole("button", { name: "Go to step 2, adjust", exact: true }).click();
   await page.getByRole("button", { name: "Confirm plan", exact: true }).click();
@@ -77,7 +78,8 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   await page.getByRole("button", { name: "View calendar", exact: true }).click();
   await expect(page.getByRole("region", { name: "Weekly meal calendar" })).toHaveClass(/kw-calendar-plan/);
   await expect(page.getByRole("combobox", { name: "Plan version" })).toBeVisible();
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Plan", exact: true }).click();
+  await page.getByRole("button", { name: "← 冰箱", exact: true }).click();
+  await page.getByRole("navigation", { name: "Kitchen" }).getByRole("button", { name: /Plan/ }).click();
   await expect(prepToggle).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Edit plan", exact: true }).click();
   await page.getByRole("button", { name: "Confirm plan", exact: true }).click();
@@ -198,7 +200,9 @@ test("nutrition documents import, persist, version, filter and delete through th
 test("Figma navigation, recipe drawer and all page layouts work at desktop and phone widths", async ({ page }) => {
   for (const destination of ["calendar", "plan", "fridge", "recipes", "guidance", "prep", "knowledge"]) {
     await page.goto(`/demo?week=${week}&plan=plan-demo&page=${destination}`);
-    await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+    // Home is the fridge with its doors; every other page has the way back to it.
+    if (destination === "fridge") await expect(page.getByRole("navigation", { name: "Kitchen" })).toBeVisible();
+    else await expect(page.getByRole("button", { name: "← 冰箱", exact: true })).toBeVisible();
     await expect(page.getByText("Loading your kitchen…")).toHaveCount(0);
     const logo = page.getByRole("img", { name: "Stu baby logo", exact: true });
     await expect(logo).toBeVisible();
@@ -206,7 +210,8 @@ test("Figma navigation, recipe drawer and all page layouts work at desktop and p
     const widths = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     expect(widths.content, `${destination} must not overflow the viewport`).toBeLessThanOrEqual(widths.viewport);
   }
-  await page.getByRole("button", { name: "Recipes", exact: true }).click();
+  await page.getByRole("button", { name: "← 冰箱", exact: true }).click();
+  await page.getByRole("navigation", { name: "Kitchen" }).getByRole("button", { name: /Recipes/ }).click();
   await page.getByRole("button", { name: "Open recipe 鸡肉丸", exact: true }).click();
   // A recipe has its own page (frame 36:1030), with editing on that page. In
   // the demo the page is addressed by query (?page=recipes&recipe=…).

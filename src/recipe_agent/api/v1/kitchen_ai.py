@@ -16,6 +16,7 @@ from recipe_agent.domain.kitchen.ai import (
     ExtractRequest,
     FillRequest,
     GenerateRequest,
+    ImportLinkRequest,
     KitchenAI,
     PreferencesRequest,
 )
@@ -65,6 +66,14 @@ async def chat(body: ChatRequest, request: Request, scope: ScopeDependency) -> d
 @router.post("/extract")
 async def extract(body: ExtractRequest, request: Request, scope: ScopeDependency) -> dict[str, Any]:
     return await invoke(service(request).extract(scope, body))
+
+
+@router.post("/import-link")
+async def import_link(
+    body: ImportLinkRequest, request: Request, scope: ScopeDependency
+) -> dict[str, Any]:
+    """Recipe candidates read from a public page; nothing is saved."""
+    return await invoke(service(request).import_link(scope, body))
 
 
 @router.post("/compose")

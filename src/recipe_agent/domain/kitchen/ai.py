@@ -24,6 +24,7 @@ from recipe_agent.domain.kitchen.compact_generation import (
 )
 from recipe_agent.domain.kitchen.contracts import NOT_EATEN
 from recipe_agent.domain.kitchen.contracts import FoodType as FoodTypeName
+from recipe_agent.domain.kitchen.link_import import fetch_page_text
 from recipe_agent.domain.kitchen.repetition import blocked_dishes, name_aliases, repetition_context
 from recipe_agent.domain.kitchen.scheduling import (
     plan_rule_violations,
@@ -60,6 +61,12 @@ class ChatRequest(Input):
 class ExtractRequest(Input):
     text: str | None = Field(default=None, max_length=30000)
     imageData: str | None = Field(default=None, max_length=1_800_000)
+
+
+class ImportLinkRequest(Input):
+    """A link to a recipe page or video the household wants as a recipe."""
+
+    url: str = Field(min_length=1, max_length=2000)
 
 
 class PreferencesRequest(Input):
@@ -1881,6 +1888,20 @@ class KitchenAI:
             )
             dishes.append(dish)
         return {"dishes": dishes}
+
+    async def import_link(
+        self, scope: HouseholdScope, request: ImportLinkRequest
+    ) -> dict[str, Any]:
+        """Recipe candidates from a public page's words, to review; nothing is
+        saved. A page that cannot be read says so (LinkError)."""
+        url = request.url.strip()
+        text = await fetch_page_text(url)
+        result = await self.extract(
+            scope, ExtractRequest(text=f"Recipe page: {url}\n\n{text}"[:30000])
+        )
+        for recipe in result["recipes"]:
+            recipe["source"] = url
+        return result
 
     async def extract(self, scope: HouseholdScope, request: ExtractRequest) -> dict[str, Any]:
         if not (request.text and request.text.strip()) and not request.imageData:

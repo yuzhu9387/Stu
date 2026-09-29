@@ -291,6 +291,8 @@ class PrepTask(Contract):
     name: Identifier
     type: Literal["Protein", "Carbs", "Vegetables", "Other", "Baking"]
     recipeId: Identifier | None = None
+    # "fridge": a dish added with + Prep, cooked from foods already on hand.
+    origin: Literal["fridge"] | None = None
     plannedPortions: Number
     actualPortions: Number
     activeMinutes: Number

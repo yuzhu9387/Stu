@@ -450,6 +450,7 @@ class WorkspaceBackfill:
                 recipe_id=(self.recipes[raw["recipeId"]].id if raw.get("recipeId") else None),
                 name=raw["name"],
                 category=PREP_CATEGORY.get(raw.get("type", ""), s.PrepCategory.OTHER),
+                origin=raw.get("origin"),
                 planned_portions=_dec(raw["plannedPortions"]),
                 actual_portions=(
                     _dec(raw["actualPortions"]) if raw.get("status") == "completed" else None

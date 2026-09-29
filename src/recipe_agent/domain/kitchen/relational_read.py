@@ -460,6 +460,8 @@ class RelationalWorkspaceReader:
                 }
                 if task.recipe_id and task.recipe_id in recipes:
                     record["recipeId"] = transport(recipes[task.recipe_id])
+                if task.origin:
+                    record["origin"] = task.origin
                 if task.output_batch_id and task.output_batch_id in batches:
                     record["outputInventoryId"] = transport(batches[task.output_batch_id])
                 elif task.output_batch_key:

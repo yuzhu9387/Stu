@@ -562,6 +562,8 @@ class PrepTask(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     category: Mapped[PrepCategory] = mapped_column(String(16), nullable=False)
+    # "fridge": added with + Prep, cooked from foods already on hand.
+    origin: Mapped[str | None] = mapped_column(String(16))
     planned_portions: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     actual_portions: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     active_minutes: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)

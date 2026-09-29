@@ -476,3 +476,44 @@ async def test_a_dishs_own_details_and_a_changed_meal_survive_the_tables(driver)
     dish = meal["components"][0]
     assert dish["ingredients"] == [{"name": "菠菜", "quantity": 200.0, "unit": "g"}]
     assert (dish["activeMinutes"], dish["elapsedMinutes"]) == (8.0, 10.0)
+
+
+async def test_a_fridge_prep_keeps_its_origin_and_its_extra_box(driver):
+    await seed(driver)
+    await driver.send("inventory.save", {"item": batch("inv-spinach", "菠菜", 3.0)})
+    plan = plan_with_prep()
+    plan["prep"] = [
+        {
+            **plan["prep"][0],
+            "id": "prep-fridge",
+            "name": "菠菜鸡蛋饼",
+            "recipeId": None,
+            "origin": "fridge",
+            "plannedPortions": 0.0,
+            "outputInventoryId": None,
+            "inputs": [
+                {"inventoryId": "inv-eggs", "portions": 2.0},
+                {"inventoryId": "inv-spinach", "portions": 1.0},
+            ],
+        }
+    ]
+    plan["meals"][0]["components"][0].pop("prepId")
+    await driver.send("plan.save", {"plan": plan})
+    await assert_identical(driver)
+    # Cooked on prep day before the week is confirmed; 3 extra go in the fridge.
+    await driver.send(
+        "prep.status",
+        {
+            "planId": "p-1",
+            "prepId": "prep-fridge",
+            "status": "completed",
+            "actualPortions": 3.0,
+            "location": "fridge",
+        },
+    )
+    await assert_identical(driver)
+    _, relational = await driver.both()
+    task = relational["plans"][0]["prep"][0]
+    assert (task["origin"], task["status"], task["actualPortions"]) == ("fridge", "completed", 3.0)
+    extra = next(i for i in relational["inventory"] if i["id"] == task["outputInventoryId"])
+    assert (extra["portions"], extra["location"]) == (3.0, "fridge")

@@ -1030,6 +1030,7 @@ async def _project_prep(
         row.recipe_id = recipe.id if recipe else None
         row.name = raw["name"]
         row.category = PREP_CATEGORY.get(raw.get("type", ""), s.PrepCategory.OTHER)
+        row.origin = raw.get("origin")
         row.planned_portions = _dec(raw["plannedPortions"])
         row.actual_portions = (
             _dec(raw["actualPortions"]) if raw.get("status") == "completed" else None

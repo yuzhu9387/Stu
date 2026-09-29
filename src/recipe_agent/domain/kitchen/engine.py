@@ -227,11 +227,25 @@ def storage_location(value: str) -> str:
     return value.casefold() if value.casefold() in {"fridge", "freezer", "pantry"} else value
 
 
+def from_fridge(collection: str, entity: dict[str, Any]) -> bool:
+    """A + Prep dish: prep cooked from foods already in the fridge."""
+    return collection == "prep" and entity.get("origin") == "fridge"
+
+
 def add_output(
-    state: dict[str, Any], task: dict[str, Any], amount: float, deltas: list[dict[str, Any]]
+    state: dict[str, Any],
+    task: dict[str, Any],
+    amount: float,
+    deltas: list[dict[str, Any]],
+    location: str = "freezer",
 ) -> None:
-    # A quick task (no recipe, nothing to make, e.g. thawing meat) yields no food.
-    if not task.get("recipeId") and amount == 0 and not task.get("outputInventoryId"):
+    # A quick task (no recipe, nothing to make, e.g. thawing meat) yields no food,
+    # and a fridge dish with nothing left over leaves no empty box behind.
+    if (
+        amount == 0
+        and not task.get("outputInventoryId")
+        and (not task.get("recipeId") or task.get("origin") == "fridge")
+    ):
         return
     identifier = task.get("outputInventoryId") or f"prep-{task['id']}"
     item = next((i for i in state["inventory"] if i["id"] == identifier), None)
@@ -242,7 +256,7 @@ def add_output(
             "type": ("Carbs" if task["type"] == "Baking" else task["type"]),
             "portions": 0,
             # Batch-cooked dishes keep for the week in the freezer by default.
-            "location": "freezer",
+            "location": location,
             "prepared": True,
             "addedOn": datetime.now(UTC).date().isoformat(),
             "priority": False,
@@ -253,8 +267,8 @@ def add_output(
     elif item["name"] != task["name"] or item.get("recipeId") != task.get("recipeId"):
         raise KitchenError("Prep output does not match the selected inventory batch")
     elif item["portions"] == 0:
-        # An empty box refilled by batch cooking goes to the freezer, like a new one.
-        item["location"] = "freezer"
+        # An empty box refilled by batch cooking goes where a new one would.
+        item["location"] = location
     item["portions"] += amount
     task["outputInventoryId"] = identifier
     deltas.append({"inventoryId": identifier, "amount": amount})
@@ -996,7 +1010,9 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             }
             message = "Leftovers added to fridge"
         elif action == "status":
-            if plan["status"] != "confirmed":
+            # A + Prep dish cooks from the fridge now and plans nothing for the
+            # week, so it can be done before that week is confirmed.
+            if plan["status"] != "confirmed" and not from_fridge(category, entity):
                 raise KitchenError("Only a confirmed plan can be executed")
             status = payload["status"]
             # Only a meal can go differently from the plan ("changed").
@@ -1033,9 +1049,12 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
                         amount = payload.get("actualPortions", entity["plannedPortions"])
                         if not isinstance(amount, (int, float)) or not 0 <= amount < float("inf"):
                             raise KitchenError("Actual portions must be finite and nonnegative")
+                        location = payload.get("location", "freezer")
+                        if location not in {"freezer", "fridge"}:
+                            raise KitchenError("Extra portions go in the freezer or fridge")
                         for ingredient in entity["inputs"]:
                             consume(state, ingredient, deltas)
-                        add_output(state, entity, amount, deltas)
+                        add_output(state, entity, amount, deltas, location)
                         entity["actualPortions"] = amount
                 entity["status"] = status
                 # Changed takes nothing from the fridge; it keeps what was written.
@@ -1074,9 +1093,13 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
         if not target or audit["undone"]:
             raise KitchenError("This change cannot be undone")
         plan = find(state["plans"], target["planId"])
-        if audit["kind"] in {"meal.status", "prep.status"} and plan["status"] != "confirmed":
-            raise KitchenError("This plan was superseded; execution undo is no longer safe", 409)
         entity = find(plan[target["collection"]], target["entityId"])
+        if (
+            audit["kind"] in {"meal.status", "prep.status"}
+            and plan["status"] != "confirmed"
+            and not from_fridge(target["collection"], entity)
+        ):
+            raise KitchenError("This plan was superseded; execution undo is no longer safe", 409)
         if structural(entity) != structural(target["after"]):
             raise KitchenError("This record changed after that action; undo is unsafe", 409)
         if "prepAfter" in target:

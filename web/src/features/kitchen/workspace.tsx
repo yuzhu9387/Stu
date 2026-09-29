@@ -23,6 +23,7 @@ import { PrepPage } from "./prep";
 import { KitchenProfileMenu } from "./profile-menu";
 import { ShoppingPrepPage } from "./shopping-prep";
 import { hasPlannedMeals, planningStep, readyDraft, rememberedPlan } from "./workflow";
+import { HomeBack } from "./fridge-doors";
 import { RecipesPage, RecipeSource } from "./recipes";
 import { requestChatFocus, useChatRefs } from "./chat-refs";
 import { pendingWrites, slotKey, useSetupChoices, useChosenPlan } from "./slot-choices";
@@ -412,7 +413,7 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
     </header><main className="kw-main" aria-label={titles[page]}>
     {demo&&<span className="kw-demo-ribbon">Interactive demo · simulated AI</span>}
     {/* The fridge is home; every other page has the way back to it. */}
-    {page!=="fridge"&&<button type="button" className="kw-home-back" onClick={()=>navigate("fridge")}>← 冰箱</button>}
+    {page!=="fridge"&&<HomeBack onClick={()=>navigate("fridge")}/>}
 
     {!selected&&!recipe&&feedback&&(page!=="plan"&&page!=="calendar"||restore)&&<div className="kw-page-notice">{feedback}</div>}
     {kitchen.loading?<div className="kw-loading">Loading your kitchen…</div>:kitchen.unauthorized?<div className="kw-auth"><Login locale="en-US" onAuthenticated={()=>void kitchen.reload()}/></div>:kitchen.error?<div className="kw-load-error"><h2>We couldn’t load your kitchen</h2><p>{kitchen.error}</p><button className="kw-button" onClick={()=>void kitchen.reload()}>Try again</button><a href="/demo">Explore the interactive demo</a></div>:<>

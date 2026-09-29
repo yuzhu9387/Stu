@@ -9,7 +9,13 @@
 .kw-door-round{width:78px;height:78px;border-radius:50%;font-size:12px;box-shadow:0 4px 0 #35251f}
 .kw-door-round.is-calendar{background:#f4af14}
 .kw-door-round.is-plan{background:#eef4e5}
-.kw-home-back{display:inline-flex;align-items:center;gap:4px;margin:0 0 14px;border:2px solid #35251f;border-radius:999px;background:#fff;color:#35251f;font:inherit;font-size:13px;font-weight:900;padding:4px 12px;cursor:pointer;box-shadow:0 2px 0 #35251f}
+/* The way home: a small fridge with its name, drawn like the doors beside it. */
+.kw-home-back{display:inline-flex;align-items:center;gap:7px;margin:0 0 16px;border:3px solid #35251f;border-radius:14px;background:#fff;color:#35251f;font:inherit;font-size:15px;font-weight:900;padding:5px 14px 5px 8px;cursor:pointer;box-shadow:0 3px 0 #35251f;transition:transform .12s,box-shadow .12s,background .12s}
+.kw-home-back:hover{background:#eef7fb;transform:translateY(-1px);box-shadow:0 4px 0 #35251f}
+.kw-home-back:active{transform:translateY(2px);box-shadow:0 1px 0 #35251f}
+.kw-home-back-arrow{width:9px;height:14px;color:#8d7d70;transition:transform .12s}
+.kw-home-back:hover .kw-home-back-arrow{transform:translateX(-2px);color:#35251f}
+.kw-home-back-fridge{width:20px;height:27px;color:#35251f;flex:none}
 @media(max-width:760px){
   .kw-fridge-home{grid-template-columns:minmax(0,1fr)}
   /* On a phone they float at the bottom right, over the fridge as it scrolls. */

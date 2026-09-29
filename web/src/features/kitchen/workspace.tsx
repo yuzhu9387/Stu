@@ -119,7 +119,9 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   function navigate(next:Page,mealId?:string,nextWeek=week,nextPlan:string|null|undefined=plan?.id,step?:PlanStep){
     if(dirty){notify("Save or discard your drawer edits before leaving this meal.");return;}
     if(next!==page)scrollToPage.current=next;
-    setOpened(null);setRecipeId(null);setMessage("");setCardNote(null);router.push(href(next,{week:nextWeek,plan:nextPlan,meal:mealId,step}));
+    // An edit of a confirmed week stays on the Plan page; every other page shows the confirmed version.
+    const carried=state.plans.find(p=>p.id===nextPlan),editCopy=!!carried&&carried.status==="draft"&&state.plans.some(p=>p.id===carried.basePlanId&&p.status==="confirmed");
+    setOpened(null);setRecipeId(null);setMessage("");setCardNote(null);router.push(href(next,{week:nextWeek,plan:next!=="plan"&&editCopy?null:nextPlan,meal:mealId,step}));
   }
   // Stu's work is kept on the server, so a refresh or another page neither
   // stops it nor loses it: the plan page picks up the latest chat turn and the

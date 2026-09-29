@@ -281,6 +281,40 @@ def put_away(state: dict[str, Any], items: Any) -> str:
     return f"Put {len(taken)} item{'' if len(taken) == 1 else 's'} in the fridge"
 
 
+def follow_execution(
+    state: dict[str, Any],
+    plan: dict[str, Any],
+    collection: str,
+    entity: dict[str, Any],
+    version: int,
+    *,
+    liked_only: bool = False,
+) -> None:
+    """An open edit of this confirmed week follows what the calendar records
+    on the confirmed version: a meal or prep done, skipped, changed or undone
+    comes into the edit as it now is (a meal is kept as it was eaten, over any
+    edit of it), a like is carried over, and the edit is based on the new
+    version. What the edit changed otherwise stays."""
+    for draft in state["plans"]:
+        if (
+            draft["status"] != "draft"
+            or draft.get("basePlanId") != plan["id"]
+            or draft.get("baseVersion") != version
+        ):
+            continue
+        items = draft[collection]
+        index = next((i for i, item in enumerate(items) if item["id"] == entity["id"]), None)
+        if liked_only:
+            if index is not None:
+                items[index]["liked"] = entity["liked"]
+        elif index is None:
+            items.append(deepcopy(entity))
+        else:
+            items[index] = deepcopy(entity)
+        draft["baseVersion"] = plan["version"]
+        draft["version"] += 1
+
+
 def prep_only(plan: dict[str, Any]) -> bool:
     """A draft that holds + Prep dishes and nothing planned by hand: besides
     them only the weekly locked meals (and their prep) every new plan starts
@@ -1194,6 +1228,11 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             ):
                 undo["created"] = new_boxes
         plan["version"] += 1
+        # What the calendar records reaches an open edit of the week.
+        if plan["status"] == "confirmed" and action in {"status", "leftovers", "like"}:
+            follow_execution(
+                state, plan, collection, entity, plan["version"] - 1, liked_only=action == "like"
+            )
     elif kind == "change.undo":
         audit = find(state["audit"], payload["auditId"])
         target = audit.get("undo")
@@ -1263,6 +1302,12 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             recomputed = recompute_plan_timing(state, plan)
             entity.update(find(recomputed["meals"], entity["id"]))
         plan["version"] += 1
+        if plan["status"] == "confirmed" and audit["kind"] in {
+            "meal.status",
+            "meal.leftovers",
+            "prep.status",
+        }:
+            follow_execution(state, plan, target["collection"], entity, plan["version"] - 1)
         audit["undone"] = True
         message = "Change undone"
     else:

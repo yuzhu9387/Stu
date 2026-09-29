@@ -577,3 +577,24 @@ async def test_an_empty_ingredient_list_and_an_empty_note_survive_the_tables(dri
     }
     await driver.send("plan.save", {"plan": revision})
     await assert_identical(driver)
+
+
+async def test_a_meal_done_while_the_week_is_being_edited_reaches_the_edit_in_the_tables(driver):
+    await seed(driver)
+    plan = plan_with_prep()
+    plan["prep"] = []
+    plan["meals"][0]["components"][0].pop("prepId")
+    plan["meals"][0]["components"][0].pop("recipeId")
+    await driver.send("plan.save", {"plan": plan})
+    await driver.send("plan.confirm", {"id": "p-1"})
+    _, relational = await driver.both()
+    base = relational["plans"][0]
+    edit = {**base, "id": "p-2", "status": "draft", "basePlanId": "p-1", "baseVersion": base["version"]}
+    await driver.send("plan.save", {"plan": edit})
+    await driver.send("meal.status", {"planId": "p-1", "mealId": "m-1", "status": "skipped"})
+    await assert_identical(driver)
+    _, relational = await driver.both()
+    followed = next(p for p in relational["plans"] if p["id"] == "p-2")
+    assert followed["meals"][0]["status"] == "skipped"
+    await driver.send("plan.confirm", {"id": "p-2"})
+    await assert_identical(driver)

@@ -80,6 +80,21 @@ describe("the plan drawer", () => {
     expect(steps).toHaveValue("焯水\n蒜末炒香下菠菜\n出锅 ");
   });
 
+  it("drops an ingredient row left empty, so Stu fills the ingredients instead", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(filled), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetch);
+    const { state, meal } = draft();
+    meal.components[1] = { ...meal.components[1], ingredients: [{ name: " ", quantity: 1, unit: "" }] };
+    const p = props(state, meal);
+    render(<MealDrawer {...p} />);
+    expect(screen.getByRole("button", { name: /Save changes/ })).toHaveTextContent("Stu fills 3 blanks");
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await waitFor(() => expect(p.onSave).toHaveBeenCalled());
+    expect(JSON.parse(fetch.mock.calls[0][1].body as string).dishes[0].ingredients).toBeUndefined();
+    const greens = (p.onSave.mock.calls[0][0] as Meal).components.find(c => c.id === "greens")!;
+    expect(greens.ingredients).toEqual([{ name: "菠菜", quantity: 200, unit: "g" }]);
+  });
+
   it("still saves when Stu cannot fill, blanks left blank", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const { state, meal } = draft();

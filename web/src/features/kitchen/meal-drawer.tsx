@@ -8,7 +8,7 @@ import { RecipeArt, foodEmoji } from "./food-art";
 import { dayLabel, uid } from "./data";
 import { joinSteps, removeComponent, setDishSteps, stepGroups } from "./meal-steps";
 import { DishCard } from "./dish-card";
-import { blanks, fillMeal } from "./fill";
+import { blanks, fillMeal, withoutEmptyRows } from "./fill";
 import { AlsoMark } from "./also-contains";
 import { componentGroups } from "./food-groups";
 import { BasketComposer, addComposedDish, type ComposedDish } from "./basket";
@@ -73,7 +73,7 @@ export function MealDrawer({planning=false,demo=false,meal,plan,state,initialEdi
   /** The close button: close, dropping any unsaved edits. */
   function discard(){onDirty(false);onClose();}
   async function save(){if(!editable){setError("Unlock or undo execution before editing this meal.");return;}if(draft.components.length===0||draft.components.some(c=>!c.name.trim()||!Number.isFinite(c.portions)||c.portions<=0)){setError("Add at least one food and a positive portion count.");return;}if(!draft.day||!Number.isFinite(draft.activeMinutes)||!Number.isFinite(draft.elapsedMinutes)||draft.activeMinutes<0||draft.elapsedMinutes<draft.activeMinutes||draft.elapsedMinutes<=0){setError("Choose a date and valid active and elapsed minutes.");return;}// Stu fills the hand-written dishes' blanks first; if it cannot, the meal saves as it is.
-let next=draft;if(blanks(draft,state).count){setFilling(true);try{next=await fillMeal(draft,state,demo);}catch{setError("Stu could not fill the blanks just now; the meal is saved as it is, and you can fill them later.");}finally{setFilling(false);}}const saved=await onSave(next,initial.current,newRecipes.filter(r=>next.components.some(c=>c.recipeId===r.id)));if(saved){setNewRecipes([]);setDraft(next);setDirty(false);onDirty(false);setClosing(false);setMode(planning?"edit":"detail");initial.current=next;if(closing)onClose();}}
+let next=withoutEmptyRows(draft);if(blanks(next,state).count){setFilling(true);try{next=await fillMeal(next,state,demo);}catch{setError("Stu could not fill the blanks just now; the meal is saved as it is, and you can fill them later.");}finally{setFilling(false);}}const saved=await onSave(next,initial.current,newRecipes.filter(r=>next.components.some(c=>c.recipeId===r.id)));if(saved){setNewRecipes([]);setDraft(next);setDirty(false);onDirty(false);setClosing(false);setMode(planning?"edit":"detail");initial.current=next;if(closing)onClose();}}
   function replace(id:string){const recipe=state.recipes.find(r=>r.id===id);if(!recipe||recipe.incomplete)return;try{change(replaceMealComponent(draft,recipe,replacePart,state));setMode("edit");}catch(error){setError(error instanceof Error?error.message:"Unable to calculate recipe timing.");}}
   function source(index:number,value:string){
     const current=draft.components[index];

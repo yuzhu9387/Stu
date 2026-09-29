@@ -12,10 +12,17 @@ const handWritten = (c: MealComponent) => !c.recipeId && !c.prepId && !c.invento
 
 const dishSteps = (meal: Meal, id: string) => stepGroups(meal).find(group => group.componentId === id)?.steps.filter(step => step.trim()) ?? [];
 
+/** The meal without ingredient rows left empty: an empty row is a blank for
+ * Stu, not an ingredient without a name. */
+export function withoutEmptyRows(meal: Meal): Meal {
+  return { ...meal, components: meal.components.map(c => c.ingredients?.some(i => !i.name.trim()) ? { ...c, ingredients: c.ingredients.filter(i => i.name.trim()) } : c) };
+}
+
 /** What Stu would fill on save: per hand-written dish, a missing food group
  * ("Other"), ingredients, steps or time each count as one blank. */
-export function blanks(meal: Meal, state: Pick<KitchenState, "recipes">): { count: number; dishes: FillDish[] } {
+export function blanks(written: Meal, state: Pick<KitchenState, "recipes">): { count: number; dishes: FillDish[] } {
   void state;
+  const meal = withoutEmptyRows(written);
   let count = 0;
   const dishes: FillDish[] = [];
   for (const c of meal.components.filter(handWritten)) {

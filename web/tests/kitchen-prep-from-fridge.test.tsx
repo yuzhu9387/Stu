@@ -206,3 +206,19 @@ describe("a + Prep dish on prep day", () => {
     expect(() => command(state, "prep.status", { planId: plan.id, prepId: "batch", status: "completed", actualPortions: 1 })).toThrow(/Confirm the plan/);
   });
 });
+
+describe("a superseded version of the week", () => {
+  it("cannot cook or undo a + Prep dish that the confirmed version also holds", async () => {
+    const { k, task } = await prepOnly();
+    const draft = k.latest().plans.find(p => p.weekStart === NEXT)!;
+    let state = command(k.latest(), "plan.confirm", { id: draft.id });
+    const confirmed = state.plans.find(p => p.id === draft.id)!;
+    state = command(state, "plan.save", { plan: { ...confirmed, id: "rev", status: "draft", basePlanId: confirmed.id, baseVersion: confirmed.version } });
+    state = command(state, "plan.confirm", { id: "rev" });
+    expect(() => command(state, "prep.status", { planId: draft.id, prepId: task.id, status: "completed", actualPortions: 1 })).toThrow(/Confirm the plan/);
+    const old = state.plans.find(p => p.id === draft.id)!;
+    render(<PrepPage state={state} plan={old} send={vi.fn()} demo notify={vi.fn()} navigate={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "✓ Done" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+  });
+});

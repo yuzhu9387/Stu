@@ -128,3 +128,33 @@ def test_only_fridge_prep_is_cooked_before_the_week_is_confirmed():
             "prep.status",
             {"planId": "plan", "prepId": "batch", "status": "completed", "actualPortions": 1},
         )
+
+
+def superseded(state):
+    """The week confirmed, then edited as a new version that is confirmed in
+    its place: the old version, holding the same + Prep dish, is a draft again."""
+    state = run(state, "plan.confirm", {"id": "plan"})
+    old = state["plans"][0]
+    revision = {**old, "id": "rev", "status": "draft", "basePlanId": "plan", "baseVersion": old["version"]}
+    state = run(state, "plan.save", {"plan": revision})
+    return run(state, "plan.confirm", {"id": "rev"})
+
+
+def test_a_superseded_version_cannot_cook_the_dish_again():
+    state = superseded(planned())
+    assert [p["status"] for p in state["plans"]] == ["draft", "confirmed"]
+    with pytest.raises(KitchenError, match="Only a confirmed plan"):
+        done(state, actualPortions=1)
+    cooked = run(
+        state,
+        "prep.status",
+        {"planId": "rev", "prepId": "egg-pancakes", "status": "completed", "actualPortions": 1},
+    )
+    assert portions(cooked)["eggs"] == 6
+
+
+def test_a_superseded_version_cannot_undo_what_it_cooked():
+    state = superseded(done(planned(), actualPortions=4))
+    cooked = next(a for a in state["audit"] if a["kind"] == "prep.status")
+    with pytest.raises(KitchenError, match="superseded"):
+        run(state, "change.undo", {"auditId": cooked["id"]})

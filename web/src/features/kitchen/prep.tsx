@@ -4,7 +4,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { AddPrepDialog } from "./add-prep-dialog";
 import { useStored } from "./browser-store";
 import "./fridge-arrange.css";
-import { weekPrep } from "./prep-from-fridge";
+import { ownFridgeDish, weekPrep } from "./prep-from-fridge";
 import { prepSchedule, prepUnavailable, projectedMealShortages } from "./schedule";
 import type { PageProps, PrepTask } from "./types";
 
@@ -44,7 +44,7 @@ function PrepDetail({ task, plan, send, state, ticked, onTick }: { task: PrepTas
   const [busy, setBusy] = useState(false);
   // A + Prep dish is done before its week is confirmed (batch prep waits),
   // asking only how many portions are left over and where they go.
-  const fromFridge = task.origin === "fridge", executable = plan.status === "confirmed" || fromFridge;
+  const fromFridge = task.origin === "fridge", executable = plan.status === "confirmed" || ownFridgeDish(state.plans, plan, task);
   const [finishing, setFinishing] = useState(false), [extra, setExtra] = useState("0"), [place, setPlace] = useState<"freezer" | "fridge">("freezer");
   const latestExecution = [...state.audit].reverse().find(a => { const entry = a as typeof a & { undone?: boolean; undo?: { entityId?: string; collection?: string; planId?: string } }; return entry.kind === "prep.status" && !entry.undone && entry.undo?.entityId === task.id && entry.undo.collection === "prep" && entry.undo.planId === plan.id; });
   const unavailable = prepUnavailable(state, plan, task);
@@ -111,7 +111,7 @@ function PrepDetail({ task, plan, send, state, ticked, onTick }: { task: PrepTas
     {/* One action while the task is open; after it, a way back if tapped by mistake. */}
     <div className="kw-prep-actions">
       {plan.status === "confirmed" && task.status === "planned" && !fromFridge && <button className="kw-mark-all" aria-label="Mark prepared" disabled={!ready} onClick={() => void execute()}>Mark All Done ✅</button>}
-      {fromFridge && task.status === "planned" && (finishing
+      {fromFridge && executable && task.status === "planned" && (finishing
         ? <form className="kw-prep-finish" onSubmit={event => { event.preventDefault(); if (extraOk) void finish(); }}>
             <label className="kw-label">Extra portions<input className="kw-input" type="number" min="0" step="0.5" autoFocus value={extra} onChange={e => setExtra(e.target.value)} /></label>
             <div className="kw-prep-place" role="group" aria-label="Put them in"><button type="button" aria-pressed={place === "freezer"} onClick={() => setPlace("freezer")}>❄️ Freezer</button><button type="button" aria-pressed={place === "fridge"} onClick={() => setPlace("fridge")}>🧊 Fridge</button></div>

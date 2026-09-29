@@ -281,9 +281,21 @@ def put_away(state: dict[str, Any], items: Any) -> str:
     return f"Put {len(taken)} item{'' if len(taken) == 1 else 's'} in the fridge"
 
 
-def from_fridge(collection: str, entity: dict[str, Any]) -> bool:
-    """A + Prep dish: prep cooked from foods already in the fridge."""
-    return collection == "prep" and entity.get("origin") == "fridge"
+def from_fridge(
+    state: dict[str, Any], plan: dict[str, Any], collection: str, entity: dict[str, Any]
+) -> bool:
+    """A + Prep dish that only this plan holds: prep cooked from foods already
+    in the fridge, which plans nothing for the week. A copy of it in another
+    version of the week (an edit confirmed in this one's place) is that
+    version's to cook, so this one is not."""
+    return (
+        collection == "prep"
+        and entity.get("origin") == "fridge"
+        and not any(
+            other["id"] != plan["id"] and any(t["id"] == entity["id"] for t in other["prep"])
+            for other in state["plans"]
+        )
+    )
 
 
 def add_output(
@@ -1086,7 +1098,7 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
         elif action == "status":
             # A + Prep dish cooks from the fridge now and plans nothing for the
             # week, so it can be done before that week is confirmed.
-            if plan["status"] != "confirmed" and not from_fridge(category, entity):
+            if plan["status"] != "confirmed" and not from_fridge(state, plan, collection, entity):
                 raise KitchenError("Only a confirmed plan can be executed")
             status = payload["status"]
             # Only a meal can go differently from the plan ("changed").
@@ -1171,7 +1183,7 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
         if (
             audit["kind"] in {"meal.status", "prep.status"}
             and plan["status"] != "confirmed"
-            and not from_fridge(target["collection"], entity)
+            and not from_fridge(state, plan, target["collection"], entity)
         ):
             raise KitchenError("This plan was superseded; execution undo is no longer safe", 409)
         if structural(entity) != structural(target["after"]):

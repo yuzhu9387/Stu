@@ -20,6 +20,13 @@ export function prepPlan(plans: WeeklyPlan[], week: string): WeeklyPlan | null {
   return choices.find(p => p.status === "confirmed") ?? choices.at(-1) ?? null;
 }
 
+/** A + Prep dish this plan alone holds, which it can cook before the week is
+ * confirmed. A copy in another version of the week (an edit confirmed in
+ * this one's place) is that version's to cook. As the server. */
+export function ownFridgeDish(plans: WeeklyPlan[], plan: WeeklyPlan, task: PrepTask) {
+  return task.origin === "fridge" && !plans.some(other => other.id !== plan.id && other.prep.some(t => t.id === task.id));
+}
+
 /** Everything on a week's prep day: the plan's own prep, and + Prep dishes
  * added to another plan of that week (a prep-only draft, before Stu drafted
  * the week as a new plan). Each task comes with the plan that holds it. */

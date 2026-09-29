@@ -39,6 +39,10 @@ def _dec(value: Any, default: str = "0") -> Decimal:
     return Decimal(str(value)) if value is not None else Decimal(default)
 
 
+def _optional_dec(value: Any) -> Decimal | None:
+    return None if value is None else _dec(value)
+
+
 def _day(value: Any) -> date | None:
     return date.fromisoformat(value) if value else None
 
@@ -1119,6 +1123,7 @@ async def _project_meals(
         row.locked = bool(raw.get("locked"))
         row.active_minutes = _dec(raw["activeMinutes"])
         row.elapsed_minutes = _dec(raw["elapsedMinutes"])
+        row.note = raw.get("note")
         await session.flush()
         await _record_meal_events(session, row, previous_status, previous_liked)
 
@@ -1149,6 +1154,9 @@ async def _project_meals(
                     prep_task_id=task.id if task else None,
                     uses=stock_uses(component, batches),
                     secondary_types=component.get("secondaryTypes"),
+                    ingredients=component.get("ingredients"),
+                    active_minutes=_optional_dec(component.get("activeMinutes")),
+                    elapsed_minutes=_optional_dec(component.get("elapsedMinutes")),
                 )
             )
         for index, step in enumerate(raw.get("steps") or []):
@@ -1167,15 +1175,15 @@ async def _record_meal_events(
         kind = {
             s.ExecutionStatus.COMPLETED: s.MealEventKind.COMPLETED,
             s.ExecutionStatus.SKIPPED: s.MealEventKind.SKIPPED,
+            s.ExecutionStatus.CHANGED: s.MealEventKind.CHANGED,
             s.ExecutionStatus.PLANNED: s.MealEventKind.REOPENED,
         }[s.ExecutionStatus(str(meal.status))]
         session.add(s.MealEvent(id=uuid4(), meal_id=meal.id, kind=kind))
     elif previous_status is None and meal.status != s.ExecutionStatus.PLANNED:
-        kind = (
-            s.MealEventKind.COMPLETED
-            if meal.status == s.ExecutionStatus.COMPLETED
-            else s.MealEventKind.SKIPPED
-        )
+        kind = {
+            s.ExecutionStatus.COMPLETED: s.MealEventKind.COMPLETED,
+            s.ExecutionStatus.CHANGED: s.MealEventKind.CHANGED,
+        }.get(s.ExecutionStatus(str(meal.status)), s.MealEventKind.SKIPPED)
         session.add(s.MealEvent(id=uuid4(), meal_id=meal.id, kind=kind))
     if previous_liked is not None and previous_liked != meal.liked:
         session.add(

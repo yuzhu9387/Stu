@@ -64,6 +64,8 @@ class ExecutionStatus(StrEnum):
     PLANNED = "planned"
     COMPLETED = "completed"
     SKIPPED = "skipped"
+    # Meals only: it went differently from the plan; nothing taken from stock.
+    CHANGED = "changed"
 
 
 class PlanStatus(StrEnum):
@@ -111,6 +113,7 @@ class LedgerReason(StrEnum):
 class MealEventKind(StrEnum):
     COMPLETED = "completed"
     SKIPPED = "skipped"
+    CHANGED = "changed"
     LIKED = "liked"
     UNLIKED = "unliked"
     REOPENED = "reopened"
@@ -459,6 +462,8 @@ class Meal(Base):
     locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     active_minutes: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     elapsed_minutes: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
+    # What the household wrote when the meal went differently (Changed).
+    note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -501,6 +506,10 @@ class MealComponent(Base):
     uses: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     # The dish's own other food groups; NULL defers to its recipe or food.
     secondary_types: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # A dish with no recipe: its own ingredients and time for what it serves.
+    ingredients: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    active_minutes: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    elapsed_minutes: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
 
 
 class MealStep(Base):

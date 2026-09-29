@@ -118,6 +118,19 @@ def recompute_plan_timing(state: dict[str, Any], plan: dict[str, Any]) -> dict[s
                 continue
             recipe = recipes.get(component.get("recipeId"))
             if recipe is None:
+                # A dish with no recipe may carry its own time for what it serves.
+                if component.get("activeMinutes") is not None:
+                    active = component["activeMinutes"]
+                    tasks.append(
+                        {
+                            "id": component["id"],
+                            "name": component["name"],
+                            "dependencies": [],
+                            "equipment": [],
+                            "activeMinutes": active,
+                            "elapsedMinutes": max(component.get("elapsedMinutes") or 0, active, 1),
+                        }
+                    )
                 continue
             batches = portion_batches(component["portions"], recipe["servings"])
             tasks.append(
@@ -172,8 +185,9 @@ def plan_rule_violations(state: dict[str, Any], plan: dict[str, Any]) -> list[di
         for component in meal["components"]:
             stock = inventory.get(component.get("inventoryId"))
             ready = component.get("prepId") in prep_ids or (stock and stock.get("prepared"))
-            # A dish composed from fridge foods carries its time in the meal.
-            sourced = stock or component.get("uses")
+            # A dish composed from fridge foods carries its time in the meal; a
+            # dish with its own minutes carries them itself.
+            sourced = stock or component.get("uses") or component.get("activeMinutes") is not None
             if not ready and component.get("recipeId") not in recipes and not sourced:
                 violations.append(
                     {

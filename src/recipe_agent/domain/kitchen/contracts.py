@@ -14,6 +14,10 @@ Identifier = Annotated[str, Field(min_length=1, max_length=200)]
 FoodType = Literal["Protein", "Carbs", "Vegetables", "Dairy", "Other"]
 Slot = Literal["breakfast", "lunch", "dinner"]
 Status = Literal["planned", "completed", "skipped"]
+# A meal that went differently from the plan: recorded, nothing taken from stock.
+MealStatus = Literal["planned", "completed", "skipped", "changed"]
+# Meals whose planned food was not eaten as planned.
+NOT_EATEN = frozenset({"skipped", "changed"})
 # The angles a plan can be analysed from. The catalog is fixed; a household
 # chooses which of them its plan analysis shows. Order is the display order.
 AnalysisMetric = Literal[
@@ -241,6 +245,11 @@ class MealComponent(Contract):
     # The dish's other food groups, set for this plate. Absent, they come from
     # its recipe or fridge food; an empty list says "none, whatever those say".
     secondaryTypes: list[FoodType] | None = Field(default=None, max_length=4)
+    # A dish with no recipe keeps its own ingredients (for the portions served)
+    # and time; a recipe's, when there is one, come first.
+    ingredients: list[Ingredient] | None = Field(default=None, max_length=40)
+    activeMinutes: Number | None = None
+    elapsedMinutes: Number | None = None
 
     @model_validator(mode="after")
     def _one_source(self) -> Self:
@@ -265,9 +274,11 @@ class Meal(Contract):
     activeMinutes: Number
     elapsedMinutes: Number
     steps: list[str]
-    status: Status
+    status: MealStatus
     liked: bool
     locked: bool
+    # What the household wrote when the meal went differently (Changed).
+    note: str | None = Field(default=None, max_length=500)
 
 
 class PrepInput(Contract):

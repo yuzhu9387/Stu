@@ -22,6 +22,7 @@ from recipe_agent.domain.kitchen.compact_generation import (
     compile_generation,
     drop_unused_recipes,
 )
+from recipe_agent.domain.kitchen.contracts import NOT_EATEN
 from recipe_agent.domain.kitchen.repetition import blocked_dishes, name_aliases, repetition_context
 from recipe_agent.domain.kitchen.scheduling import (
     plan_rule_violations,
@@ -706,7 +707,7 @@ def meal_choices(
             if other["day"] == meal["day"]
             and other["id"] != meal["id"]
             and other.get("included", True)
-            and other["status"] != "skipped"
+            and other["status"] not in NOT_EATEN
         )
         choices[meal["id"]] = {
             "activeMinutesAvailable": max(0, limit - busy),
@@ -1441,7 +1442,7 @@ class KitchenAI:
         fixed = [
             {"day": meal["day"], "keys": dish["keys"]}
             for meal in kept
-            if meal.get("included", True) and meal["status"] != "skipped"
+            if meal.get("included", True) and meal["status"] not in NOT_EATEN
             for dish in meal_dishes(state, plan, meal)
         ]
         others = {**state, "plans": [p for p in state["plans"] if p["id"] != plan["id"]]}

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from recipe_agent.domain.kitchen.contracts import (
     DEFAULT_PINNED_TAGS,
+    NOT_EATEN,
     ChatMessage,
     InventoryItem,
     KitchenCommand,
@@ -475,7 +476,7 @@ def reconcile_prep(original: dict[str, Any], candidate: dict[str, Any]) -> list[
     def demand(plan: dict[str, Any]) -> dict[str, float]:
         amounts: dict[str, float] = {}
         for meal in plan["meals"]:
-            if meal["status"] == "skipped":
+            if meal["status"] in NOT_EATEN:
                 continue
             for component in meal["components"]:
                 identifier = component.get("prepId")
@@ -998,8 +999,15 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
             if plan["status"] != "confirmed":
                 raise KitchenError("Only a confirmed plan can be executed")
             status = payload["status"]
-            if status not in {"planned", "completed", "skipped"}:
+            # Only a meal can go differently from the plan ("changed").
+            allowed = {"planned", "completed", "skipped"} | (
+                {"changed"} if category == "meal" else set()
+            )
+            if status not in allowed:
                 raise KitchenError("Invalid execution status")
+            note = payload.get("note")
+            if note is not None and (not isinstance(note, str) or len(note) > 500):
+                raise KitchenError("A note is text of at most 500 characters")
             if status != entity["status"]:
                 if entity["status"] != "planned" or status == "planned":
                     raise KitchenError("Undo the previous execution first")
@@ -1030,6 +1038,9 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
                         add_output(state, entity, amount, deltas)
                         entity["actualPortions"] = amount
                 entity["status"] = status
+                # Changed takes nothing from the fridge; it keeps what was written.
+                if status == "changed" and note and note.strip():
+                    entity["note"] = note.strip()
         else:
             raise KitchenError("Unknown command")
         if (

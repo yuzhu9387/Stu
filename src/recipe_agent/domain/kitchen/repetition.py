@@ -5,6 +5,8 @@ import unicodedata
 from datetime import date
 from typing import Any
 
+from recipe_agent.domain.kitchen.contracts import NOT_EATEN
+
 
 def name_aliases(value: str) -> set[str]:
     """Match punctuation/case variants and explicit bilingual parenthetical names."""
@@ -117,7 +119,7 @@ def repeat_conflicts(state: dict[str, Any], plan: dict[str, Any]) -> list[dict[s
     gap = state["settings"].get("recipeRepeatGapDays", 1)
     records = [{**record, "meal": None} for record in adjacent_history(state, plan)]
     for meal in plan["meals"]:
-        if meal["status"] == "skipped" or not meal.get("included", True):
+        if meal["status"] in NOT_EATEN or not meal.get("included", True):
             continue
         for dish in meal_dishes(state, plan, meal):
             records.append({**dish, "day": meal["day"], "external": False, "meal": meal["id"]})
@@ -173,7 +175,7 @@ def blocked_dishes(
     gap = state["settings"].get("recipeRepeatGapDays", 1)
     fixed = adjacent_history(state, plan)
     for meal in plan["meals"]:
-        if meal["id"] in meal_ids or meal["status"] == "skipped":
+        if meal["id"] in meal_ids or meal["status"] in NOT_EATEN:
             continue
         if not meal.get("included", True):
             continue

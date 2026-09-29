@@ -445,3 +445,34 @@ async def test_a_dish_made_from_fridge_foods_keeps_them_through_eating_it(
         "inv-eggs": 8.0,
         "inv-spinach": 2.0,
     }
+
+
+async def test_a_dishs_own_details_and_a_changed_meal_survive_the_tables(driver):
+    await seed(driver)
+    plan = plan_with_prep()
+    plan["prep"] = []
+    plan["meals"][0]["components"] = [
+        {
+            "id": "m-1-c1",
+            "name": "蒜蓉菠菜",
+            "type": "Vegetables",
+            "portions": 2.0,
+            "ingredients": [{"name": "菠菜", "quantity": 200.0, "unit": "g"}],
+            "activeMinutes": 8.0,
+            "elapsedMinutes": 10.0,
+        }
+    ]
+    await driver.send("plan.save", {"plan": plan})
+    await assert_identical(driver)
+    await driver.send("plan.confirm", {"id": "p-1"})
+    await driver.send(
+        "meal.status",
+        {"planId": "p-1", "mealId": "m-1", "status": "changed", "note": "改成了包子"},
+    )
+    await assert_identical(driver)
+    _, relational = await driver.both()
+    meal = relational["plans"][0]["meals"][0]
+    assert (meal["status"], meal["note"]) == ("changed", "改成了包子")
+    dish = meal["components"][0]
+    assert dish["ingredients"] == [{"name": "菠菜", "quantity": 200.0, "unit": "g"}]
+    assert (dish["activeMinutes"], dish["elapsedMinutes"]) == (8.0, 10.0)

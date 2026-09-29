@@ -517,6 +517,7 @@ class WorkspaceBackfill:
                 locked=bool(raw.get("locked")),
                 active_minutes=_dec(raw["activeMinutes"]),
                 elapsed_minutes=_dec(raw["elapsedMinutes"]),
+                note=raw.get("note"),
             )
             self.session.add(meal)
             self.meals[raw["id"]] = meal
@@ -540,6 +541,13 @@ class WorkspaceBackfill:
                         prep_task_id=task.id if task else None,
                         uses=stock_uses(component, self.batches),
                         secondary_types=component.get("secondaryTypes"),
+                        ingredients=component.get("ingredients"),
+                        active_minutes=_dec(component["activeMinutes"])
+                        if component.get("activeMinutes") is not None
+                        else None,
+                        elapsed_minutes=_dec(component["elapsedMinutes"])
+                        if component.get("elapsedMinutes") is not None
+                        else None,
                     )
                 )
                 self.report.add("meal_components")

@@ -203,16 +203,25 @@ def shopping_list(
     warnings: list[str] = []
 
     def add_recipe(
-        identifier: str | None, portions: float, name: str, have: frozenset[str] = frozenset()
+        identifier: str | None,
+        portions: float,
+        name: str,
+        have: frozenset[str] = frozenset(),
+        own: dict[str, Any] | None = None,
     ) -> None:
-        """Buy a recipe's ingredients, except those in `have` (already set aside)."""
+        """Buy a recipe's ingredients — or, with no recipe, the dish's `own`, for
+        the portions it lists — except those in `have` (already set aside)."""
         if portions <= 0:
             return
         recipe = recipes.get(identifier or "")
-        if not recipe or not recipe["ingredients"]:
+        if recipe and recipe["ingredients"]:
+            ingredients, servings = recipe["ingredients"], recipe["servings"]
+        elif own and own.get("ingredients"):
+            ingredients, servings = own["ingredients"], own["portions"]
+        else:
             warnings.append(f"{name}: add recipe ingredients.")
             return
-        for ingredient in recipe["ingredients"]:
+        for ingredient in ingredients:
             if pantry_staple(ingredient) or normalized(ingredient["name"]) in have:
                 continue
             if not ingredient.get("quantity") or not ingredient.get("unit", "").strip():
@@ -232,7 +241,7 @@ def shopping_list(
                     "dishes": [],
                 },
             )
-            row["required"] += ingredient["quantity"] * factor * portions / recipe["servings"]
+            row["required"] += ingredient["quantity"] * factor * portions / servings
             if name not in row["dishes"]:
                 row["dishes"].append(name)
 
@@ -277,6 +286,7 @@ def shopping_list(
                 need,
                 component["name"],
                 frozenset(have),
+                component,
             )
     for (name, unit), row in rows.items():
         for item in stock.values():

@@ -1,7 +1,7 @@
 "use client";
 import { foodEmoji } from "./food-art";
 import { freshness } from "./data";
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useFridgeDrag, type Columns } from "./fridge-drag";
 import { AlsoContains, AlsoMark } from "./also-contains";
 import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } from "./fridge-view";
@@ -33,6 +33,11 @@ function shelve(groups: ReturnType<typeof groupFoods>, perShelf: number) {
   if (last.rows.at(-1)!.length === perShelf) last.rows.push([]);
   return blocks;
 }
+
+/** A food card is small (at least this wide); a shelf holds as many as fit
+ * across its compartment, so a wide screen shows more of the fridge. */
+const CARD_WIDTH = 96, CARD_GAP = 8, SHELF_PADDING = 22;
+const fitted = (width: number) => Math.max(2, Math.floor((width - SHELF_PADDING + CARD_GAP) / (CARD_WIDTH + CARD_GAP)));
 
 function compartmentName(location: string) {
   const key = location.toLowerCase();
@@ -79,6 +84,21 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the locations follow the inventory
     [state.inventory]);
   const fridgeRef = useRef<HTMLDivElement>(null);
+  // How wide each compartment's shelves are (measured), for the cards per shelf.
+  const [shelfWidths, setShelfWidths] = useState<Record<string, number>>({});
+  const compartments = locations.join("|");
+  useEffect(() => {
+    const root = fridgeRef.current;
+    if (!root || typeof ResizeObserver === "undefined") return;
+    const shelves = () => [...root.querySelectorAll<HTMLElement>("[data-compartment] > .kw-shelves")];
+    const measure = () => {
+      const next = Object.fromEntries(shelves().map(el => [el.parentElement?.getAttribute("data-compartment") ?? "", el.clientWidth]));
+      setShelfWidths(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+    };
+    const observer = new ResizeObserver(measure);
+    shelves().forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [compartments]);
   /** A box let go somewhere new: save any compartment change, and the new
    * order when the fridge is shown in the household's own order (sorted by
    * date or name, a drag only moves a box between compartments). */
@@ -106,12 +126,12 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
         {locations.map(location => {
           const key = location.toLowerCase();
           const items = (shown[key] ?? []).map(id => byId.get(id)).filter((item): item is InventoryItem => !!item);
-          const perShelf = key === "fridge" ? 4 : 3;
+          const perShelf = shelfWidths[key] ? fitted(shelfWidths[key]) : key === "fridge" ? 4 : 3;
           const blocks = shelve(groupFoods(sortFoods(items, view.sort, shown[key] ?? []), view.byType), perShelf);
           return <section data-compartment={key} className={`kw-compartment ${key === "freezer" ? "freezer" : key === "fridge" ? "chilled" : "other"} ${over === key ? "is-drop-target" : ""}`} key={location}>
             <header><h2>{compartmentName(location)}</h2><span>{items.length} item{items.length === 1 ? "" : "s"}</span></header>
             <div className="kw-shelves">
-              {blocks.map((block, b) => <Fragment key={block.type ?? "all"}>{block.type && <h3 className="kw-shelf-group">{groupLabel(block.type)}</h3>}{block.rows.map((row, index) => { const last = b === blocks.length - 1 && index === block.rows.length - 1; return <div className="kw-shelf" key={index} style={{ gridTemplateColumns: `repeat(${perShelf},minmax(0,1fr))` }}>
+              {blocks.map((block, b) => <Fragment key={block.type ?? "all"}>{block.type && <h3 className="kw-shelf-group">{groupLabel(block.type)}</h3>}{block.rows.map((row, index) => { const last = b === blocks.length - 1 && index === block.rows.length - 1; return <div className="kw-shelf" key={index} style={{ gridTemplateColumns: `repeat(${perShelf},minmax(0,1fr))`, "--per-shelf": perShelf } as CSSProperties}>
                 {row.map(item => item.id === dragId
                   ? <span className="kw-food-card kw-food-placeholder" key={item.id} data-fridge-item={item.id} aria-hidden="true" />
                   : <div className={`kw-food-cell ${choice.has(item.id) ? "is-chosen" : ""}`} key={item.id} data-fridge-item={item.id}>

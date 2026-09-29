@@ -50,3 +50,22 @@ it("sorted by date, a drag moves a box to the freezer but keeps the household's 
   await act(async () => fireEvent.pointerUp(window, { clientX: 60, clientY: 80 }));
   expect(send).toHaveBeenCalledWith("inventory.arrange", { order: state.inventory.map(i => i.id), moves: [{ id: "eggs", location: "Freezer" }] }, { quiet: true });
 });
+
+it("fills each shelf with as many small cards as the compartment is wide", () => {
+  // Measure every compartment as 560px wide: five cards to a shelf.
+  vi.stubGlobal("ResizeObserver", class { constructor(private callback: () => void) {} observe() { this.callback(); } disconnect() {} });
+  const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return (this as HTMLElement).classList.contains("kw-shelves") ? 560 : 0; } });
+  try {
+    const state = createDemoState();
+    state.inventory = Array.from({ length: 7 }, (_, i) => food(`f${i}`, `食物${i}`, "Protein", `2026-09-1${i}`));
+    render(<FridgePage state={state} plan={state.plans[0]} send={vi.fn().mockResolvedValue(true)} demo notify={vi.fn()} navigate={vi.fn()} />);
+    const chilled = screen.getByRole("heading", { name: "🧊 冷藏 Fridge" }).closest("section")!;
+    const shelves = [...chilled.querySelectorAll<HTMLElement>(".kw-shelf")];
+    expect(shelves.map(shelf => shelf.querySelectorAll(".kw-food-cell").length)).toEqual([5, 2]);
+    expect(shelves[0].style.getPropertyValue("--per-shelf")).toBe("5");
+  } finally {
+    if (width) Object.defineProperty(HTMLElement.prototype, "clientWidth", width);
+    vi.unstubAllGlobals();
+  }
+});

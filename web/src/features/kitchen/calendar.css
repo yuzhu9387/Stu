@@ -76,3 +76,12 @@
   .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-open{padding-bottom:30px}
   .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span+span{bottom:16px}
 }
+/* A narrow card (the plan board beside the fridge): the time gives way to
+   the meal's name, and the source takes the bottom row's width. */
+.kw-workspace .kw-calendar-reference .kw-meal-card{container-type:inline-size}
+@container (max-width:150px){
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span:first-child{display:none}
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-slot{padding-right:0}
+  .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span+span{max-width:calc(100% - 20px)}
+}
+.kw-workspace .kw-calendar-reference .kw-meal-card:not(:has(.kw-meal-quick-actions button)) .kw-meal-meta>span+span{max-width:calc(100% - 20px)}

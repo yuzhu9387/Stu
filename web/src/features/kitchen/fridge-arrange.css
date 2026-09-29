@@ -134,3 +134,20 @@ body.kw-dragging .kw-food-remove{visibility:hidden}
 .kw-prep-draft .kw-spinner{width:14px;height:14px;border:2.5px solid #e4d7c5;border-top-color:#c9492f;border-radius:50%;animation:kw-prep-spin .8s linear infinite}
 @keyframes kw-prep-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.kw-prep-tag-dot,.kw-prep-draft .kw-spinner{animation:none}}
+
+/* Small food cards, as many to a shelf as fit (the count is measured and
+   set as --per-shelf; it also wins over the phone's two-column shelves). */
+.kw-fridge .kw-shelves{gap:10px;padding:10px}
+.kw-fridge .kw-shelf{grid-template-columns:repeat(var(--per-shelf,3),minmax(0,1fr))!important;gap:8px;padding:8px 8px 0;border-bottom-width:5px}
+.kw-fridge .kw-food-card{min-height:84px;margin-bottom:8px;border-width:2.5px;border-radius:10px;box-shadow:0 2px 0 #35251f}
+.kw-fridge .kw-food-band{padding:1px 3px;border-bottom-width:2.5px;font-size:10px;line-height:14px}
+.kw-fridge .kw-food-kind{top:19px;right:3px;padding:0 3px;font-size:8px;line-height:12px}
+.kw-fridge .kw-food-art{font-size:24px;padding:7px 0 4px}
+.kw-fridge .kw-food-line{gap:3px;padding:0 5px 7px}
+.kw-fridge .kw-food-line h3{font-size:12.5px;line-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kw-fridge .kw-food-count{font-size:12px}
+.kw-fridge .kw-food-card .kw-also-mark{margin:-4px auto 5px;font-size:10px}
+.kw-fridge .kw-food-expiry{padding:1px 3px;font-size:9px}
+.kw-fridge .kw-food-add,.kw-fridge .kw-food-slot{min-height:84px;margin-bottom:8px}
+.kw-fridge .kw-food-add{border-width:2.5px;border-radius:10px;font-size:20px}
+.kw-fridge .kw-food-remove{top:-6px;right:-6px;min-width:18px;height:18px;border-width:1.5px;font-size:12px;box-shadow:0 1px 0 #35251f}

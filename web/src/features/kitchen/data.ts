@@ -23,7 +23,7 @@ export function weekOf(day: string) { const d = new Date(`${day}T12:00:00Z`); d.
 /** Whole weeks from one Monday to another. */
 export function weeksBetween(from: string, to: string) { return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / (7 * 86_400_000)); }
 export function minutes(n: number) { return n < 60 ? `${n} min` : `${Math.floor(n / 60)}h${n % 60 ? ` ${n % 60}m` : ""}`; }
-export function emptyState(): KitchenState { return { revision: 0, recipes: [], knowledgeDocuments: [], inventory: [], plans: [], tags: [], audit: [], settings: { people: 3, childBirthday: null, childAge: 0, allergies: [], timezone: "America/Los_Angeles", generateTime: "17:00", prepDay: 6, maxPrepMinutes: 240, maxDailyActiveMinutes: 30, newRecipesPerWeek: 2, recipeRepeatGapDays: 1, guidance: [] } }; }
+export function emptyState(): KitchenState { return { revision: 0, recipes: [], knowledgeDocuments: [], inventory: [], plans: [], tags: [], audit: [], shoppingList: [], settings: { people: 3, childBirthday: null, childAge: 0, allergies: [], timezone: "America/Los_Angeles", generateTime: "17:00", prepDay: 6, maxPrepMinutes: 240, maxDailyActiveMinutes: 30, newRecipesPerWeek: 2, recipeRepeatGapDays: 1, guidance: [] } }; }
 
 export function createDemoState(): KitchenState {
   const state = emptyState();
@@ -37,6 +37,7 @@ export function createDemoState(): KitchenState {
     recipe("recipe-noodles","番茄牛肉面", "Protein",["lunch","dinner"],12,20,[{name:"Tomatoes",quantity:2,unit:"pieces"},{name:"Cooked beef",quantity:3,unit:"portions"},{name:"Noodles",quantity:3,unit:"portions"}], ["Warm the cooked beef and chopped tomatoes.","Cook noodles according to the package.","Combine and serve with vegetables."]),
     recipe("recipe-toast","鸡蛋三明治", "Protein",["breakfast","lunch"],7,10,[{name:"Bread",quantity:6,unit:"slices"},{name:"Cooked eggs",quantity:3,unit:"pieces"}], ["Prepare the egg filling.","Toast the bread and assemble.","Cut into suitable pieces and serve."]),
   ];
+  state.shoppingList = [{ id: "shop-milk", name: "牛奶", quantity: 2, checked: false }, { id: "shop-eggs", name: "鸡蛋", quantity: 10, checked: false }, { id: "shop-banana", name: "香蕉", checked: false }];
   state.inventory = [
     {id:"stock-meatballs",name:"鸡肉丸",type:"Protein",portions:2,location:"Freezer",prepared:true,addedOn:"2026-09-13",recipeId:"recipe-meatballs",priority:true},
     {id:"stock-rice",name:"熟糙米饭",type:"Carbs",portions:6,location:"Freezer",prepared:true,addedOn:"2026-09-16",recipeId:"recipe-rice",priority:false},

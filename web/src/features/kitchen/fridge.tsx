@@ -8,6 +8,7 @@ import { FridgeViewControls, groupFoods, groupLabel, sortFoods, useFridgeView } 
 import { FridgeDoors, type Door } from "./fridge-doors";
 import { ChoiceBar, useFoodChoice } from "./fridge-select";
 import { PrepFromFridge } from "./prep-drawer";
+import { ShoppingDrawer, ShoppingNote } from "./shopping-note";
 import "./fridge-arrange.css";
 import type { FoodType, InventoryItem, PageProps } from "./types";
 
@@ -63,6 +64,7 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
   const choice = useFoodChoice(state.inventory);
   // The foods + Prep was opened with, and the day it was opened on.
   const [preparing, setPreparing] = useState<{ foods: InventoryItem[]; today: string } | null>(null);
+  const [shopping, setShopping] = useState(false);
   const [search, setSearch] = useState("");
   const view = useFridgeView();
   // The corner × takes a box straight out; a box a meal still needs stays, and the reason shows.
@@ -98,7 +100,7 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
     <header className="kw-fridge-heading"><h1 aria-label="Fridge">冰箱</h1>{short.length > 0 && <span className="kw-pill kw-yellow">{short.length} {short.length === 1 ? "item" : "items"} short ⚠️</span>}</header>
 
     <div className="kw-fridge-home"><div className="kw-fridge" ref={fridgeRef}>
-      <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><FridgeViewControls view={view} /></header>
+      <header className="kw-fridge-badge"><span aria-hidden="true">🧊</span><strong>Kitchen Fridge</strong><ShoppingNote rows={state.shoppingList ?? []} onOpen={() => setShopping(true)} /><FridgeViewControls view={view} /></header>
       <div className={`kw-fridge-body ${locations.length > 2 ? "wide" : ""}`}>
         {locations.map(location => {
           const key = location.toLowerCase();
@@ -130,6 +132,7 @@ export function FridgePage({ state, plan, send, navigate, demo, onDoor, onPrepDa
 
     {choice.choosing && !preparing && <ChoiceBar count={choice.chosen.length} onClear={choice.clear} onPrep={() => setPreparing({ foods: choice.chosen, today: new Intl.DateTimeFormat("en-CA", { timeZone: state.settings.timezone }).format(new Date()) })} />}
     {preparing && <PrepFromFridge state={state} foods={preparing.foods} demo={demo} send={send} today={preparing.today} onClose={() => setPreparing(null)} onAdded={choice.clear} onPrepDay={onPrepDay} />}
+    {shopping && <ShoppingDrawer state={state} send={send} onClose={() => setShopping(false)} />}
     {editing && <FoodDialog key={editing.id} item={editing} state={state} plan={plan} send={send} navigate={navigate} onClose={() => setEditing(null)} />}
 
     <details className="kw-inventory-details"><summary>Search stock & weekly supply</summary>

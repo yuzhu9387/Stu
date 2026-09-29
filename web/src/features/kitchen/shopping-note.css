@@ -1,0 +1,35 @@
+/* The shopping note stuck to the fridge door, and the note opened. */
+.kw-shopping-note{display:flex;align-items:center;border:0;background:none;padding:0 4px;margin-left:6px;font:inherit;color:#35251f;cursor:pointer;min-width:0}
+.kw-note-paper{position:relative;display:flex;flex-direction:column;gap:1px;min-width:150px;max-width:260px;padding:7px 12px 8px;background:#fff3a8;border-radius:2px 2px 10px 2px;box-shadow:3px 3px 0 rgba(0,0,0,.28);transform:rotate(-2deg);text-align:left;transition:transform .12s}
+.kw-note-paper::before{content:"";position:absolute;top:-7px;left:50%;width:38px;height:13px;margin-left:-19px;background:rgba(255,255,255,.6);transform:rotate(4deg)}
+.kw-shopping-note:hover .kw-note-paper{transform:rotate(0) translateY(-2px)}
+.kw-shopping-note:focus-visible{outline:3px solid #f4af14;outline-offset:4px;border-radius:6px}
+.kw-note-head{font-size:12px;font-weight:900;letter-spacing:.2px}
+.kw-note-head b{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:4px;padding:0 5px;border-radius:999px;background:#35251f;color:#fff3a8;font-size:11px}
+.kw-note-rows{display:block;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kw-note-rows>span+span::before{content:" · ";color:#8d6b1f}
+.kw-note-rows>.is-checked{text-decoration:line-through;opacity:.6}
+.kw-note-rows em{margin-left:6px;font-style:normal;font-weight:900;color:#8d6b1f}
+.kw-note-count{display:none}
+@media(max-width:760px){
+  .kw-note-paper{display:none}
+  .kw-note-count{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;background:#fff3a8;color:#35251f;font-size:13px;font-weight:900;box-shadow:2px 2px 0 rgba(0,0,0,.28)}
+}
+
+/* Opened: add, tick and tidy rows; then put what was bought away. */
+.kw-note-add{display:flex;gap:8px;margin-bottom:12px}
+.kw-note-add .kw-input{flex:1;min-width:0}
+.kw-note-add .kw-button{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.kw-note-list,.kw-note-away{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.kw-note-row{display:grid;grid-template-columns:auto minmax(0,1fr) 72px auto;align-items:center;gap:8px;padding:6px 8px;border:2px solid #e4d7c5;border-radius:12px;background:#fff}
+.kw-note-row input[type=checkbox]{width:20px;height:20px;accent-color:#6f8f4e}
+.kw-note-row .kw-input{min-height:36px;padding:6px 10px}
+.kw-note-row.is-checked .kw-note-name{text-decoration:line-through;color:#8d7d70}
+.kw-note-away>li{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:2px solid #e4d7c5;border-radius:12px;background:#fff}
+.kw-note-away-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kw-note-away-head>span{font-size:22px;line-height:1}
+.kw-note-away-head small{color:#8d7d70;font-weight:700}
+.kw-note-group{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-weight:800;color:#6b584e}
+.kw-note-group .kw-input{width:auto;min-height:34px;padding:4px 8px}
+.kw-note-away-fields{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.kw-note-away-fields .kw-label{flex:0 0 110px;margin:0}

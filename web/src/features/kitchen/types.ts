@@ -28,7 +28,9 @@ export interface KnowledgeDocument { id:string; title:string; content:string; ca
 export type AnalysisMetric = "prep_time" | "daily_time" | "nutrition_balance" | "repetition" | "fridge_usage";
 export interface KitchenSettings { pinnedTags?: string[]; recurringMeals?:{weekday:number;slot:MealSlot;meal:Meal;prep:PrepTask[]}[]; analysisMetrics?: AnalysisMetric[]; recipeRepeatGapDays?:number; people: number; childBirthday: string|null; childAge: number; allergies: string[]; timezone: string; generateTime: string; prepDay: number; maxPrepMinutes: number; maxDailyActiveMinutes: number; newRecipesPerWeek: number; guidance: Guidance[] }
 export interface AuditEntry { undone?:boolean;planId?:string;entityId?:string;componentId?:string; id: string; kind: string; message: string; at: string; actorId?: string; operationId?: string; deltas?: {inventoryId: string; amount: number}[] }
-export interface KitchenState { knowledgeDocuments?:KnowledgeDocument[]; mealStylePresets?: MealStylePreset[]; recipeRatings?: RecipeRating[]; weeklyPrompts?: {weekStart:string;prompt:string;workflow?:PlanningWorkflow}[]; revision: number; recipes: Recipe[]; inventory: InventoryItem[]; plans: WeeklyPlan[]; tags: string[]; settings: KitchenSettings; audit: AuditEntry[] }
+/** A row on the shopping note stuck to the fridge door: "牛奶 2". */
+export interface ShoppingItem { id: string; name: string; quantity?: number; checked: boolean }
+export interface KitchenState { shoppingList?: ShoppingItem[]; knowledgeDocuments?:KnowledgeDocument[]; mealStylePresets?: MealStylePreset[]; recipeRatings?: RecipeRating[]; weeklyPrompts?: {weekStart:string;prompt:string;workflow?:PlanningWorkflow}[]; revision: number; recipes: Recipe[]; inventory: InventoryItem[]; plans: WeeklyPlan[]; tags: string[]; settings: KitchenSettings; audit: AuditEntry[] }
 export interface KitchenCommand { type: string; payload: Record<string, unknown>; expectedRevision: number; operationId: string }
 export interface CommandResult { state: KitchenState; message: string }
 export type Page = "calendar" | "plan" | "prep" | "fridge" | "recipes" | "guidance" | "knowledge";

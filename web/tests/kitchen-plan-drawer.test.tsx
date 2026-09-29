@@ -67,6 +67,19 @@ describe("the plan drawer", () => {
     expect(recipes ?? []).toEqual([]);
   });
 
+  it("shows Stu's steps in the dish after saving, and typing adds to them", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(filled), { status: 200, headers: { "content-type": "application/json" } })));
+    const { state, meal } = draft();
+    const p = props(state, meal);
+    render(<MealDrawer {...p} />);
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await waitFor(() => expect(p.onSave).toHaveBeenCalled());
+    const steps = await screen.findByLabelText("Steps for 蒜蓉菠菜");
+    await waitFor(() => expect(steps).toHaveValue("焯水\n蒜末炒香下菠菜"));
+    fireEvent.change(steps, { target: { value: "焯水\n蒜末炒香下菠菜\n出锅 " } });
+    expect(steps).toHaveValue("焯水\n蒜末炒香下菠菜\n出锅 ");
+  });
+
   it("still saves when Stu cannot fill, blanks left blank", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const { state, meal } = draft();

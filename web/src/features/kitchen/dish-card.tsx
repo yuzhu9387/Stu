@@ -8,6 +8,9 @@ import { sourceGroups } from "./food-groups";
 import { setDishSteps, stepGroups } from "./meal-steps";
 import type { Ingredient, KitchenState, Meal, MealComponent, WeeklyPlan } from "./types";
 
+/** Steps as saved: each line trimmed, blank lines gone. */
+const tidy = (text: string) => text.split("\n").map(line => line.trim()).filter(Boolean).join("\n");
+
 interface Props { dish: MealComponent; index: number; meal: Meal; state: KitchenState; plan: WeeklyPlan; basketLine: string; recipeHref: (id: string) => string; onMeal: (meal: Meal) => void; onSource: (value: string) => void; onRemove: () => void }
 
 /** One dish of a meal being planned: where it comes from and how many
@@ -20,8 +23,14 @@ export function DishCard({ dish, index, meal, state, plan, basketLine, recipeHre
   const ready = !!dish.prepId || !!stock?.prepared;
   const label = dish.name || `food ${index + 1}`;
   const set = (patch: Partial<MealComponent>) => onMeal({ ...meal, components: meal.components.map(c => c.id === dish.id ? { ...c, ...patch } : c) });
-  // The textarea keeps its own text so blank lines survive while typing.
-  const [steps, setSteps] = useState(() => stepGroups(meal).find(group => group.componentId === dish.id)?.steps.join("\n") ?? "");
+  // The textarea keeps its own text so blank lines survive while typing; when
+  // the dish's steps change from outside (Stu filled them on save), it shows them.
+  const fromMeal = stepGroups(meal).find(group => group.componentId === dish.id)?.steps.join("\n") ?? "";
+  const [steps, setSteps] = useState(fromMeal), [shown, setShown] = useState(fromMeal);
+  if (fromMeal !== shown) {
+    setShown(fromMeal);
+    if (tidy(fromMeal) !== tidy(steps)) setSteps(fromMeal);
+  }
   const own = dish.ingredients ?? [];
   const setOwn = (next: Ingredient[]) => set({ ingredients: next });
   const sourceValue = dish.uses?.length ? "basket" : dish.prepId ? `prep:${dish.prepId}` : dish.inventoryId ? `inventory:${dish.inventoryId}` : dish.recipeId ? `recipe:${dish.recipeId}` : "fresh";

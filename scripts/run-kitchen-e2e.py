@@ -79,7 +79,8 @@ try:
                 time.sleep(0.2)
         else:
             raise RuntimeError("Test API startup timed out")
-        browser_command = ["pnpm", "--dir", "web", "exec", "playwright", "test"]
+        # Extra arguments go to Playwright (e.g. -g "prep" --repeat-each=5).
+        browser_command = ["pnpm", "--dir", "web", "exec", "playwright", "test", *sys.argv[1:]]
         # A Rosetta Python parent otherwise launches universal Node as x64 even
         # when pnpm installed native arm64 Next.js/Chromium dependencies.
         if (

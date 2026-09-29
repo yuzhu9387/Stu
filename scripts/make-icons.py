@@ -4,7 +4,9 @@ heavier so they survive small sizes, on a cream circle (no ring).
     uv run --no-project --with pillow python scripts/make-icons.py \
         web/public/assets/figma/stu-logo.png web/src/app
 """
+
 import sys
+
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 src, out = sys.argv[1], sys.argv[2]
@@ -18,6 +20,7 @@ ink = ImageOps.invert(gray.convert("L")).point(lambda v: 255 if v > 90 else 0)
 box = ink.getbbox()
 pad = 30
 box = (box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad)
+
 
 def icon(size, bolder, fill=0.76):
     mask = ink.filter(ImageFilter.MaxFilter(bolder)) if bolder > 1 else ink
@@ -35,6 +38,7 @@ def icon(size, bolder, fill=0.76):
     offset = (big - inner) // 2
     canvas.paste(ink_layer, (offset, offset + int(big * 0.015)), lines)
     return canvas.resize((size, size), Image.LANCZOS)
+
 
 icon(512, 9).save(f"{out}/icon.png")
 small = [icon(s, 27, fill=0.84) for s in (16, 32, 48)]

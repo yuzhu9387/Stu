@@ -8,6 +8,7 @@ import { TagManager } from "./tag-manager";
 import { libraryTags } from "./tag-pins";
 import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import { fridgeMatch } from "./fridge-match";
 import type { MealSlot, PageProps, Recipe } from "./types";
 import "./recipe-pages.css";
 export { RecipeEditor, RecipeSource } from "./recipe-editor";
@@ -24,12 +25,14 @@ function sorter(key: SortKey) {
 
 
 const RECIPE_BATCH_SIZE = 24;
-const RecipeGrid = memo(function RecipeGrid({ recipes, onOpen, onLike }: {
+const RecipeGrid = memo(function RecipeGrid({ recipes, onOpen, onLike, matches }: {
   recipes: Recipe[]; onOpen: (id: string) => void; onLike: (recipe: Recipe) => void;
+  /** With "Uses my fridge": how many of each recipe's foods the fridge has. */
+  matches?: Map<string, { have: number; total: number }> | null;
 }) {
   const [visibleCount, setVisibleCount] = useState(RECIPE_BATCH_SIZE);
   return <>
-    <div className="kw-support-grid kw-recipe-grid">{recipes.slice(0, visibleCount).map((r, index) => <article className={`kw-card kw-support-task kw-recipe-card accent-${index % 4}`} key={r.id} onClick={() => onOpen(r.id)}><button className="kw-recipe-art-button" aria-label={`Open recipe ${r.name}`} onClick={event => { event.stopPropagation(); onOpen(r.id); }}><RecipeArt name={r.name} type={r.type} sizes="(max-width: 760px) 50vw, (max-width: 1200px) 33vw, 25vw"/></button><button className="kw-recipe-heart" aria-label={`Baby liked ${r.name}`} aria-pressed={r.liked} onClick={event=>{event.stopPropagation();onLike(r);}}><Heart size={16} weight={r.liked?"fill":"regular"}/></button>{r.liked&&<span className="kw-recipe-baby">BABY 👶</span>}<div className="kw-recipe-content"><h3><button className="kw-recipe-title-button" onClick={event => { event.stopPropagation(); onOpen(r.id); }}>{r.name}{r.nameEn&&<small> {r.nameEn}</small>}</button></h3><p className="kw-muted">Total {r.elapsedMinutes}m ⏱ · Active {r.activeMinutes}m 👨‍🍳</p><div className="kw-support-tags">{r.tags.map(tag => <span className="kw-pill" key={tag}>{tag}</span>)}{r.incomplete && <span className="kw-pill">Needs review</span>}</div></div></article>)}</div>
+    <div className="kw-support-grid kw-recipe-grid">{recipes.slice(0, visibleCount).map((r, index) => <article className={`kw-card kw-support-task kw-recipe-card accent-${index % 4}`} key={r.id} onClick={() => onOpen(r.id)}><button className="kw-recipe-art-button" aria-label={`Open recipe ${r.name}`} onClick={event => { event.stopPropagation(); onOpen(r.id); }}><RecipeArt name={r.name} type={r.type} sizes="(max-width: 760px) 50vw, (max-width: 1200px) 33vw, 25vw"/></button><button className="kw-recipe-heart" aria-label={`Baby liked ${r.name}`} aria-pressed={r.liked} onClick={event=>{event.stopPropagation();onLike(r);}}><Heart size={16} weight={r.liked?"fill":"regular"}/></button>{r.liked&&<span className="kw-recipe-baby">BABY 👶</span>}<div className="kw-recipe-content"><h3><button className="kw-recipe-title-button" onClick={event => { event.stopPropagation(); onOpen(r.id); }}>{r.name}{r.nameEn&&<small> {r.nameEn}</small>}</button></h3><p className="kw-muted">Total {r.elapsedMinutes}m ⏱ · Active {r.activeMinutes}m 👨‍🍳</p><div className="kw-support-tags">{(() => { const m = matches?.get(r.id); return m && m.total > 0 ? <span className="kw-pill kw-fridge-match" title={`In your fridge: ${m.have} of ${m.total} foods`}>{`🧊 ${m.have}/${m.total}`}</span> : null; })()}{r.tags.map(tag => <span className="kw-pill" key={tag}>{tag}</span>)}{r.incomplete && <span className="kw-pill">Needs review</span>}</div></div></article>)}</div>
     {recipes.length > visibleCount && <div className="kw-support-actions"><button className="kw-button secondary" onClick={()=>setVisibleCount(count=>count+RECIPE_BATCH_SIZE)}>Show more recipes ({recipes.length-visibleCount} remaining)</button></div>}
   </>;
 });
@@ -43,6 +46,9 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
   const open = useCallback((id: string | null) => (onOpenRecipe ?? setLocalId)(id), [onOpenRecipe]);
   const [search, setSearch] = useState(""); const [mealFilter,setMealFilter]=useState<MealSlot|"">(""); const [tagFilter, setTagFilter] = useState("");
   const [sort, setSort] = useState<SortKey>("duration");
+  // "Uses my fridge": recipes the fridge can make most of come first.
+  const [fridgeFirst, setFridgeFirst] = useState(false);
+  const [link, setLink] = useState("");
   const [tagsOpen, setTagsOpen] = useState(false);
   const [draft, setDraft] = useState<Recipe | null>(null);
   const [importing, setImporting] = useState(false); const [text, setText] = useState(""); const [imageData, setImageData] = useState(""); const [fileName, setFileName] = useState(""); const [preview, setPreview] = useState<Recipe[]>([]); const [confirmedIds, setConfirmedIds] = useState<string[]>([]); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -51,10 +57,15 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
   // Pinned tags (the meals among them) lead as large chips; the rest follow the divider.
   const tagChips = libraryTags(state.tags, state.settings);
   const pinnedChips = tagChips.filter(tag => tag.pinned), otherChips = tagChips.filter(tag => !tag.pinned);
+  const matches = useMemo(() => fridgeFirst ? new Map(state.recipes.map(r => [r.id, fridgeMatch(r, state.inventory)])) : null, [fridgeFirst, state.recipes, state.inventory]);
   const filteredRecipes = useMemo(() => {
     const query=search.toLocaleLowerCase();
-    return state.recipes.filter(r => (!query || [r.name,...r.tags,...r.ingredients.map(i=>i.name)].some(value=>value.toLocaleLowerCase().includes(query))) && (!tagFilter || r.tags.includes(tagFilter)) && (!mealFilter || r.mealTypes.includes(mealFilter) || r.tags.some(tag => tag.trim().toLocaleLowerCase() === mealFilter))).sort(sorter(sort));
-  }, [state.recipes,search,tagFilter,mealFilter,sort]);
+    const found = state.recipes.filter(r => (!query || [r.name,...r.tags,...r.ingredients.map(i=>i.name)].some(value=>value.toLocaleLowerCase().includes(query))) && (!tagFilter || r.tags.includes(tagFilter)) && (!mealFilter || r.mealTypes.includes(mealFilter) || r.tags.some(tag => tag.trim().toLocaleLowerCase() === mealFilter))).sort(sorter(sort));
+    if (!matches) return found;
+    // The share of its foods the fridge has, then how many; the chosen order breaks ties.
+    const share = (r: Recipe) => { const m = matches.get(r.id)!; return m.total ? m.have / m.total : 0; };
+    return found.sort((a, b) => share(b) - share(a) || matches.get(b.id)!.have - matches.get(a.id)!.have);
+  }, [state.recipes,search,tagFilter,mealFilter,sort,matches]);
   const likeRecipe=useCallback((recipe:Recipe)=>{void send("recipe.save",{recipe:{...recipe,liked:!recipe.liked}});},[send]);
   /** Frame 46:8 accepts dropped files. Text files are read here and sent as
    * text; one image is sent as image data. Anything else is reported rather
@@ -83,6 +94,19 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
     await extractWith(joined, image);
   };
   const extract = async () => extractWith(text, imageData);
+  /** A recipe from a link: the server reads the public page and Stu drafts
+   * it for review. A page it cannot read says to paste or screenshot instead. */
+  const readLink = async () => {
+    const url = link.trim();
+    setBusy(true); setError("");
+    try {
+      const recipes = demo
+        ? [{ ...blankRecipe(), name: "Sample recipe from a link", type: "Vegetables" as const, activeMinutes: 10, elapsedMinutes: 15, ingredients: [{ name: "西兰花", quantity: 300, unit: "g" }], steps: ["Wash and cut into florets.", "Steam until tender."], source: url, incomplete: true }]
+        : (await api<{ recipes: Recipe[] }>("/api/v1/kitchen/import-link", { method: "POST", body: JSON.stringify({ url }) })).recipes;
+      if (!recipes.length) { setError("No recipe found on that page. Paste the text or a screenshot instead."); return; }
+      setPreview(recipes); setConfirmedIds([]); setImporting(false); setLink("");
+    } catch (e) { setError(e instanceof Error ? e.message : "That link could not be read. Paste the text or a screenshot instead."); } finally { setBusy(false); }
+  };
   const extractWith = async (value: string, image: string) => { setBusy(true); setError(""); try {
     if (demo) { setPreview([{ ...blankRecipe(), name: "Sample steamed vegetables", type: "Vegetables", activeMinutes: 5, elapsedMinutes: 12, ingredients: [{ name: "Broccoli", quantity: 300, unit: "g" }], steps: ["Wash and cut broccoli into small florets.", "Steam until tender; cool before serving."], source: `Simulated demo import${fileName ? ` from ${fileName}` : ""}. ${value}`, incomplete: true }]); setConfirmedIds([]); setImporting(false); }
     else { const result = await api<{ recipes: Recipe[] }>("/api/v1/kitchen/extract", { method: "POST", body: JSON.stringify({ ...(value.trim() ? { text: value } : {}), ...(image ? { imageData: image } : {}) }) }); setPreview(result.recipes); setConfirmedIds([]); setImporting(false); if (!result.recipes.length) setError("No recipes found. Add clearer text or another image."); }
@@ -96,7 +120,7 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
 
   const chip = (active: boolean, label: string, onClick: () => void, big: boolean) => <button key={label} type="button" className={`kw-filter-chip ${big ? "is-key" : ""} ${active ? "is-active" : ""}`} aria-pressed={active} onClick={onClick}>{label}</button>;
   return <section className="kw-support-page kw-recipes-page">{!preview.length && <header className="kw-page-header"><div><h1 aria-label="Recipes">Recipe Book 📖</h1></div><div className="kw-support-actions"><button className="kw-button secondary" onClick={() => setImporting(v => !v)} aria-label="Import recipe">📥 Import</button><button className="kw-button kw-yellow" aria-label="Add recipe" onClick={() => { setDraft(blankRecipe()); open("new"); }}>★ + New Recipe</button></div></header>}
-    {importing && <ImportDialog demo={demo} busy={busy} error={error} text={text} onText={setText} onExtract={() => void extract()} onClose={() => setImporting(false)} onFiles={readFiles} />}
+    {importing && <ImportDialog demo={demo} busy={busy} error={error} text={text} onText={setText} link={link} onLink={setLink} onReadLink={() => void readLink()} onExtract={() => void extract()} onClose={() => setImporting(false)} onFiles={readFiles} />}
     {preview.length > 0 && <ImportReview recipes={preview} confirmed={confirmedIds} busy={busy}
       onChange={recipe => setPreview(items => items.map(item => item.id === recipe.id ? recipe : item))}
       onSelectSave={async recipe => { if (await send("recipe.save", { recipe })) setConfirmedIds(ids => ids.includes(recipe.id) ? ids : [...ids, recipe.id]); }}
@@ -105,7 +129,7 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
       onReanalyze={() => { setPreview([]); setConfirmedIds([]); setImporting(true); }}
       onBack={() => { setPreview([]); setConfirmedIds([]); }} />}
     {!preview.length && <>
-    <div className="kw-support-toolbar kw-recipe-filters"><label className="kw-label"><span className="sr-only">Find a recipe</span><input className="kw-input" placeholder="🔍  Search recipes, ingredients, tags…" value={search} onChange={e=>setSearch(e.target.value)}/></label><label className="kw-sort"><span>Sort by:</span><select aria-label="Sort recipes" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="duration">Duration ⏱</option><option value="active">Active time 👨‍🍳</option><option value="name">Name A–Z</option><option value="saved">Saved order 📖</option></select></label></div>
+    <div className="kw-support-toolbar kw-recipe-filters"><label className="kw-label"><span className="sr-only">Find a recipe</span><input className="kw-input" placeholder="🔍  Search recipes, ingredients, tags…" value={search} onChange={e=>setSearch(e.target.value)}/></label><label className="kw-sort"><span>Sort by:</span><select aria-label="Sort recipes" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="duration">Duration ⏱</option><option value="active">Active time 👨‍🍳</option><option value="name">Name A–Z</option><option value="saved">Saved order 📖</option></select></label><button type="button" className={`kw-filter-chip kw-fridge-first ${fridgeFirst ? "is-active" : ""}`} aria-pressed={fridgeFirst} title="Recipes using the most of what is in your fridge come first" onClick={() => setFridgeFirst(on => !on)}>🧊 Uses my fridge</button></div>
     {/* One row: everything first, then the pinned tags as large chips, then the other tags. */}
     <div className="kw-filter-row" role="group" aria-label="Filter recipes">
       {chip(!mealFilter && !tagFilter, "All ★", () => { setMealFilter(""); setTagFilter(""); }, true)}
@@ -117,7 +141,7 @@ export function RecipesPage({ state, send, demo, recipeId, onOpenRecipe }: PageP
       </Fragment>)}
       <button type="button" className="kw-filter-edit" onClick={() => setTagsOpen(true)}>✎ Edit tags</button>
     </div>
-    <RecipeGrid key={JSON.stringify([search,tagFilter,mealFilter,sort])} recipes={filteredRecipes} onOpen={open} onLike={likeRecipe}/>
+    <RecipeGrid key={JSON.stringify([search,tagFilter,mealFilter,sort,fridgeFirst])} recipes={filteredRecipes} onOpen={open} onLike={likeRecipe} matches={matches}/>
     {!state.recipes.length && <p className="kw-empty">No recipes yet. Add one manually or import a recipe to review.</p>}
     {tagsOpen && <TagManager tags={tagChips} recipes={state.recipes} send={send} onClose={() => setTagsOpen(false)} onChanged={(from, to) => { if (tagFilter === from) setTagFilter(to ?? ""); }} />}
     </>}

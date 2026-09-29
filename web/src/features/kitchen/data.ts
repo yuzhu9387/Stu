@@ -39,9 +39,9 @@ export function createDemoState(): KitchenState {
   ];
   state.shoppingList = [{ id: "shop-milk", name: "牛奶", quantity: 2, checked: false }, { id: "shop-eggs", name: "鸡蛋", quantity: 10, checked: false }, { id: "shop-banana", name: "香蕉", checked: false }];
   state.inventory = [
-    {id:"stock-meatballs",name:"鸡肉丸",type:"Protein",portions:2,location:"Freezer",prepared:true,addedOn:"2026-09-13",recipeId:"recipe-meatballs",priority:true},
-    {id:"stock-rice",name:"熟糙米饭",type:"Carbs",portions:6,location:"Freezer",prepared:true,addedOn:"2026-09-16",recipeId:"recipe-rice",priority:false},
-    {id:"stock-broccoli",name:"西兰花",type:"Vegetables",portions:4,location:"Freezer",prepared:true,addedOn:"2026-09-16",recipeId:"recipe-broccoli",priority:false},
+    {id:"stock-meatballs",name:"鸡肉丸",nameEn:"Chicken meatballs",type:"Protein",portions:2,location:"Freezer",prepared:true,addedOn:"2026-09-13",recipeId:"recipe-meatballs",priority:true},
+    {id:"stock-rice",name:"熟糙米饭",nameEn:"Cooked brown rice",type:"Carbs",portions:6,location:"Freezer",prepared:true,addedOn:"2026-09-16",recipeId:"recipe-rice",priority:false},
+    {id:"stock-broccoli",name:"西兰花",nameEn:"Broccoli",type:"Vegetables",portions:4,location:"Freezer",prepared:true,addedOn:"2026-09-16",recipeId:"recipe-broccoli",priority:false},
   ];
   const names = [["牛奶燕麦粥", "水煮蛋 · 全麦吐司", "红薯 · 豆浆", "牛奶燕麦粥", "水果燕麦碗", "鸡蛋三明治", "南瓜粥 · 鸡蛋"],["糙米饭 · 西葫芦", "意面 · 番茄肉酱", "菜披萨", "胡萝卜烩饭", "鸡肉丸三明治", "豆腐蔬菜饭", "蛋炒饭"],["番茄牛肉面", "香煎三文鱼", "鸡肉丸 · 糙米饭 · 西兰花", "清蒸鲈鱼", "鸡肉丸 · 意面", "鸡肉焗饭", "蔬菜汤 · 吐司"]];
   const meals: Meal[] = weekDays("2026-09-21").flatMap((day,i)=>slots.map((slot,j)=>({id:`meal-${i}-${slot}`,day,slot,components:[{id:`component-${i}-${j}`,name:names[j][i],type:"Other" as const,portions:3,recipeId:j===0&&i%3===0?"recipe-oats":undefined}],activeMinutes:[5,8,10][j],elapsedMinutes:[10,15,20][j],steps:["Gather the ingredients and check the portions.","Prepare the meal using its recipe, adapting texture for your child.","Plate, serve and tidy the workspace."],status:"planned",liked:false,locked:false})));

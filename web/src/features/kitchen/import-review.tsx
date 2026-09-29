@@ -13,9 +13,13 @@ const TEXT_TYPES = [".txt", ".md", ".json", ".csv"];
 const IMAGE_TYPES = [".jpg", ".png"];
 const ACCEPT = ".txt,.md,.json,.csv,text/plain,text/markdown,application/json,text/csv,image/jpeg,image/png,image/webp";
 
-export function ImportDialog({ demo, busy, error, text, onText, onFiles, onExtract, onClose }: {
+/** A link the server can be asked to read: a web address, nothing else. */
+export const webLink = (value: string) => /^https?:\/\/[^\s/]+\S*$/i.test(value.trim());
+
+export function ImportDialog({ demo, busy, error, text, onText, link, onLink, onReadLink, onFiles, onExtract, onClose }: {
   demo: boolean; busy: boolean; error: string; text: string;
   onText: (value: string) => void;
+  link: string; onLink: (value: string) => void; onReadLink: () => void;
   onFiles: (files: File[]) => Promise<void>;
   onExtract: () => void;
   onClose: () => void;
@@ -29,6 +33,11 @@ export function ImportDialog({ demo, busy, error, text, onText, onFiles, onExtra
         <button type="button" className="kw-modal-close" aria-label="Close import" onClick={onClose}>✕</button>
       </header>
       <div className="kw-modal-body">
+        {/* A recipe seen in a video or post: the server reads the public page. */}
+        <form className="kw-import-link" onSubmit={e => { e.preventDefault(); if (webLink(link) && !busy) onReadLink(); }}>
+          <label className="kw-label">Recipe link<input className="kw-input" type="url" inputMode="url" autoComplete="off" placeholder="小红书 · B站 · YouTube · Instagram · any recipe page" value={link} onChange={e => onLink(e.target.value)} /></label>
+          <button type="submit" className="kw-button kw-yellow" disabled={busy || !webLink(link)}>{busy ? "Reading…" : "Read link"}</button>
+        </form>
         <label className={`kw-dropzone ${over ? "over" : ""}`}
           onDragOver={e => { e.preventDefault(); setOver(true); }}
           onDragLeave={() => setOver(false)}
@@ -112,6 +121,7 @@ export function ImportReview({ recipes, confirmed, busy, onSelectSave, onDelete,
               <p className="kw-review-meta">⏱ 烹饪时间 Time: <input aria-label="Elapsed minutes" type="number" min="0" value={current.elapsedMinutes} onChange={e => edit({ elapsedMinutes: e.target.valueAsNumber || 0 })} /> min · 🔍 难度 Difficulty:
                 <select aria-label="Difficulty" value={current.difficulty ?? "medium"} onChange={e => edit({ difficulty: e.target.value as Recipe["difficulty"] })}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></p>
               <div className="kw-review-tags">{current.tags.map(tag => <em key={tag}>{tag}</em>)}</div>
+              {webLink(current.source) && <p className="kw-review-source">From <a href={current.source.trim()} target="_blank" rel="noopener noreferrer">{current.source.trim()}</a></p>}
             </div>
           </div>
         </section>

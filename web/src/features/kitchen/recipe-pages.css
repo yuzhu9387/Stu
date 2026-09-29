@@ -137,3 +137,16 @@
 /* The pin sits in one column on every row, meals (pin only) included. */
 .kw-tag-row:not(.is-deleting) .kw-tag-options{min-width:204px;justify-content:flex-start}
 @media(max-width:560px){.kw-tag-row:not(.is-deleting) .kw-tag-options{min-width:0}}
+
+/* Import from a link: one row above the file drop. */
+.kw-import-link{display:flex;align-items:flex-end;gap:10px;margin-bottom:14px}
+.kw-import-link .kw-label{flex:1;min-width:0;margin:0}
+.kw-import-link .kw-button{white-space:nowrap}
+.kw-review-source{margin:6px 0 0;font-size:12px;font-weight:700;color:#6b584e;overflow-wrap:anywhere}
+.kw-review-source a{color:#64734b}
+@media(max-width:520px){.kw-import-link{flex-direction:column;align-items:stretch}}
+
+/* Uses my fridge: the toggle beside the sort, and each card's share. */
+.kw-fridge-first{border:3px solid #35251f;border-radius:16px;background:#fff;box-shadow:0 3px 0 #35251f;padding:6px 12px;font:inherit;font-size:14px;font-weight:900;white-space:nowrap;cursor:pointer}
+.kw-fridge-first.is-active{background:#c8e7f2}
+.kw-pill.kw-fridge-match{background:#e3f3f9;border-color:#2f7fa8;color:#1f5f80;font-weight:900}

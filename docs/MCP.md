@@ -29,12 +29,15 @@ change made in the app.
 | Tool | What it does |
 | --- | --- |
 | `kitchen_read` | The whole household workspace: recipes, tags, fridge, plans (meals, prep, chat), settings and guidance, knowledge documents, presets, weekly prompts, audit history. |
-| `kitchen_command` | Any change: `recipe.save/delete/rate`, `tag.save/apply/delete/pin`, `inventory.save/delete/arrange/receive`, `settings.save`, `knowledge.save/delete`, `plan.save/confirm/presets/chat`, `meal.save/delete/include/status/like/lock/leftovers`, `prep.save/delete/status/like`, `preset.save`, `planning.prompt/workflow`, `shopping.check`, `change.undo`. Pass the current `expectedRevision` from `kitchen_read`. |
+| `kitchen_command` | Any change: `recipe.save/delete/rate`, `tag.save/apply/delete/pin`, `inventory.save/delete/arrange/receive`, `settings.save`, `knowledge.save/delete`, `plan.save/confirm/presets/chat`, `meal.save/delete/include/status/like/lock/leftovers`, `prep.save/delete/status/like`, `preset.save`, `planning.prompt/workflow`, `shopping.check`, `shopping.save/delete/putAway` (the fridge door's note: `{item:{id,name,quantity?,checked}}`, `{id}`, `{items:[{id,location?,portions?,type?}]}`), `change.undo`. `meal.status` takes `changed` with an optional `note` (no stock is taken); `prep.status` takes `location: freezer|fridge` for the extra portions, and a prep task with `origin: "fridge"` (+ Prep) can be done before its plan is confirmed. Pass the current `expectedRevision` from `kitchen_read`. |
 | `kitchen_generate` | Start drafting a week in the background; returns the task. |
 | `kitchen_task` / `kitchen_task_latest` | Follow a background AI task (a week draft, a chat answer, a confirmation), including ones the web app started. |
-| `kitchen_task_apply` | Apply a finished chat task's proposed changes. |
+| `kitchen_task_apply` | Apply a finished chat task's proposed changes; with `mealIds`, only those meals (and the new recipes and prep they use). |
 | `kitchen_chat` | Ask for changes to selected meals and get a preview (nothing is applied). |
 | `kitchen_extract` | Turn recipe text or an image into recipe candidates (nothing is saved). |
+| `kitchen_import_link` | Read a public recipe page or video link and return recipe candidates (nothing is saved; private addresses are refused). |
+| `kitchen_fill` | Fill the blanks of a meal's hand-written dishes: food group, ingredients, steps, minutes (nothing is saved). |
+| `kitchen_compose` | Make one dish from chosen fridge foods: a recipe and the portions it takes from each (nothing is saved; add it with `meal.save` or `prep.save`). |
 
 `plan.fulfill` (the confirmed shopping snapshot) is not offered: only the
 confirmation task writes it, after checking it.

@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from recipe_agent.domain.kitchen.engine import KitchenError, apply_command, initial_state
+from recipe_agent.domain.kitchen.engine import KitchenError, apply_command, find, initial_state
 
 
 def run(state, kind, payload):
@@ -182,24 +182,91 @@ def test_confirmed_plan_cannot_be_overwritten_and_base_conflict():
         run(state, "plan.confirm", {"id": "draft"})
 
 
-def test_cannot_forge_execution_or_delete_referenced_inventory():
-    state = fixture_state()
-    # A meal still to eat keeps its food in the fridge, and says why.
+def this_week(state):
+    """The fixture's week moved to now, its meal still to eat today."""
     current = deepcopy(state)
     today = datetime.now(ZoneInfo(current["settings"]["timezone"])).date()
     current["plans"][0]["weekStart"] = (today - timedelta(days=today.weekday())).isoformat()
     for meal in current["plans"][0]["meals"]:
         meal["day"] = today.isoformat()
-    with pytest.raises(KitchenError, match=r"planned for .* Replace it in that meal first"):
-        run(current, "inventory.delete", {"id": "protein"})
-    # A meal from a week gone by only remembers where its food came from.
-    removed = run(state, "inventory.delete", {"id": "protein"})
+    return current
+
+
+def take_out(state, identifier):
+    return apply_command(
+        state,
+        {
+            "type": "inventory.delete",
+            "payload": {"id": identifier},
+            "expectedRevision": state["revision"],
+            "operationId": f"out-{identifier}",
+        },
+        "actor",
+    )
+
+
+def test_a_food_a_coming_meal_uses_is_still_taken_out_and_the_meal_lets_go():
+    current = this_week(fixture_state())
+    weekday = current["plans"][0]["meals"][0]["day"]
+    result = take_out(current, "protein")
+    removed = result["state"]
     assert "protein" not in {i["id"] for i in removed["inventory"]}
+    meal = removed["plans"][0]["meals"][0]
+    assert [c.get("inventoryId") for c in meal["components"]] == [None, "carbs", "veg"]
+    # The meal keeps its dish; the message says which meal no longer uses the food.
+    assert meal["components"][0]["name"] == "protein"
+    day = datetime.fromisoformat(weekday).strftime("%a")
+    assert result["message"] == f"Removed from the fridge; {day} dinner no longer uses it"
+    # A meal from a week gone by only remembers where its food came from.
+    past = run(fixture_state(), "inventory.delete", {"id": "protein"})
     assert all(
         c.get("inventoryId") != "protein"
-        for m in removed["plans"][0]["meals"]
+        for m in past["plans"][0]["meals"]
         for c in m["components"]
     )
+
+
+def test_a_food_prep_still_to_cook_needs_is_still_taken_out():
+    state = fixture_state()
+    state["plans"][0]["prep"][0]["inputs"] = [{"inventoryId": "veg", "portions": 1}]
+    current = this_week(state)
+    result = take_out(current, "veg")
+    task = result["state"]["plans"][0]["prep"][0]
+    assert task["inputs"] == []
+    assert "protein prep" in result["message"]
+    # The prep still cooks, from what is left.
+    done = run(
+        result["state"],
+        "prep.status",
+        {"planId": "plan", "prepId": "prep", "status": "completed", "actualPortions": 3},
+    )
+    assert find(done["plans"][0]["prep"], "prep")["status"] == "completed"
+
+
+def test_a_meal_whose_prepped_box_was_taken_out_can_still_be_eaten():
+    state = fixture_state()
+    state["plans"][0]["meals"][0]["components"][0] = {
+        "id": "protein",
+        "name": "protein",
+        "type": "Other",
+        "portions": 3,
+        "prepId": "prep",
+    }
+    state = this_week(state)
+    state = run(
+        state,
+        "prep.status",
+        {"planId": "plan", "prepId": "prep", "status": "completed", "actualPortions": 3},
+    )
+    state = run(state, "inventory.delete", {"id": "protein"})
+    eaten = run(state, "meal.status", {"planId": "plan", "mealId": "meal", "status": "completed"})
+    assert eaten["plans"][0]["meals"][0]["status"] == "completed"
+    # The rest of the meal still comes out of the fridge.
+    assert balances(eaten) == [3, 1]
+
+
+def test_execution_cannot_be_forged_through_a_draft():
+    state = fixture_state()
     draft = deepcopy(state["plans"][0])
     draft.update(id="draft", status="draft", basePlanId="plan", baseVersion=draft["version"])
     draft["meals"][0]["status"] = "completed"

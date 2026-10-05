@@ -395,16 +395,16 @@ def add_output(
     deltas.append({"inventoryId": identifier, "amount": amount})
 
 
-def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> None:
-    """Take a box out of the fridge.
+def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> list[str]:
+    """Take a box out of the fridge; the plan never holds it there.
 
-    A box still needed (a meal still to eat, or prep still to cook, uses it)
-    stays, with the reason. Finished meals and prep, and plans for days gone
-    by, only remember where their food came from, so they let go of it and
-    keep the rest of their record.
+    Meals and prep that used it let go of it and keep the rest of their
+    record (a meal keeps its dish, prep cooks from what is left). Returns the
+    meals still to eat and prep still to cook that no longer use it.
     """
     identifier = item["id"]
     today = datetime.now(ZoneInfo(state["settings"].get("timezone", "UTC"))).date()
+    affected: list[str] = []
     for plan in state["plans"]:
         tasks = {task["id"]: task for task in plan["prep"]}
         week_over = date.fromisoformat(plan["weekStart"]) + timedelta(days=7) <= today
@@ -421,19 +421,15 @@ def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> None:
                 used = any(u["inventoryId"] == identifier for u in component.get("uses") or [])
                 if component.get("inventoryId") == identifier or made_here or used:
                     weekday = date.fromisoformat(meal["day"]).strftime("%a")
-                    raise KitchenError(
-                        f"{item['name']} is planned for {weekday} {meal['slot']}. "
-                        "Replace it in that meal first."
-                    )
+                    affected.append(f"{weekday} {meal['slot']}")
+                    break
         for task in plan["prep"]:
             if (
                 task["status"] == "planned"
                 and not week_over
                 and any(i["inventoryId"] == identifier for i in task["inputs"])
             ):
-                raise KitchenError(
-                    f"{item['name']} is needed to cook {task['name']}. Change that prep first."
-                )
+                affected.append(f"{task['name']} prep")
     for plan in state["plans"]:
         for meal in plan["meals"]:
             for component in meal["components"]:
@@ -450,6 +446,7 @@ def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> None:
             if task.get("outputInventoryId") == identifier:
                 task.pop("outputInventoryId")
     state["inventory"].remove(item)
+    return list(dict.fromkeys(affected))
 
 
 def inventory_references(state: dict[str, Any]) -> set[str]:
@@ -732,8 +729,15 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
         state["inventory"] = [by_id[identifier] for identifier in order]
         message = "Fridge arranged"
     elif kind == "inventory.delete":
-        remove_inventory(state, find(state["inventory"], payload["id"]))
+        affected = remove_inventory(state, find(state["inventory"], payload["id"]))
         message = "Removed from the fridge"
+        if affected:
+            names = (
+                affected[0]
+                if len(affected) == 1
+                else f"{', '.join(affected[:-1])} and {affected[-1]}"
+            )
+            message += f"; {names} no longer {'uses' if len(affected) == 1 else 'use'} it"
     elif kind == "recipe.delete":
         state["recipes"].remove(find(state["recipes"], payload["id"]))
         state["recipeRatings"] = [
@@ -1259,9 +1263,11 @@ def apply_command(state: dict[str, Any], command: dict[str, Any], actor_id: str)
                                 task = find(plan["prep"], component["prepId"])
                                 if task["status"] != "completed":
                                     raise KitchenError(f"Prep is not complete: {task['name']}")
-                                if not task.get("outputInventoryId"):
-                                    raise KitchenError(f"{task['name']} is no longer in the fridge")
-                                selected["inventoryId"] = task["outputInventoryId"]
+                                # Its box may have been taken out of the fridge
+                                # already: then nothing more comes out for it.
+                                selected.pop("inventoryId", None)
+                                if task.get("outputInventoryId"):
+                                    selected["inventoryId"] = task["outputInventoryId"]
                             if selected.get("inventoryId"):
                                 consume(state, selected, deltas)
                             for use in dish_uses(state, component):

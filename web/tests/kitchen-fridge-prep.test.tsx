@@ -149,16 +149,30 @@ it("undoing a finished dish takes its new box out of the fridge again", () => {
   expect(undone.plans[0].prep.find(t => t.id === task.id)).toMatchObject({ status: "planned" });
 });
 
-it("keeps a box a meal still needs, and lets go of one only past meals used", () => {
+it("takes a box out even when a meal still needs it: the meal lets go and the message says so", () => {
   const state = createDemoState(), plan = state.plans[0];
   const meal = plan.meals.find(m => m.components.some(c => c.inventoryId))!, component = meal.components.find(c => c.inventoryId)!;
   const item = state.inventory.find(i => i.id === component.inventoryId)!;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: state.settings.timezone }).format(new Date());
   meal.status = "planned"; meal.day = today;
-  expect(() => command(state, "inventory.delete", { id: item.id })).toThrow(new RegExp(`${item.name} is planned for .* ${meal.slot}\\. Replace it in that meal first`));
-  // Eaten already: the meals only remember where their food came from.
-  plan.meals.filter(m => m.components.some(c => c.inventoryId === item.id)).forEach(m => { m.status = "completed"; });
-  const removed = command(state, "inventory.delete", { id: item.id });
+  const { state: removed, message } = applyDemoCommand(state, { type: "inventory.delete", payload: { id: item.id }, expectedRevision: state.revision, operationId: "out" });
   expect(removed.inventory.some(i => i.id === item.id)).toBe(false);
-  expect(removed.plans[0].meals.find(m => m.id === meal.id)!.components.find(c => c.id === component.id)!.inventoryId).toBeUndefined();
+  const kept = removed.plans[0].meals.find(m => m.id === meal.id)!.components.find(c => c.id === component.id)!;
+  expect(kept.inventoryId).toBeUndefined();
+  expect(kept.name).toBe(component.name);
+  expect(message).toMatch(new RegExp(`^Removed from the fridge; .*${meal.slot}.* no longer uses? it$`));
+});
+
+it("eats a meal whose prepped box was already taken out of the fridge", () => {
+  const state = createDemoState(), plan = state.plans[0];
+  plan.status = "confirmed";
+  // A dish cooked on prep day went into a box, which was then taken out.
+  const task = plan.prep[0], box = state.inventory[0];
+  task.status = "completed"; task.outputInventoryId = box.id;
+  const meal = plan.meals.find(m => m.status === "planned")!;
+  meal.components = [{ id: "made", name: task.name, type: "Protein", portions: 1, prepId: task.id }];
+  const out = command(state, "inventory.delete", { id: box.id });
+  expect(out.plans[0].prep[0].outputInventoryId).toBeUndefined();
+  const eaten = command(out, "meal.status", { planId: plan.id, mealId: meal.id, status: "completed" });
+  expect(eaten.plans[0].meals.find(m => m.id === meal.id)!.status).toBe("completed");
 });

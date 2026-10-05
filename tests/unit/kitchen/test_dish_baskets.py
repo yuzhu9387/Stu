@@ -136,13 +136,16 @@ def test_an_unknown_fridge_food_is_refused():
         household(pancake(uses=uses))
 
 
-def test_a_food_a_coming_meal_uses_stays_and_a_past_meal_lets_it_go():
+def test_a_food_a_dish_uses_is_taken_out_and_the_dish_lets_it_go():
     today = datetime.now(ZoneInfo("UTC")).date()
     coming = household(day=today.isoformat())
     coming["settings"]["timezone"] = "UTC"
     assert {"eggs", "spinach"} <= inventory_references(coming)
-    with pytest.raises(KitchenError, match="Replace it in that meal first"):
-        run(coming, "inventory.delete", {"id": "spinach"})
+    # The fridge is not held by the plan: a meal still to eat lets go too.
+    later = run(coming, "inventory.delete", {"id": "spinach"})
+    assert later["plans"][0]["meals"][0]["components"][0]["uses"] == [
+        {"inventoryId": "eggs", "portions": 2}
+    ]
     past = run(household(), "inventory.delete", {"id": "spinach"})
     component = past["plans"][0]["meals"][0]["components"][0]
     assert component["uses"] == [{"inventoryId": "eggs", "portions": 2}]

@@ -19,10 +19,13 @@ Pushing to `main` deploys to Google Cloud Run (see [Deploy](#deploy)).
 ### The fridge is home
 Freezer and fridge side by side, foods grouped on shelves by food group (or
 sorted by date or name), as many small cards to a shelf as the screen fits.
-Beside it: the recipe book, the Calendar and the Plan. Every other page has the
-little fridge button back home; the Calendar, which sits between the plan and the
-shopping, goes back to Plan and on to Shopping & prep. Drag a box between shelves or compartments;
-tap it to edit, or take it out with its ×.
+There is no header: a rail down the left of every page holds 冰箱 (the fridge),
+Plan and Calendar, each saying what waits behind it ("Plan next week",
+"Today · 3 meals"), with the Recipe Book at the bottom above the profile (hover
+it and its pages turn). On a phone the rail is a bar along the bottom. The
+Calendar, which sits between the plan and the shopping, goes back to Plan and on
+to Shopping & prep. Drag a box between shelves or compartments; tap it to edit,
+or take it out with its ×.
 
 ### 🔪 + Prep: cook ahead from what is in the fridge
 Hold a food (or ⌘/Ctrl/Shift-click it) to choose it, choose a few more, and tap
@@ -192,5 +195,5 @@ code only to a version that works with the current schema.
 Existing legacy recipes, account/household features, sharing and Lark routes remain.
 The optional Lark keys in `.env` are unnecessary for the kitchen Web workflow.
 
-Screenshots are taken from `/demo`; the tab icon comes from the header logo via
+Screenshots are taken from `/demo`; the tab icon comes from the Stu logo via
 `scripts/make-icons.py`.

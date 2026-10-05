@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import { CalendarBlank, Check, ArrowRight } from "@phosphor-icons/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -20,10 +19,10 @@ import { KnowledgePage } from "./knowledge";
 import { MealDrawer } from "./meal-drawer";
 import { PlanningPage } from "./plan";
 import { PrepPage } from "./prep";
-import { KitchenProfileMenu } from "./profile-menu";
+import { KitchenRail } from "./rail";
 import { ShoppingPrepPage } from "./shopping-prep";
 import { hasPlannedMeals, planningStep, readyDraft, rememberedPlan } from "./workflow";
-import { HomeBack, PageButton } from "./fridge-doors";
+import { PageButton } from "./page-button";
 import { RecipesPage, RecipeSource } from "./recipes";
 import { requestChatFocus, useChatRefs } from "./chat-refs";
 import { pendingWrites, slotKey, useSetupChoices, useChosenPlan } from "./slot-choices";
@@ -87,7 +86,6 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   const plan=options.find(p=>p.id===params.get("plan"))??defaultPlanFor(page,week);
   const setupChoices=useSetupChoices(week,demo);
   const view=useChosenPlan(plan,setupChoices.choices);
-  const points=useMemo(()=>state.plans.reduce((sum,p)=>sum+p.meals.filter(m=>m.status==="completed").length+p.prep.filter(t=>t.status==="completed").length,0)*10,[state.plans]);
   const [opened,setOpened]=useState<{id:string;edit?:boolean;replace?:boolean;fresh?:Meal}|null>(null),[dirty,setDirty]=useState(false),[recipeId,setRecipeId]=useState<string|null>(null),[message,setMessage]=useState(""),[aiBusy,setAiBusy]=useState(false),[undoId,setUndoId]=useState<string|null>(null);
   const chatRefs=useChatRefs(week,demo),[focusTick,setFocusTick]=useState(0);
   // Plan and Calendar show no page banner: what a card action did (or why it
@@ -429,20 +427,15 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   const shared={state,plan,send,notify,navigate,demo};
   const feedback=message&&<div className="kw-toast" role="status"><Check size={16}/><span>{message}</span>{restore?<button onClick={()=>{const {planId,meal}=restore;setRestore(null);void send("meal.save",{planId,meal});}}>Undo</button>:undoId&&<button onClick={()=>void send("change.undo",{auditId:undoId}).then(ok=>{if(ok)setUndoId(null);})}>Undo last change</button>}<button className="kw-icon" aria-label="Dismiss message" onClick={()=>setMessage("")}>×</button></div>;
   const calendar=<CalendarGrid onUnlock={meal=>void cardAction(meal,"meal.lock",{planId:plan?.id,mealId:meal.id,locked:false},"Weekly meal unlocked")} week={week} plan={view} state={state} referencedIds={page==="plan"?contexts:[]} selectedId={selected?.id??null} onSelect={select} onReplace={meal=>select(meal,true)} onReference={plan?.status==="confirmed"?undefined:meal=>reference(meal,page!=="plan")} onAdd={add} onStatus={(meal,status)=>void cardAction(meal,"meal.status",{planId:plan?.id,mealId:meal.id,status},status==="completed"?"Done ✓":"Skipped",status==="completed")} onLike={meal=>void cardAction(meal,"meal.like",{planId:plan?.id,mealId:meal.id,liked:!meal.liked})} onInclude={(meal,included)=>{if(plan?.status==="draft")setupChoices.setSlot(meal.day,meal.slot,included);else void cardAction(meal,"meal.include",{planId:plan?.id,mealId:meal.id,included});}} planning={page==="plan"} slotState={slotState} note={cardNote} onUndo={note=>void undoCard(note)} onDismissNote={()=>setCardNote(null)} board={boardOn?board.calendar:undefined}/>;
-  return <div ref={workspaceRef} className={`kw-workspace kw-page-${page} ${selected||recipe?"has-drawer":""}`}>
-    <header className="kw-navigation">
-      <a className="kw-brand" href={demo?"/demo":"/fridge"} onClick={event=>{if(dirty){event.preventDefault();notify("Save or discard your drawer edits before leaving this meal.");}}}><Image src="/assets/figma/stu-logo.png" alt="Stu baby logo" width={44} height={44}/><div><strong>Stu</strong><small>FAMILY TABLE</small></div></a>
-      <KitchenProfileMenu key={page} points={points} demo={demo} onNavigate={navigate} onPrefetch={next=>router.prefetch?.(href(next,{plan:plan?.id}))} onReset={()=>{if(dirty){notify("Save or discard your drawer edits before resetting.");return false;}kitchen.reset();setUndoId(null);notify("Demo reset to its original data.");return true;}}/>
-    </header><main className="kw-main" aria-label={titles[page]}>
+  return <div ref={workspaceRef} className={`kw-workspace kw-has-rail kw-page-${page} ${selected||recipe?"has-drawer":""}`}>
+    <KitchenRail page={page} state={state} thisWeek={defaultWeek} demo={demo} onOpen={target=>navigate(target,undefined,week,target==="plan"?"":undefined)} onHome={event=>{event.preventDefault();navigate("fridge");}} onNavigate={navigate} onPrefetch={next=>router.prefetch?.(href(next,{plan:plan?.id}))} onReset={()=>{if(dirty){notify("Save or discard your drawer edits before resetting.");return false;}kitchen.reset();setUndoId(null);notify("Demo reset to its original data.");return true;}}/>
+    <main className="kw-main" aria-label={titles[page]}>
     {demo&&<span className="kw-demo-ribbon">Interactive demo · simulated AI</span>}
-    {/* The fridge is home; every other page has the way back to it. */}
-    {/* Home is the fridge; the calendar sits between the plan and the shopping, so its way back is the plan. */}
-    {/* One row of ways between pages, back on the left and onward on the right.
-        Home is the fridge; the calendar sits between the plan and the shopping. */}
-    {page!=="fridge"&&<div className="kw-page-nav">
-      {page==="calendar"?<PageButton icon="📋" label="Plan" name="← Plan" onClick={()=>navigate("plan",undefined,week,"")}/>:<HomeBack onClick={()=>navigate("fridge")}/>}
-      {page==="calendar"&&<PageButton onward icon="🛒" label="Shopping & prep" name="Shopping & prep →" onClick={()=>plan?.status==="confirmed"?void goStep("shopping","prep"):navigate("prep")}/>}
-      {page==="plan"&&plan&&<PageButton onward icon="📅" label="Calendar" name="View calendar" onClick={()=>navigate("calendar")}/>}
+    {/* The rail is the way around; the week's own steps go between pages:
+        the calendar sits between the plan and the shopping. */}
+    {page==="calendar"&&<div className="kw-page-nav">
+      <PageButton icon="📋" label="Plan" name="← Plan" onClick={()=>navigate("plan",undefined,week,"")}/>
+      <PageButton onward icon="🛒" label="Shopping & prep" name="Shopping & prep →" onClick={()=>plan?.status==="confirmed"?void goStep("shopping","prep"):navigate("prep")}/>
     </div>}
 
     {!selected&&!recipe&&feedback&&(page!=="plan"&&page!=="calendar"||restore)&&<div className="kw-page-notice">{feedback}</div>}
@@ -458,8 +451,8 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
         :upcomingDraft&&<div className="kw-draft-banner">Next week’s plan is ready. <button onClick={()=>navigate("plan",undefined,upcomingDraft.weekStart,upcomingDraft.id)}>Review draft<ArrowRight size={14}/></button></div>}{!plan&&<div className="kw-empty-week"><CalendarBlank size={30}/><h2>A calmer week starts here</h2><p>Tell Stu what’s in your fridge and what your family likes.</p><button className="kw-button" onClick={()=>navigate("plan")}>Plan this week<ArrowRight size={16}/></button></div>}{calendar}</>}
       {(page!=="plan"&&(genTask.task?.status==="running"||chatTask.task?.status==="running"||readyGeneration||chatTask.task?.status==="done"&&chatTask.task.resolution==="open")||page==="plan"&&readyGeneration&&readyGeneration!==plan?.id)&&<div className="kw-panel kw-row" role="status"><span>{genTask.task?.status==="running"?"Stu is drafting your week in the background. Allow 2–7 minutes.":chatTask.task?.status==="running"?"Stu is continuing your conversation in the background.":"Stu’s result is ready to review."}</span><button className="kw-link" onClick={()=>navigate("plan",undefined,week,readyGeneration??conversationPlan?.id,"adjust")}>Open plan →</button></div>}
       {workflowError&&<p className="kw-inline-error" role="alert">{workflowError}</p>}
-      {page==="plan"&&<PlanningPage week={week} choices={setupChoices.choices} onSlot={setupChoices.setSlot} onGoal={toggleGoal} onSavePreferences={savePreferences} step={currentStep} onStep={next=>changeStep(next)} onApplyFix={async meal=>{if(plan)await kitchen.send("meal.save",{planId:plan.id,meal});}} key={plan?.id??week} state={state} plan={plan} selected={contexts} onSelect={setContexts} onGenerate={generate} generatingSince={generatingSince} generationError={generationError} onDismissGenerationError={()=>void dismissGeneration()} onPlanMyself={planMyself} turn={turn} onChat={chat} onApply={applyTurn} onKeep={keepTurn} confirmingSince={confirmingSince} fulfillmentError={fulfillmentError} onStopConfirm={demo?undefined:stopConfirm} onConfirm={confirm} onEdit={editConfirmed} focusTick={focusTick} shoppingContent={<ShoppingPrepPage {...shared} notice={feedback} focus={prepFocus} onFocus={focus=>changeStep("shopping",focus,false)}/>} onPrep={()=>void goStep("shopping","shopping")} onGuidance={()=>navigate("guidance")} onWeek={delta=>navigate("plan",undefined,shiftWeek(week,delta),"")} thisWeek={defaultWeek} demo={demo} busy={aiBusy||kitchen.busy}>{boardOn?<div className="kw-plan-board"><div className="kw-board-rail"><FridgeRail {...board.rail}/></div>{calendar}{board.ghost}</div>:calendar}</PlanningPage>}
-      {page==="prep"&&<PrepPage {...shared}/>}{page==="fridge"&&<FridgePage {...shared} onDoor={door=>navigate(door,undefined,week,door==="plan"?"":undefined)} onPrepDay={prepWeek=>navigate("prep",undefined,prepWeek,"")}/>}{page==="recipes"&&<RecipesPage {...shared} recipeId={demo?params.get("recipe"):routeRecipe??null} onOpenRecipe={openRecipe}/>}{page==="guidance"&&<GuidancePage {...shared}/>}{page==="knowledge"&&<KnowledgePage {...shared}/>}
+      {page==="plan"&&<PlanningPage week={week} choices={setupChoices.choices} onSlot={setupChoices.setSlot} onGoal={toggleGoal} onSavePreferences={savePreferences} step={currentStep} onStep={next=>changeStep(next)} onApplyFix={async meal=>{if(plan)await kitchen.send("meal.save",{planId:plan.id,meal});}} key={plan?.id??week} state={state} plan={plan} selected={contexts} onSelect={setContexts} onGenerate={generate} generatingSince={generatingSince} generationError={generationError} onDismissGenerationError={()=>void dismissGeneration()} onPlanMyself={planMyself} turn={turn} onChat={chat} onApply={applyTurn} onKeep={keepTurn} confirmingSince={confirmingSince} fulfillmentError={fulfillmentError} onStopConfirm={demo?undefined:stopConfirm} onConfirm={confirm} onEdit={editConfirmed} focusTick={focusTick} onward={plan&&<PageButton onward icon="📅" label="Calendar" name="View calendar" onClick={()=>navigate("calendar")}/>} shoppingContent={<ShoppingPrepPage {...shared} notice={feedback} focus={prepFocus} onFocus={focus=>changeStep("shopping",focus,false)}/>} onPrep={()=>void goStep("shopping","shopping")} onGuidance={()=>navigate("guidance")} onWeek={delta=>navigate("plan",undefined,shiftWeek(week,delta),"")} thisWeek={defaultWeek} demo={demo} busy={aiBusy||kitchen.busy}>{boardOn?<div className="kw-plan-board"><div className="kw-board-rail"><FridgeRail {...board.rail}/></div>{calendar}{board.ghost}</div>:calendar}</PlanningPage>}
+      {page==="prep"&&<PrepPage {...shared}/>}{page==="fridge"&&<FridgePage {...shared} onPrepDay={prepWeek=>navigate("prep",undefined,prepWeek,"")}/>}{page==="recipes"&&<RecipesPage {...shared} recipeId={demo?params.get("recipe"):routeRecipe??null} onOpenRecipe={openRecipe}/>}{page==="guidance"&&<GuidancePage {...shared}/>}{page==="knowledge"&&<KnowledgePage {...shared}/>}
     </>}
   </main>{recipe?<Drawer notice={feedback} title={recipe.name} subtitle="Recipe" onClose={()=>setRecipeId(null)} footer={<button className="kw-button secondary full" onClick={()=>setRecipeId(null)}>Back to meal</button>}><div className="kw-row"><span className="kw-pill">{recipe.servings} servings</span><span className="kw-pill">{recipe.type}</span></div><p className="kw-time">Active {recipe.activeMinutes} min · Elapsed {recipe.elapsedMinutes} min</p><section className="kw-detail-section"><h3>Ingredients</h3>{recipe.ingredients.map((i,n)=><div className="kw-stock-row" key={n}><span>{i.name}</span><span>{i.quantity} {i.unit}</span></div>)}</section><section className="kw-detail-section"><h3>Preparation</h3><ol className="kw-steps">{recipe.steps.map((s,i)=><li key={i}>{s}</li>)}</ol></section><RecipeSource source={recipe.source}/></Drawer>:selected&&<MealDrawer planning={page==="plan"} demo={demo} notice={feedback} key={`${selected.id}:${opened?.replace?"replace":"detail"}`} meal={selected} plan={plan??{id:"",weekStart:week,status:"draft",version:0,prompt:"",meals:[],prep:[],chat:[]}} state={state} initialEdit={opened?.edit} initialReplace={opened?.replace} onClose={close} onDirty={setDirty} onSave={saveMeal} onAction={send} onReference={plan?.status==="confirmed"?undefined:()=>reference(selected,true)} onRecipe={setRecipeId} busy={kitchen.busy}/>}
   </div>;

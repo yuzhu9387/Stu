@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/app-shell";
 import { KitchenWorkspace } from "@/features/kitchen/workspace";
@@ -13,12 +13,13 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/use-feature-data", () => ({ useFeatureData: () => ({ status: "ready", data: { members: [], lark_binding: { is_linked: false } } }) }));
 beforeEach(() => { navigation.pathname = "/knowledge"; });
 
-it("renders the knowledge route with the way home to the fridge and no legacy shell", async () => {
+it("renders the knowledge route with the kitchen rail and no legacy shell", async () => {
   render(<LocaleProvider initialLocale="en-US"><AppShell><KitchenWorkspace initialPage="knowledge" demo /></AppShell></LocaleProvider>);
   await screen.findByRole("heading", { name: "Your reference library" });
-  // The fridge is home: no top navigation, a way back instead.
-  expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "← 冰箱" })).toBeVisible();
+  // The rail at the left is the only navigation; the fridge is on it.
+  expect(screen.getAllByRole("navigation").map(nav => nav.getAttribute("aria-label"))).toEqual(["Kitchen"]);
+  expect(within(screen.getByRole("navigation", { name: "Kitchen" })).getByRole("button", { name: /^冰箱/ })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "← 冰箱" })).not.toBeInTheDocument();
   expect(screen.queryByText("Family Table")).not.toBeInTheDocument();
 });
 

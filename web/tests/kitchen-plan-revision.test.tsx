@@ -48,8 +48,7 @@ describe("while the week is being edited", () => {
     render(<KitchenWorkspace demo initialPage="plan" />);
     fireEvent.click(await screen.findByRole("button", { name: /Edit plan/ }));
     await waitFor(() => expect(JSON.parse(localStorage.getItem("stu-kitchen-demo-v1") ?? "{\"plans\":[]}").plans.some((p: { basePlanId?: string }) => p.basePlanId)).toBe(true));
-    fireEvent.click(await screen.findByRole("button", { name: "← 冰箱" }));
-    fireEvent.click(within(await screen.findByRole("navigation", { name: "Kitchen" })).getByRole("button", { name: /Calendar/ }));
+    fireEvent.click(within(await screen.findByRole("navigation", { name: "Kitchen" })).getByRole("button", { name: /^Calendar/ }));
     expect(await screen.findByRole("button", { name: "Mark Mon, Sep 21 lunch completed" })).toBeEnabled();
     expect(screen.queryByText(/Draft/i, { selector: ".kw-plan-stamp" })).not.toBeInTheDocument();
   });

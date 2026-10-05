@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import KitchenLayout from "@/app/(kitchen)/layout";
 import { createDemoState } from "@/features/kitchen/data";
@@ -46,7 +46,7 @@ it("keeps the workspace and task subscriptions across main routes without reload
   const workspace=view.container.querySelector<HTMLDivElement>(".kw-workspace")!;
   workspace.scrollIntoView=vi.fn();
   // Going home to the fridge is app navigation: the page scrolls to its top.
-  fireEvent.click(screen.getByRole("button",{name:"← 冰箱"}));
+  fireEvent.click(within(screen.getByRole("navigation",{name:"Kitchen"})).getByRole("button",{name:/^冰箱/}));
   expect(workspace.scrollIntoView).toHaveBeenCalledOnce();
   act(()=>{nav.path="/recipes";nav.listeners.forEach(listener=>listener());});
   // History keeps the browser's restored scroll position.

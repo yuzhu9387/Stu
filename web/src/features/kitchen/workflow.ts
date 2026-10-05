@@ -1,4 +1,4 @@
-import type { PlanningWorkflow, PlanStep, WeeklyPlan } from "./types";
+import type { KitchenState, PlanningWorkflow, PlanStep, WeeklyPlan } from "./types";
 
 /** A plan with at least one meal to eat; an empty draft is a plan not yet made. */
 export function hasPlannedMeals(plan: WeeklyPlan | null | undefined): boolean {
@@ -48,4 +48,10 @@ export function planningStep(plan: WeeklyPlan | null, requested: string | null, 
   if (saved?.planId === plan.id && allowed.includes(saved.step)) return saved.step;
   if (prepOnly(plan)) return "preferences";
   return plan.status === "confirmed" ? "confirmed" : "adjust";
+}
+
+/** Where a week's planning stands: confirmed, a draft, or nothing yet. */
+export function weekStatus(state: KitchenState, monday: string): "confirmed" | "draft" | "none" {
+  const plans = state.plans.filter(p => p.weekStart === monday);
+  return plans.some(p => p.status === "confirmed") ? "confirmed" : plans.length ? "draft" : "none";
 }

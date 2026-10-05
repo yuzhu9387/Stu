@@ -51,8 +51,8 @@ test("plan journey resumes and confirmation opens persistent shopping and prep p
   // The fridge is home: Plan opens from the round button beside it.
   await page.goto(`/fridge?week=${week}`);
   const doors = page.getByRole("navigation", { name: "Kitchen" });
-  await expect(doors.getByRole("button")).toHaveText([/Recipes/, /Calendar/, /Plan/]);
-  await doors.getByRole("button", { name: /Plan/ }).click();
+  await expect(doors.getByRole("button")).toHaveText([/^冰箱/, /^Plan/, /^Calendar/, /^Recipe Book/]);
+  await doors.getByRole("button", { name: /^Plan/ }).click();
   await expect(page.getByRole("region", { name: "Plan setup" })).toBeVisible();
   await page.getByRole("button", { name: "Go to step 2, adjust", exact: true }).click();
   await page.getByRole("button", { name: "Confirm plan", exact: true }).click();
@@ -221,21 +221,22 @@ test("nutrition documents import, persist, version, filter and delete through th
   expect(widths.content).toBeLessThanOrEqual(widths.viewport);
 });
 
-test("Figma navigation, recipe drawer and all page layouts work at desktop and phone widths", async ({ page }) => {
+test("Figma navigation, recipe drawer and all page layouts work at desktop and phone widths", async ({ page }, testInfo) => {
   for (const destination of ["calendar", "plan", "fridge", "recipes", "guidance", "prep", "knowledge"]) {
     await page.goto(`/demo?week=${week}&plan=plan-demo&page=${destination}`);
-    // Home is the fridge with its doors; every other page has the way back to it.
-    if (destination === "fridge") await expect(page.getByRole("navigation", { name: "Kitchen" })).toBeVisible();
-    else await expect(page.getByRole("button", { name: destination === "calendar" ? "← Plan" : "← 冰箱", exact: true })).toBeVisible();
+    // Every page has the kitchen rail (a bar along the bottom on a phone), with no header above.
+    await expect(page.getByRole("navigation", { name: "Kitchen" })).toBeVisible();
+    await expect(page.locator(".kw-navigation")).toHaveCount(0);
     await expect(page.getByText("Loading your kitchen…")).toHaveCount(0);
+    // The logo tops the rail; a phone's bottom bar has no room for it.
     const logo = page.getByRole("img", { name: "Stu baby logo", exact: true });
-    await expect(logo).toBeVisible();
-    await expect(logo).toHaveAttribute("src", /stu-logo/);
+    if (testInfo.project.name === "mobile") await expect(logo).toBeHidden();
+    else { await expect(logo).toBeVisible(); await expect(logo).toHaveAttribute("src", /stu-logo/); }
     const widths = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     expect(widths.content, `${destination} must not overflow the viewport`).toBeLessThanOrEqual(widths.viewport);
+    await page.screenshot({ path: `/tmp/stu-rail-${testInfo.project.name}-${destination}.png` });
   }
-  await page.getByRole("button", { name: "← 冰箱", exact: true }).click();
-  await page.getByRole("navigation", { name: "Kitchen" }).getByRole("button", { name: /Recipes/ }).click();
+  await page.getByRole("navigation", { name: "Kitchen" }).getByRole("button", { name: /^Recipe Book/ }).click();
   await page.getByRole("button", { name: "Open recipe 鸡肉丸", exact: true }).click();
   // A recipe has its own page (frame 36:1030), with editing on that page. In
   // the demo the page is addressed by query (?page=recipes&recipe=…).

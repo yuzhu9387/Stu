@@ -13,6 +13,7 @@ import { prepSchedule } from "./schedule";
 import { slotKey, useChosenPlan, type SetupChoices } from "./slot-choices";
 import type { ChatProposal, KitchenState, Meal, WeeklyPlan } from "./types";
 import { notEaten } from "./types";
+import { weekStatus } from "./workflow";
 
 /** Frame 47:9's prompt shortcuts. They only fill the prompt the generator
  * already reads — nothing hidden is sent. */
@@ -93,16 +94,12 @@ interface Props {
   /** The Monday of the week we are in now; planning mostly looks at it and the next. */
   thisWeek?: string;
   shoppingContent?: ReactNode;
+  /** The step on to the calendar, at the end of the heading row. */
+  onward?: ReactNode;
   children: ReactNode; demo: boolean; busy: boolean;
 }
 
-/** Where a week's planning stands: confirmed, a draft, or nothing yet. */
-function weekStatus(state: KitchenState, monday: string) {
-  const plans = state.plans.filter(p => p.weekStart === monday);
-  return plans.some(p => p.status === "confirmed") ? "confirmed" : plans.length ? "draft" : "none";
-}
-
-export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot, onGoal, onSavePreferences, onGenerate, confirmingSince = null, fulfillmentError = null, onStopConfirm, generatingSince = null, generationError = null, onDismissGenerationError, onPlanMyself, onApplyFix, selected, onSelect, turn = null, onChat, onApply, onKeep, onConfirm, onEdit, focusTick, onPrep, onGuidance, onWeek, thisWeek = mondayOf(), shoppingContent, children, demo, busy }: Props) {
+export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot, onGoal, onSavePreferences, onGenerate, confirmingSince = null, fulfillmentError = null, onStopConfirm, generatingSince = null, generationError = null, onDismissGenerationError, onPlanMyself, onApplyFix, selected, onSelect, turn = null, onChat, onApply, onKeep, onConfirm, onEdit, focusTick, onPrep, onGuidance, onWeek, thisWeek = mondayOf(), shoppingContent, onward, children, demo, busy }: Props) {
   const confirmationElapsed = useElapsed(confirmingSince);
   const [confirmPosting,setConfirmPosting] = useState(false);
   const [stopping,setStopping] = useState(false);
@@ -239,6 +236,7 @@ export function PlanningPage({ week, state, plan, choices, step, onStep, onSlot,
           <strong>{label}</strong><small>{weekLabel(monday).replace(/, \d{4}/g, "")}</small><span className={`kw-week-status ${status}`}>{status === "confirmed" ? "Confirmed" : status === "draft" ? "Draft" : "Not planned"}</span>
         </button>;
       })}</div>
+      {onward}
     </header>
     <StepRail stage={stage} hasDraft={plan?.status === "draft"} editing={editing} busy={busy || waiting || confirmPosting || confirmingSince !== null} blocked={false} stamping={stamping} onStep={goToStep} onConfirm={() => void confirm()} onEdit={() => void edit()} />
     {generating && stage !== "setup" && <div className="kw-panel" role="status">Stu is drafting your week… {clock(elapsed)}</div>}

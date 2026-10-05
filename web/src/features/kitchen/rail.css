@@ -1,0 +1,99 @@
+/* The kitchen's way around, down the left of every page: no header above. */
+div.kw-workspace.kw-has-rail{display:grid;grid-template-columns:240px minmax(0,1fr);align-items:start}
+div.kw-workspace.kw-has-rail .kw-main{padding:20px 32px 40px;min-height:100dvh;min-width:0;max-width:none}
+.kw-has-rail .kw-demo-ribbon{left:auto;right:12px}
+/* Settings' white header and the prep day's progress bar run edge to edge of
+   the page, whatever its padding. */
+div.kw-workspace.kw-has-rail .kw-settings-page>.kw-page-header{margin:-20px -32px 24px;padding:16px 32px}
+div.kw-workspace.kw-has-rail .kw-prep-progress{margin:32px -32px 0;padding:14px 32px}
+
+.kw-rail{position:sticky;top:0;z-index:6;height:100dvh;display:flex;flex-direction:column;gap:16px;padding:18px 16px 16px;background:#fff;border-right:4px solid #35251f;overflow-y:auto}
+.kw-rail-brand{display:flex;align-items:center;gap:10px;padding:0 4px;color:#35251f;text-decoration:none}
+.kw-rail-brand img{width:40px;height:40px;object-fit:contain;border:2px solid #c74732;border-radius:50%;background:#fff8ef;box-shadow:0 3px 0 #35251f}
+.kw-rail-brand strong{font-size:26px;font-weight:900;line-height:1}
+.kw-rail-nav{flex:1;display:flex;flex-direction:column;gap:18px;min-height:0}
+
+/* Each way is a big coloured key, raised until pressed. */
+.kw-rail-way{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:84px;padding:12px 14px;border:3px solid #35251f;border-radius:18px;background:#fff8ef;color:#35251f;font:inherit;text-align:left;cursor:pointer;box-shadow:0 5px 0 #35251f;transition:transform .14s ease,box-shadow .14s ease}
+.kw-rail-way:hover{transform:translateY(-3px);box-shadow:0 8px 0 #35251f}
+.kw-rail-way:active{transform:translateY(3px);box-shadow:0 2px 0 #35251f}
+.kw-rail-way:focus-visible{outline:3px solid #c9492f;outline-offset:3px}
+.kw-rail-way.is-fridge{background:#d9eff7}
+.kw-rail-way.is-plan{background:#e3edd3}
+.kw-rail-way.is-calendar{background:#f4af14}
+/* The Recipe Book sits at the bottom, above the profile: a red book with a spine. */
+.kw-rail-way.is-recipes{margin-top:auto;background:#c9492f;color:#fff8ef;border-left-width:9px;border-radius:6px 16px 16px 6px}
+/* Where you are: pressed in, with a marker on the rail's edge. */
+.kw-rail-way[aria-current=page]{transform:translateY(3px);box-shadow:0 2px 0 #35251f}
+.kw-rail-way[aria-current=page]::after{content:"";position:absolute;right:-27px;top:50%;width:14px;height:14px;background:#35251f;transform:translateY(-50%) rotate(45deg)}
+
+.kw-rail-icon{flex:none;display:grid;place-items:center;width:48px;height:48px;border:2px solid #35251f;border-radius:14px;background:#fff;font-size:27px;line-height:1}
+.kw-rail-icon::before{content:attr(data-icon)}
+.kw-rail-fridge{width:23px;height:32px;color:#35251f}
+.kw-rail-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.kw-rail-text strong{font-size:20px;font-weight:900;line-height:1.15;white-space:nowrap}
+.kw-rail-text small{font-size:13px;font-weight:800;line-height:1.25;opacity:.78}
+
+/* A small book: on hover its cover opens and the pages turn, one after another. */
+.kw-rail-book{flex:none;position:relative;width:42px;height:50px;perspective:320px;transform-style:preserve-3d}
+.kw-rail-book i{position:absolute;transform-origin:left center}
+.kw-rail-book .kw-book-back{left:4%;top:4%;width:90%;height:92%;border:2px solid #35251f;border-radius:2px 6px 6px 2px;background:#7a2416}
+.kw-rail-book .kw-book-page{left:10%;top:9%;width:80%;height:82%;border:1px solid #d9cbbb;border-radius:1px 4px 4px 1px;background:#fff8ef repeating-linear-gradient(#fff8ef 0 5px,#e6d8c6 5px 6px)}
+.kw-rail-book .kw-book-cover{left:4%;top:4%;width:90%;height:92%;border:2px solid #35251f;border-radius:2px 6px 6px 2px;background:#f4af14;transition:transform .45s cubic-bezier(.3,.7,.3,1)}
+.kw-rail-book .kw-book-cover::after{content:"";position:absolute;left:22%;right:18%;top:28%;height:20%;border-radius:2px;background:#fff8ef}
+.kw-rail-way.is-recipes:hover .kw-book-cover,.kw-rail-way.is-recipes:focus-visible .kw-book-cover{transform:rotateY(-165deg)}
+.kw-rail-way.is-recipes:hover .kw-book-page,.kw-rail-way.is-recipes:focus-visible .kw-book-page{animation:kw-page-turn 1.2s ease-in-out infinite}
+.kw-rail-way.is-recipes:hover .kw-book-page:nth-of-type(2),.kw-rail-way.is-recipes:focus-visible .kw-book-page:nth-of-type(2){animation-delay:.25s}
+.kw-rail-way.is-recipes:hover .kw-book-page:nth-of-type(3),.kw-rail-way.is-recipes:focus-visible .kw-book-page:nth-of-type(3){animation-delay:.65s}
+.kw-rail-way.is-recipes:hover .kw-book-page:nth-of-type(4),.kw-rail-way.is-recipes:focus-visible .kw-book-page:nth-of-type(4){animation-delay:1.05s}
+@keyframes kw-page-turn{0%{transform:rotateY(0);opacity:1}45%{transform:rotateY(-170deg);opacity:1}50%,100%{transform:rotateY(-170deg);opacity:0}}
+
+/* The profile, bottom left; its menu opens upward. */
+.kw-rail .kw-user-menu{padding-top:14px;border-top:2px dashed #d9cbbb}
+.kw-rail .kw-profile-menu{top:auto;right:auto;bottom:58px;left:0}
+
+@media(prefers-reduced-motion:reduce){
+  .kw-rail-way,.kw-rail-book .kw-book-cover{transition:none}
+  .kw-rail-way.is-recipes:hover .kw-book-page,.kw-rail-way.is-recipes:focus-visible .kw-book-page{animation:none}
+}
+
+/* Narrower: the keys stand up, picture above name. */
+@media(max-width:1100px){
+  div.kw-workspace.kw-has-rail{grid-template-columns:108px minmax(0,1fr)}
+  div.kw-workspace.kw-has-rail .kw-main{padding:18px 24px 32px}
+  div.kw-workspace.kw-has-rail .kw-settings-page>.kw-page-header{margin:-18px -24px 20px;padding:14px 24px}
+  div.kw-workspace.kw-has-rail .kw-prep-progress{margin:24px -24px 0;padding:14px 24px}
+  .kw-rail{padding:14px 10px;gap:14px}
+  .kw-rail-brand{justify-content:center}
+  .kw-rail-brand strong,.kw-rail-text small{display:none}
+  .kw-rail-way{flex-direction:column;gap:6px;min-height:0;padding:10px 4px;text-align:center}
+  .kw-rail-text strong{font-size:13px}
+  .kw-rail-way[aria-current=page]::after{right:-21px}
+  .kw-rail .kw-user-menu{justify-content:center}
+}
+
+/* A phone: the rail is a bar along the bottom, the profile at its left. */
+@media(max-width:760px){
+  div.kw-workspace.kw-has-rail{display:block}
+  div.kw-workspace.kw-has-rail .kw-main{padding:12px 12px calc(100px + env(safe-area-inset-bottom))}
+  div.kw-workspace.kw-has-rail .kw-settings-page>.kw-page-header{margin:-12px -12px 16px;padding:12px}
+  div.kw-workspace.kw-has-rail .kw-prep-progress{margin:16px -12px 0;padding:12px}
+  .kw-rail{position:fixed;top:auto;right:0;bottom:0;left:0;z-index:9;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 8px calc(10px + env(safe-area-inset-bottom));border-right:0;border-top:4px solid #35251f;overflow:visible}
+  .kw-rail-brand{display:none}
+  .kw-rail-nav{flex-direction:row;gap:6px}
+  .kw-rail-way{flex:1;gap:3px;padding:6px 2px;border-width:2px;border-radius:12px;box-shadow:0 3px 0 #35251f}
+  .kw-rail-way:hover{box-shadow:0 5px 0 #35251f}
+  .kw-rail-way[aria-current=page]{box-shadow:0 1px 0 #35251f}
+  .kw-rail-way[aria-current=page]::after{display:none}
+  .kw-rail-way.is-recipes{margin-top:0;border-left-width:5px}
+  .kw-rail-icon{width:30px;height:30px;border-radius:9px;font-size:17px}
+  .kw-rail-fridge{width:15px;height:21px}
+  .kw-rail-book{width:28px;height:32px}
+  .kw-rail-text strong{font-size:11px;white-space:nowrap}
+  .kw-rail .kw-user-menu{order:-1;padding:0;border:0}
+  .kw-rail .kw-avatar{width:40px;height:40px}
+  .kw-rail .kw-profile-menu{bottom:56px}
+  .kw-has-rail .kw-demo-ribbon{bottom:calc(86px + env(safe-area-inset-bottom))}
+  .kw-has-rail .kw-toast,.kw-has-rail .kw-choice-bar{bottom:calc(92px + env(safe-area-inset-bottom))}
+  .kw-has-rail .kw-board-rail{top:8px}
+}

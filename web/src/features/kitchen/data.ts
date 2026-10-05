@@ -5,6 +5,8 @@ export const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
 export const uid = () => crypto.randomUUID();
 export function weekDays(week: string) { return Array.from({ length: 7 }, (_, i) => { const d = new Date(`${week}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + i); return d.toISOString().slice(0, 10); }); }
 export function mondayOf(date = new Date()) { const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
+/** Today on this device, as the calendar names days (YYYY-MM-DD). */
+export function todayIso(date = new Date()) { return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString().slice(0, 10); }
 export function shiftWeek(week: string, offset: number) { const d = new Date(`${week}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + offset * 7); return d.toISOString().slice(0, 10); }
 const shortDateFormat = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 const longDateFormat = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" });

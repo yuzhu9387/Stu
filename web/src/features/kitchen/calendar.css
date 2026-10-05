@@ -83,5 +83,9 @@
   .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span:first-child{display:none}
   .kw-workspace .kw-calendar-reference .kw-meal-card .kw-card-slot{padding-right:0}
   .kw-workspace .kw-calendar-reference .kw-meal-card .kw-meal-meta>span+span{max-width:calc(100% - 20px)}
+  /* With Done / Skip / Liked or the weekly lock on the bottom row there is no
+     room for the source as well: it gives way (still read out, and shown in
+     the meal's drawer) so it never covers them. */
+  .kw-workspace .kw-calendar-reference .kw-meal-card:has(.kw-card-tools button) .kw-meal-meta>span+span{width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;padding:0;border:0}
 }
 .kw-workspace .kw-calendar-reference .kw-meal-card:not(:has(.kw-meal-quick-actions button)) .kw-meal-meta>span+span{max-width:calc(100% - 20px)}

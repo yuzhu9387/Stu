@@ -48,17 +48,19 @@ div.kw-workspace.kw-has-rail .kw-prep-progress{margin:32px -32px 0;padding:14px 
 .kw-rail-way.is-recipes:hover .kw-book-page:nth-of-type(4),.kw-rail-way.is-recipes:focus-visible .kw-book-page:nth-of-type(4){animation-delay:1.05s}
 @keyframes kw-page-turn{0%{transform:rotateY(0);opacity:1}45%{transform:rotateY(-170deg);opacity:1}50%,100%{transform:rotateY(-170deg);opacity:0}}
 
-/* The profile, bottom left; its menu opens upward. */
+/* The profile, bottom left; its menu opens upward, above the page (the rail
+   scrolls, and would cut a menu wider than itself). */
 .kw-rail .kw-user-menu{padding-top:14px;border-top:2px dashed #d9cbbb}
-.kw-rail .kw-profile-menu{top:auto;right:auto;bottom:58px;left:0}
+.kw-rail .kw-profile-menu{position:fixed;z-index:30;top:auto;right:auto;bottom:76px;left:16px}
 
 @media(prefers-reduced-motion:reduce){
   .kw-rail-way,.kw-rail-book .kw-book-cover{transition:none}
   .kw-rail-way.is-recipes:hover .kw-book-page,.kw-rail-way.is-recipes:focus-visible .kw-book-page{animation:none}
 }
 
-/* Narrower: the keys stand up, picture above name. */
-@media(max-width:1100px){
+/* Up to a laptop's width the keys stand up, picture above name, so the
+   calendar's seven days fit beside the rail. */
+@media(max-width:1440px){
   div.kw-workspace.kw-has-rail{grid-template-columns:108px minmax(0,1fr)}
   div.kw-workspace.kw-has-rail .kw-main{padding:18px 24px 32px}
   div.kw-workspace.kw-has-rail .kw-settings-page>.kw-page-header{margin:-18px -24px 20px;padding:14px 24px}
@@ -92,7 +94,7 @@ div.kw-workspace.kw-has-rail .kw-prep-progress{margin:32px -32px 0;padding:14px 
   .kw-rail-text strong{font-size:11px;white-space:nowrap}
   .kw-rail .kw-user-menu{order:-1;padding:0;border:0}
   .kw-rail .kw-avatar{width:40px;height:40px}
-  .kw-rail .kw-profile-menu{bottom:56px}
+  .kw-rail .kw-profile-menu{bottom:calc(84px + env(safe-area-inset-bottom));left:8px}
   .kw-has-rail .kw-demo-ribbon{bottom:calc(86px + env(safe-area-inset-bottom))}
   .kw-has-rail .kw-toast,.kw-has-rail .kw-choice-bar{bottom:calc(92px + env(safe-area-inset-bottom))}
   .kw-has-rail .kw-board-rail{top:8px}

@@ -230,14 +230,16 @@ export function KitchenWorkspace({initialPage="calendar",demo=false,recipeId:rou
   }
   async function generate(prompt:string):Promise<string|null>{
     if(dirty||aiBusy||generatingSince!==null)return null;
+    // Slots left out in step 1 are not planned: Stu cooks nothing for them.
+    const days=weekDays(week),skip=Object.entries(setupChoices.choices.slots).filter(([key,on])=>on===false&&days.includes(key.split("|")[0])).map(([key])=>key).sort((a,b)=>a.localeCompare(b));
     if(!demo){
       // Drafting takes minutes; it runs on the server and this page follows it.
-      try{const started=await api<{task:AiTask}>("/api/v1/kitchen/ai-tasks/generate",{method:"POST",body:JSON.stringify({weekStart:week,prompt,expectedRevision:state.revision,operationId:uid()})});generationOrigins.current.set(started.task.id,{planId:selectedPlanId,step:selectedStep});genTask.set(started.task);return null;}
+      try{const started=await api<{task:AiTask}>("/api/v1/kitchen/ai-tasks/generate",{method:"POST",body:JSON.stringify({weekStart:week,prompt,skip,expectedRevision:state.revision,operationId:uid()})});generationOrigins.current.set(started.task.id,{planId:selectedPlanId,step:selectedStep});genTask.set(started.task);return null;}
       catch(e){if(e instanceof ApiError&&e.status===409)void kitchen.reload();return e instanceof Error?e.message:"Generation failed. Your saved plan is unchanged.";}
     }
     setAiBusy(true);setDemoSince(startedNow());
     try{
-      {const template=clone(createDemoState().plans[0]);template.id=uid();template.weekStart=week;template.status="draft";template.prompt=prompt;template.chat=[];template.meals=template.meals.map((m,i)=>({...m,day:weekDays(week)[Math.floor(i/3)]}));const confirmed=options.find(p=>p.status==="confirmed");if(confirmed){template.basePlanId=confirmed.id;template.baseVersion=confirmed.version;template.meals=template.meals.map(m=>{const old=confirmed.meals.find(x=>x.id===m.id);return old&&(old.locked||old.status!=="planned")?clone(old):m;});template.prep=clone(confirmed.prep);}const ok=await send("plan.save",{plan:template});if(!ok)return "Unable to create the demo draft.";navigate("plan",undefined,week,null,"adjust");return null;}
+      {const template=clone(createDemoState().plans[0]);template.id=uid();template.weekStart=week;template.status="draft";template.prompt=prompt;template.chat=[];template.meals=template.meals.map((m,i)=>({...m,day:weekDays(week)[Math.floor(i/3)]})).map(m=>skip.includes(slotKey(m.day,m.slot))?{...m,included:false,components:m.components.map(c=>{const kept={...c};delete kept.prepId;delete kept.inventoryId;delete kept.uses;return kept;})}:m);const confirmed=options.find(p=>p.status==="confirmed");if(confirmed){template.basePlanId=confirmed.id;template.baseVersion=confirmed.version;template.meals=template.meals.map(m=>{const old=confirmed.meals.find(x=>x.id===m.id);return old&&(old.locked||old.status!=="planned")?clone(old):m;});template.prep=clone(confirmed.prep);}const ok=await send("plan.save",{plan:template});if(!ok)return "Unable to create the demo draft.";navigate("plan",undefined,week,null,"adjust");return null;}
     }catch(e){return e instanceof Error?e.message:"Generation failed. Your saved plan is unchanged.";}finally{setAiBusy(false);setDemoSince(null);}
   }
   async function dismissGeneration(){

@@ -9,7 +9,7 @@ import typing
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from datetime import date, timedelta
-from typing import Any, Protocol, Self
+from typing import Annotated, Any, Protocol, Self
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -21,6 +21,7 @@ from recipe_agent.domain.kitchen.compact_generation import (
     GeneratedRecipe,
     compile_generation,
     drop_unused_recipes,
+    leave_out,
 )
 from recipe_agent.domain.kitchen.contracts import NOT_EATEN
 from recipe_agent.domain.kitchen.contracts import FoodType as FoodTypeName
@@ -44,6 +45,10 @@ class Input(BaseModel):
 class GenerateRequest(Input):
     weekStart: str
     prompt: str = Field(default="", max_length=12000)
+    # Slots left out in step 1 ("YYYY-MM-DD|lunch"): not cooked at home.
+    skip: list[Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}\|(breakfast|lunch|dinner)$")]] = (
+        Field(default_factory=list, max_length=21)
+    )
     expectedRevision: int = Field(ge=0)
     operationId: str = Field(min_length=1, max_length=160)
 
@@ -557,7 +562,8 @@ def projected_inventory(state: dict[str, Any], target_week: str) -> list[dict[st
                 if ingredient["inventoryId"] in rows:
                     rows[ingredient["inventoryId"]]["reservedPortions"] += ingredient["portions"]
         for meal in plan["meals"]:
-            if meal["status"] != "planned":
+            # A slot left out is not cooked: it holds nothing in the fridge.
+            if meal["status"] != "planned" or not meal.get("included", True):
                 continue
             for component in meal["components"]:
                 identifier = component.get("inventoryId")
@@ -1029,6 +1035,7 @@ class KitchenAI:
                         "recipeRotation": preferences["recipeRotation"],
                         "planningBudget": planning_time_budget(state),
                         "preparedStock": prepared_stock(state),
+                        **({"skippedSlots": request.skip} if request.skip else {}),
                         **(extra or {}),
                     },
                     ensure_ascii=False,
@@ -1091,6 +1098,12 @@ class KitchenAI:
             "Never reuse a previous week's consumed inventory or prep batch IDs. "
         )
         messages[0]["content"] += planning_system_context(state, request.weekStart)
+        if request.skip:
+            messages[0]["content"] += (
+                " Slots in skippedSlots (day|slot) are not eaten at home this week: give each "
+                "the simplest template; they are left out and nothing is cooked or prepped "
+                "for them, so do not size prep or use fridge food for them. "
+            )
         for attempt in range(2):
             raw = prune_extras(
                 response_model,
@@ -1099,8 +1112,13 @@ class KitchenAI:
             if compact:
                 raw = drop_unused_recipes(raw)
             try:
-                expanded = compile_generation(state, raw, request.weekStart) if compact else raw
+                expanded = (
+                    compile_generation(state, raw, request.weekStart, skip=set(request.skip))
+                    if compact
+                    else raw
+                )
                 plan, new = self._validated_generation(state, request, plan_id, expanded, policy)
+                leave_out(plan, set(request.skip))
                 break
             except ValueError as exc:
                 if attempt == 1:

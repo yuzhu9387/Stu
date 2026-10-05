@@ -409,7 +409,11 @@ def remove_inventory(state: dict[str, Any], item: dict[str, Any]) -> list[str]:
         tasks = {task["id"]: task for task in plan["prep"]}
         week_over = date.fromisoformat(plan["weekStart"]) + timedelta(days=7) <= today
         for meal in plan["meals"]:
-            if meal["status"] != "planned" or date.fromisoformat(meal["day"]) < today:
+            if (
+                meal["status"] != "planned"
+                or not meal.get("included", True)
+                or date.fromisoformat(meal["day"]) < today
+            ):
                 continue
             for component in meal["components"]:
                 task = tasks.get(component.get("prepId") or "")

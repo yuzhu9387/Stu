@@ -1,5 +1,6 @@
 """The compact AI wire format expands into a fully validated durable weekly draft."""
 
+import json
 from itertools import pairwise
 
 import pytest
@@ -355,3 +356,25 @@ def test_a_placeholder_recipe_nothing_uses_is_left_out():
     placeholder = {**output["recipes"][0], "id": "r", "name": "占位", "incomplete": True}
     output["recipes"].append(placeholder)
     assert [r["id"] for r in drop_unused_recipes(output)["recipes"]] == ["oats", "eggs"]
+
+
+async def test_slots_left_out_in_step_one_are_excluded_and_cook_nothing():
+    repo = MemoryRepository(initial_state())
+    provider = FakeProvider(compact_menu())
+    skip = ["2026-09-21|lunch", "2026-09-27|dinner"]
+    result = await KitchenAI(repo, None, provider).generate(
+        "household",
+        GenerateRequest(weekStart="2026-09-21", expectedRevision=0, operationId="skip", skip=skip),
+    )
+    saved = result["state"]["plans"][0]
+    by_slot = {f"{m['day']}|{m['slot']}": m for m in saved["meals"]}
+    for key in skip:
+        meal = by_slot[key]
+        assert meal["included"] is False
+        # Nothing is cooked or taken from the fridge for a slot left out.
+        assert all(not c.get("prepId") and not c.get("inventoryId") for c in meal["components"])
+    assert all(m.get("included", True) for k, m in by_slot.items() if k not in skip)
+    # Prep is sized for the 19 meals eaten at home: 3 portions each.
+    assert sum(p["plannedPortions"] for p in saved["prep"]) == 57
+    # Stu is told which slots to leave out.
+    assert skip == json.loads(provider.requests[0][0][-1]["content"])["skippedSlots"]

@@ -226,6 +226,12 @@ def test_a_food_a_coming_meal_uses_is_still_taken_out_and_the_meal_lets_go():
     )
 
 
+def test_a_meal_left_out_is_not_named_when_its_food_is_taken_out():
+    current = this_week(fixture_state())
+    current["plans"][0]["meals"][0]["included"] = False
+    assert take_out(current, "carbs")["message"] == "Removed from the fridge"
+
+
 def test_a_food_prep_still_to_cook_needs_is_still_taken_out():
     state = fixture_state()
     state["plans"][0]["prep"][0]["inputs"] = [{"inventoryId": "veg", "portions": 1}]

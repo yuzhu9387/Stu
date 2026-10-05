@@ -232,6 +232,18 @@ def test_planning_stock_projection_separates_on_hand_and_reserved_portions():
     assert quantities["veg"]["projectedPortions"] == 1
 
 
+def test_a_slot_left_out_reserves_nothing_in_the_fridge():
+    from recipe_agent.domain.kitchen.ai import projected_inventory
+
+    state = fixture_state()
+    for meal in state["plans"][0]["meals"]:
+        meal["included"] = False
+    quantities = {item["inventoryId"]: item for item in projected_inventory(state, "2026-09-21")}
+    assert quantities["carbs"]["reservedPortions"] == 0
+    assert quantities["carbs"]["projectedPortions"] == 6
+    assert quantities["veg"]["projectedPortions"] == 4
+
+
 async def test_chat_replacement_reconciles_orphan_prep_in_preview():
     from recipe_agent.domain.kitchen.ai import ChatRequest, KitchenAI
     from tests.unit.kitchen.test_ai_scheduling_mcp import FakeProvider

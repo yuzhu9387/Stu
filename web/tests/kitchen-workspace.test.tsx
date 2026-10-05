@@ -374,3 +374,19 @@ describe("while Stu prepares a confirmed week's lists", () => {
     expect(screen.queryByText(/Stu is preparing/)).not.toBeInTheDocument();
   });
 });
+
+it("asks Stu for the week without the slots left out in step 1", async () => {
+  const state=createDemoState();nav.query="week=2026-09-28&step=preferences";
+  mockedApi.mockImplementation(async(path,options)=>{
+    if(path.endsWith("/ai-tasks/generate"))return {task:{id:"g",kind:"generate",status:"running",resolution:"open",weekStart:"2026-09-28",result:null,error:null,createdAt:new Date().toISOString(),now:new Date().toISOString()}} as never;
+    if(path.includes("/ai-tasks/")||path.includes("generation-jobs"))return {task:null,jobs:[]} as never;
+    void options;return structuredClone(state) as never;
+  });
+  render(<KitchenWorkspace initialPage="plan"/>);
+  fireEvent.click(await screen.findByLabelText("Plan Mon lunch"));
+  fireEvent.click(screen.getByLabelText("Plan Sun dinner"));
+  fireEvent.click(screen.getByRole("button",{name:"Generate week"}));
+  await waitFor(()=>expect(mockedApi.mock.calls.some(([path])=>path.endsWith("/ai-tasks/generate"))).toBe(true));
+  const [,options]=mockedApi.mock.calls.find(([path])=>path.endsWith("/ai-tasks/generate"))!;
+  expect(JSON.parse(String(options?.body)).skip).toEqual(["2026-09-28|lunch","2026-10-04|dinner"]);
+});

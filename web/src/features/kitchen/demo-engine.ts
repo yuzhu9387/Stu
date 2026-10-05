@@ -61,7 +61,7 @@ export function applyDemoCommand(original: KitchenState, command: KitchenCommand
       const affected:string[]=[];
       for(const plan of state.plans){
         const over=new Date(`${plan.weekStart}T12:00:00Z`).getTime()+7*86_400_000<=new Date(`${today}T12:00:00Z`).getTime();
-        plan.meals.filter(m=>m.status==="planned"&&m.day>=today&&m.components.some(c=>c.inventoryId===item.id||c.uses?.some(u=>u.inventoryId===item.id)||plan.prep.some(t=>t.id===c.prepId&&t.status==="completed"&&t.outputInventoryId===item.id)))
+        plan.meals.filter(m=>m.status==="planned"&&m.included!==false&&m.day>=today&&m.components.some(c=>c.inventoryId===item.id||c.uses?.some(u=>u.inventoryId===item.id)||plan.prep.some(t=>t.id===c.prepId&&t.status==="completed"&&t.outputInventoryId===item.id)))
           .forEach(meal=>affected.push(`${new Date(`${meal.day}T12:00:00Z`).toLocaleDateString("en-US",{weekday:"short",timeZone:"UTC"})} ${meal.slot}`));
         if(!over)plan.prep.filter(t=>t.status==="planned"&&t.inputs.some(i=>i.inventoryId===item.id)).forEach(task=>affected.push(`${task.name} prep`));
       }

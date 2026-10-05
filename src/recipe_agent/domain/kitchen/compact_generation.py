@@ -90,14 +90,28 @@ def batch_steps(recipe: dict[str, Any], batches: int, planned: float) -> list[st
     ]
 
 
+def leave_out(plan: dict[str, Any], skip: set[str]) -> None:
+    """Slots left out in step 1 ("YYYY-MM-DD|slot") are excluded: their meal
+    keeps a dish (so the slot can be added back) but nothing is cooked, prepped
+    or taken from the fridge for it."""
+    for meal in plan["meals"]:
+        if f"{meal['day']}|{meal['slot']}" in skip:
+            meal["included"] = False
+            for component in meal["components"]:
+                for key in ("prepId", "inventoryId", "uses"):
+                    component.pop(key, None)
+
+
 def compile_generation(
-    state: dict[str, Any], raw: dict[str, Any], week_start: str
+    state: dict[str, Any], raw: dict[str, Any], week_start: str, *, skip: set[str] | None = None
 ) -> dict[str, Any]:
     """Expand references and sum demand; preserve recipe yield, steps and time verbatim.
 
     A repeated prep recipe creates one batch task. Its conservative batch count
     uses the same recipe serving/time math as the existing plan validator.
+    Slots in `skip` are left out: they count toward no prep (see `leave_out`).
     """
+    skip = skip or set()
     output = CompactGeneration.model_validate(raw).model_dump(mode="json", exclude_none=True)
     identifiers = [template["id"] for template in output["mealTemplates"]]
     if len(set(identifiers)) != len(identifiers):
@@ -108,9 +122,11 @@ def compile_generation(
     prep_demand: dict[str, Decimal] = {}
     prep_ids: dict[str, str] = {}
     meals = []
+    left_out: set[str] = set()
     monday = date.fromisoformat(week_start)
     for offset, assignment in enumerate(output["days"]):
         for slot in ("breakfast", "lunch", "dinner"):
+            skipped = f"{(monday + timedelta(days=offset)).isoformat()}|{slot}" in skip
             template_id = assignment[slot]
             if template_id not in templates:
                 raise ValueError(f"Unknown meal template: {template_id}")
@@ -135,6 +151,8 @@ def compile_generation(
                         raise ValueError(f"Unknown recipe: {recipe_id}")
                 elif record is None:
                     raise ValueError(f"Unknown recipe: {recipe_id}")
+                elif source["source"] == "prep" and skipped:
+                    left_out.add(recipe_id)
                 elif source["source"] == "prep":
                     prep_id = prep_ids.setdefault(recipe_id, f"batch-{len(prep_ids)}")
                     component["prepId"] = prep_id
@@ -159,8 +177,13 @@ def compile_generation(
                     "locked": False,
                 }
             )
+            if skipped:
+                leave_out({"meals": meals[-1:]}, skip)
     prep_inputs: dict[str, list[dict[str, Any]]] = {}
     for allocation in output["prepInputs"]:
+        # A batch only left-out slots wanted is not cooked, nor its fridge food used.
+        if allocation["recipeId"] not in prep_demand and allocation["recipeId"] in left_out:
+            continue
         if allocation["recipeId"] not in prep_demand:
             raise ValueError(f"Unknown prep recipe: {allocation['recipeId']}")
         if allocation["inventoryId"] not in inventory:
